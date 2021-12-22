@@ -1,0 +1,72 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: getenvdetails
+spec:  
+  resources:
+    inputs:
+      - name: repo
+        type: git
+    outputs:
+      - name: vcip
+        type: string
+      - name: nsxip
+        type: string      
+  steps:
+    - name: getenvdetails
+      image: 10.202.233.205:80/library/arcas-python
+      command:
+        - /usr/bin/python3 
+      args: ['scripts/__main__.py', '--root-dir=..', 'getenvdetails']
+     
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: precheckenv
+spec:  
+  resources:
+    inputs:
+      - name: repo
+        type: git    
+  steps:
+    - name: precheckenv
+      image: 10.202.233.205:80/library/arcas-python
+       command:
+        - /usr/bin/python3 
+       args: ['scripts/__main__.py', '--root-dir=..', 'validate', 'env']     
+    
+---
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: git-repo
+spec:
+  type: git
+  params:
+    - name: url
+      value: https://gitlab.eng.vmware.com/smuthukumar/arcas-tekton-cicd
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: validate
+spec:
+ 
+  resources:
+    - name: git-repo
+      type: git
+  tasks:
+    - name: getenv
+      taskRef:
+        name: getenvdetails      
+      resourceRef:
+          name: git-repo       
+    - name: validatetask
+      taskRef:
+        name: precheckenv      
+      resourceRef:
+          name: git-repo
+       runAfter:
+        - getenv
+    
