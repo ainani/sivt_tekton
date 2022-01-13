@@ -1,0 +1,75 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: e2e_execution
+spec:
+  tasks:
+    - name: setup_env      
+      taskRef:
+        name: env_prep_task
+    - name: setup_mgmt      
+      taskRef:
+        name: mgmt_setup_task
+      runAfter:
+        - setup_env
+    - name: check-health-mgmt
+      params:
+        - name: vcIp
+          value: "vCenter IP"
+        - name: vcUserName
+          value: 'administrator@vsphere.local'
+        - name: vcPassword
+          value: 'VMware123!'
+      taskRef:
+        name: check-health_task
+      runAfter:
+        - setup_mgmt
+    - name: avi_setup      
+      taskRef:
+        name: avi_setup_task
+      runAfter:
+        - check-health-mgmt
+    - name: check-health-avi
+      params:
+        - name: aviIP
+          value: "vCenter IP"
+        - name: aviCreds
+          value: 'admin:VMware123!'        
+      taskRef:
+        name: check-health_task
+      runAfter:
+        - avi_setup
+    - name: shared_cluster_setup      
+      taskRef:
+        name: sharedcluster_setup_task
+      runAfter:
+        - avi_setup
+    - name: check-health-sharedcluster
+      params:
+        - name: vcIp
+          value: "vCenter IP"
+        - name: vcUserName
+          value: 'administrator@vsphere.local'
+        - name: vcPassword
+          value: 'VMware123!'      
+      taskRef:
+        name: check-health_task
+      runAfter:
+        - shared_cluster_setup
+    - name: wld_cluster_setup      
+      taskRef:
+        name: wld_setup_task
+      runAfter:
+        - shared_cluster_setup
+    - name: check-health-wldcluster
+      params:
+        - name: vcIp
+          value: "vCenter IP"
+        - name: vcUserName
+          value: 'administrator@vsphere.local'
+        - name: vcPassword
+          value: 'VMware123!'      
+      taskRef:
+        name: check-health_task
+      runAfter:
+        - wld_cluster_setup
