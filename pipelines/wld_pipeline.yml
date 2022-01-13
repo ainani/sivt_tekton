@@ -1,0 +1,18 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+ name: wld_setup_pipeline
+spec: 
+ workspaces:
+   - name: shared-data
+     description: |
+      This workspace will receive the cloned git repo and be passed
+       to the next Task for the repo's README.md file to be read.
+ tasks:
+   - name: wld_setup_task
+     taskRef:
+       name: wld_setup_task
+     workspaces:
+       - name: output
+         workspace: shared-data
+     
