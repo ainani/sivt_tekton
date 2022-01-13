@@ -1,0 +1,14 @@
+kind: Task
+apiVersion: tekton.dev/v1beta1
+metadata:
+  name: sharedcluster_setup_task
+spec:  
+  steps:
+    - name: clone
+      image: 10.202.233.205:5000/library/arcas-python
+      script: |
+            git clone https://gitlab.eng.vmware.com/arcas-eng/vmware-public.git
+    - name: run_mgmt_setup
+      image: 10.202.233.205:5000/library/arcas-python
+      script: |
+            python3 scripts/__main__.py 'shared-services' 'deploy-cluster'
