@@ -1,5 +1,8 @@
 import os
 from pathlib import Path
+from re import sub
+
+                  
 
 from jinja2 import Template
 
@@ -17,6 +20,10 @@ from util.ssh_helper import SshHelper
 from util.ssl_helper import get_base64_cert
 from util.tanzu_utils import TanzuUtils
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
+import subprocess
+import shutil
+
+             
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 
@@ -69,18 +76,19 @@ class MgmtClusterWorkflow:
                 f"Tanzu version({self.run_config.desired_state.version.tkg}) specified in desired state is unsupported"
             )
 
-        with SshHelper(self.bootstrap.server, self.bootstrap.username,
-                       CmdHelper.decode_password(self.bootstrap.password),
-                       self.run_config.spec.onDocker) as ssh:
-            code, version_raw = ssh.run_cmd_output(TKGCommands.VERSION)
-            version = [line for line in version_raw.split("\n") if "version" in line][0]
-            if not any(k in version for k in self.run_config.support_matrix["matrix"].keys()):
-                raise ValueError(f"Tanzu cli version unsupported. \n{version}")
+        # with SshHelper(self.bootstrap.server, self.bootstrap.username,
+        #                CmdHelper.decode_password(self.bootstrap.password),
+        #                self.run_config.spec.onDocker) as ssh:
+        #     code, version_raw = ssh.run_cmd_output(TKGCommands.VERSION)
+        #     version = [line for line in version_raw.split("\n") if "version" in line][0]
+        #     if not any(k in version for k in self.run_config.support_matrix["matrix"].keys()):
+        #         raise ValueError(f"Tanzu cli version unsupported. \n{version}")
 
-            if self.run_config.desired_state.version.tkg not in version:
-                raise ValueError(
-                    f"Desired TKG version[{self.run_config.desired_state.version.tkg}] doesn't match tanzu cli version"
-                )
+        #     if self.run_config.desired_state.version.tkg not in version:
+        #         raise ValueError(
+        #             f"Desired TKG version[{self.run_config.desired_state.version.tkg}] doesn't match tanzu cli version"
+        #         )
+
 
     def _check_management_cluster_exists(self, cluster_name):
         try:
@@ -98,38 +106,45 @@ class MgmtClusterWorkflow:
             return
         self._template_deploy_yaml()
         TanzuUtils(self.run_config.root_dir).push_config_without_errors(logger)
-        with SshHelper(self.bootstrap.server, self.bootstrap.username,
-                       CmdHelper.decode_password(self.bootstrap.password),
-                       self.run_config.spec.onDocker) as ssh:
-            if not self.tanzu_client:
-                self.tanzu_client = TkgCliClient(ssh)
-            file_path = Paths.TKG_MGMT_CONFIG_PATH
-            ssh.copy_file(Paths.TKG_MGMT_DEPLOY_CONFIG, file_path)
-            ssh.run_cmd(TKGCommands.VERSION)
-            cluster_name = self.run_config.spec.tkg.management.cluster.name
-            logger.info("Check if management cluster is already deployed..")
+         # with SshHelper(self.bootstrap.server, self.bootstrap.username,
+        #                CmdHelper.decode_password(self.bootstrap.password),
+        #                self.run_config.spec.onDocker) as ssh:
+        #     if not self.tanzu_client:
+        #         self.tanzu_client = TkgCliClient(ssh)
+        file_path = Paths.TKG_MGMT_CONFIG_PATH
+        copy_cmd = "cp -rf {} {}".format(Paths.TKG_MGMT_DEPLOY_CONFIG, file_path)
+        # subprocess.check_output(copy_cmd)
+        # subprocess.run(cmd, stdout=subprocess.PIPE, input=ip)
+        shutil.copyfile(Paths.TKG_MGMT_DEPLOY_CONFIG, file_path)
+        # subprocess.run(copy_cmd)
+        subprocess.check_output(TKGCommands.VERSION, shell=True)
+        #subprocess.run(TKGCommands.VERSION)
+        #ssh.run_cmd(TKGCommands.VERSION)
+        cluster_name = self.run_config.spec.tkg.management.cluster.name
+        logger.info("Check if management cluster is already deployed..")
 
-            if self._check_management_cluster_exists(cluster_name=cluster_name):
-                logger.warn("Management cluster already deployed")
-                return
-            if self.run_config.desired_state.bomImageTag:
-                tag = self.run_config.desired_state.bomImageTag
-                logger.info(f"Updating BOM image tag: {tag}")
-                # tanzu management-cluster create command will return exit 1 status. This is expected.
-                ssh.run_cmd(cmd=TKGCommands.UPDATE_TKG_BOM.format(bom_image_tag=tag), ignore_errors=True)
-            else:
-                logger.warn(
-                    "bomImageTag not specified in desired_state. Deployment will use cli bundle's default BOM. "
-                    "Provide bomImageTag if any updated base image files are to be used."
-                )
-            ssh.run_cmd(TKGCommands.MGMT_DEPLOY.format(file_path=file_path), False)
+            # if self._check_management_cluster_exists(cluster_name=cluster_name):
+            #     logger.warn("Management cluster already deployed")
+            #     return
+            # if self.run_config.desired_state.bomImageTag:
+            #     tag = self.run_config.desired_state.bomImageTag
+            #     logger.info(f"Updating BOM image tag: {tag}")
+            #     # tanzu management-cluster create command will return exit 1 status. This is expected.
+            #     ssh.run_cmd(cmd=TKGCommands.UPDATE_TKG_BOM.format(bom_image_tag=tag), ignore_errors=True)
+            # else:
+            #     logger.warn(
+            #         "bomImageTag not specified in desired_state. Deployment will use cli bundle's default BOM. "
+            #         "Provide bomImageTag if any updated base image files are to be used."
+            #     )
+        subprocess.check_output(TKGCommands.MGMT_DEPLOY.format(file_path=file_path), shell=True)
 
-            if self.run_config.spec.tkg.management.ldap is not None:
-                ClusterCommonWorkflow(ssh).check_app_reconciled("pinniped", "tkg-system")
-            ClusterCommonWorkflow(ssh).commit_kubeconfig(self.run_config.root_dir, "management")
+            # if self.run_config.spec.tkg.management.ldap is not None:
+            #     ClusterCommonWorkflow(ssh).check_app_reconciled("pinniped", "tkg-system")
+            # ClusterCommonWorkflow(ssh).commit_kubeconfig(self.run_config.root_dir, "management")
 
-            if self.run_config.desired_state.version.tkg == "1.3.1":
-                self._register_tmc(ssh)
+            # if self.run_config.desired_state.version.tkg == "1.3.1":
+            #     self._register_tmc(ssh)
+
 
         self._update_state(msg=f"Successful management cluster deployment [{self.cluster_name}]")
 
