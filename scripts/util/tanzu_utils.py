@@ -10,6 +10,7 @@ from util.cmd_helper import CmdHelper
 from util.file_helper import FileHelper
 from util.logger_helper import LoggerHelper
 from util.ssh_helper import SshHelper
+import subprocess
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 
@@ -73,17 +74,21 @@ class TanzuUtils:
 
     def push_config(self, logger):
         logger.info("Copying config files")
-        with SshHelper(self.bootstrap.server, self.bootstrap.username, CmdHelper.decode_password(self.bootstrap.password), self.spec.onDocker) as ssh:
-            ssh.run_cmd("mkdir -p /root/.kube /root/.kube-tkg")
-            ssh.copy_file(self.repo_kube_tkg_config, Paths.REMOTE_KUBE_TKG_CONFIG)
-            ssh.copy_file(self.repo_kube_config, Paths.REMOTE_KUBE_CONFIG)
-            if self.desired_state.version.tkg >= '1.4.0' and not self.state.shared_services.upgradedFrom:
-                ssh.copy_file(self.repo_tanzu_config_new, Paths.REMOTE_TANZU_CONFIG_NEW)
-            elif self.desired_state.version.tkg == '1.4.0':
-                    ssh.copy_file(self.repo_tanzu_config, Paths.REMOTE_TANZU_CONFIG_NEW)
-            else:
-                # For versions 1.3.0 and 1.3.1
-                ssh.copy_file(self.repo_tanzu_config, Paths.REMOTE_TANZU_CONFIG)
+        # with SshHelper(self.bootstrap.server, self.bootstrap.username, CmdHelper.decode_password(self.bootstrap.password), self.spec.onDocker) as ssh:
+        subprocess.run("mkdir -p /root/.kube /root/.kube-tkg")
+        cp_cmd = "cp {} {}".format(self.repo_kube_tkg_config, Paths.REMOTE_KUBE_TKG_CONFIG)
+        subprocess.run(cp_cmd)
+        cp_cmd = "cp {} {}".format(self.repo_kube_config, Paths.REMOTE_KUBE_CONFIG)
+        subprocess.run(cp_cmd)
+        if self.desired_state.version.tkg >= '1.4.0' and not self.state.shared_services.upgradedFrom:
+            cp_cmd = "cp {} {}".format(self.repo_tanzu_config_new, Paths.REMOTE_TANZU_CONFIG_NEW)
+            subprocess.run(cp_cmd)
+            # ssh.copy_file(self.repo_tanzu_config_new, Paths.REMOTE_TANZU_CONFIG_NEW)
+        # elif self.desired_state.version.tkg == '1.4.0':
+        #     ssh.copy_file(self.repo_tanzu_config, Paths.REMOTE_TANZU_CONFIG_NEW)
+        # else:
+        #     # For versions 1.3.0 and 1.3.1
+        #     ssh.copy_file(self.repo_tanzu_config, Paths.REMOTE_TANZU_CONFIG)
 
     def push_config_without_errors(self, logger):
         try:
