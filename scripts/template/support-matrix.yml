@@ -26,9 +26,19 @@ matrix:
     imgpkg: 0.10.0
     yq: 4.12.0
     jq: 1.6
+  1.4.1:
+    alb: 1.20.3
+    kubectl: v1.21.2+vmware.1
+    ytt: 0.34.0
+    kapp: 0.37.0
+    kbld: 0.30.0
+    imgpkg: 0.10.0
+    yq: 4.12.0
+    jq: 1.6
 
 upgrade_path:
   # start: [end]
   1.3.0: ['1.3.1']
   1.3.1: ['1.4.0']
-# https://docs.vmware.com/en/VMware-Tanzu-Kubernetes-Grid/1.3/rn/VMware-Tanzu-Kubernetes-Grid-13-Release-Notes.html
+  1.4.0: ['1.4.1']
+#https://docs.vmware.com/en/VMware-Tanzu-Kubernetes-Grid/1.4.1/rn/vmware-tanzu-kubernetes-grid-141-release-notes/index.html
