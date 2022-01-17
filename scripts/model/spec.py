@@ -400,7 +400,7 @@ class MasterSpec(BaseModel):
     vsphere: Vsphere
     vmc: VsphereVmc
     tkg: Tkg
-    integrations: Integrations
+    #integrations: Integrations
     avi: NsxAlb
     onDocker: bool = Field(default=False, hidden=True)
     imageName: str = Field(default="10.202.233.205:80/library/tanzu-cli-image", hidden=True)
