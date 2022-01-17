@@ -31,7 +31,7 @@ AVI_SERVICE_ENGINE_GROUP: {{ config.spec.avi.cloud.seGroup }}
 AVI_USERNAME: {{ config.spec.avi.username }}
 AVI_CONTROL_PLANE_HA_PROVIDER: "true"
 AVI_MANAGEMENT_CLUSTER_VIP_NETWORK_NAME: {{ cluster_vip_nw }}
-AVI_MANAGEMENT_CLUSTER_VIP_NETWORK_CIDR: {{ config.spec.management.clusterVipSegment.gatewayCidr }}
+AVI_MANAGEMENT_CLUSTER_VIP_NETWORK_CIDR: {{ config.spec.avi.dataNetwork.cidr }}
 
 #! ---------------------------------------------------------------------
 #! Identity management configuration
