@@ -5,6 +5,7 @@ from constants.constants import TKGCommands, Constants, KubectlCommands
 from retry import retry
 from util.logger_helper import LoggerHelper, log, log_debug
 from util.ssh_helper import SshHelper
+import subprocess
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 
@@ -15,12 +16,14 @@ class TkgCliClient:
 
     @log("Getting list of Tanzu clusters")
     def get_clusters(self):
-        exit_code, output = self.ssh.run_cmd_output(TKGCommands.LIST_CLUSTERS_JSON)
+        output = subprocess.run([TKGCommands.LIST_CLUSTERS_JSON], capture_output=True, text=True).stdout
+        # exit_code, output = self.ssh.run_cmd_output(TKGCommands.LIST_CLUSTERS_JSON)
         return json.loads(output)
 
     @log("Getting list of Tanzu clusters(including management cluster)")
     def get_all_clusters(self):
-        exit_code, output = self.ssh.run_cmd_output(TKGCommands.LIST_ALL_CLUSTERS_JSON)
+        output = subprocess.run([TKGCommands.LIST_ALL_CLUSTERS_JSON], capture_output=True, text=True).stdout
+        # exit_code, output = self.ssh.run_cmd_output(TKGCommands.LIST_ALL_CLUSTERS_JSON)
         return json.loads(output)
 
     @log_debug
