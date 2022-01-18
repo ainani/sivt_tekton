@@ -1,0 +1,219 @@
+---
+bootstrap:
+  server: 192.168.100.156
+  username: root
+  password: ca$hc0w
+
+onDocker: false
+
+vsphere:
+  server: vcenter.tanzu.lab
+  username: administrator@vsphere.local
+  # password: VMware1234!
+  password: <encoded:Vk13YXJlMSE=>
+  tlsThumbprint: 98:11:21:6E:B4:85:5A:F6:AE:A4:78:EB:D6:DC:55:D9:BB:89:36:E7
+
+vmc:
+  orgName: "Tanzu Solutions Engineering"
+  sddcName: arcasrockon
+  cspApiToken: 6RuEDqMDEVh5KPSpgXdeOgvn3kolwEXCFB3xnc5NSA1AgOdKFms22mYVG6QYD3Oo
+
+tkg:
+  common:
+    nodeOva: http://10.172.158.76/TKG/1.4.1/photon-3-kube-v1.21.2%2Bvmware.1-tkg.3-6345993713475494409.ova
+    dnsServers:
+      - 8.8.8.8
+      - 8.8.4.4
+    ntpServers:
+      - 139.59.55.93
+      - 165.22.213.178
+  management:
+    cluster:
+      # must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character
+      name: mgmt-clu
+      plan: dev
+      size: large
+
+    deployment:
+      datacenter: '/tanzu-dc01'
+      datastore: /tanzu-dc01/datastore/vsan-storage
+      folder: /tanzu-dc01/vm/selva/Management
+      network: vds-tkg-management-pg
+      resourcePool: /tanzu-dc01/host/VMware-Cloud/Resources/selva/management
+    sshKey: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDYPVLZhwx9F8d+uGG+kvsLfwIipTTLNc8IJ8bRJbUxjXF2aBaAQNpuVnccQkvTiON2p1WYZy11/SAL5BR/2/Fq9qjUC0JyDc3oUqKGDGe4p/G8d60LzBq/3bb/TBQfFiDRAwwSdy/A89dEQYe1jhs9UMgLftnV/Cw4G8SnmFoMdiLcoNvKLkRBoyoVhnDs2jHiFw92AyeHfF8m+lcOKzK7AR/i3JCXSSokw0M9u84cojH71kenD0mZVdM1vuIhNr81u4fpUOBrK/TxqdPUOzZhwWbxeLVeRK1RiRGxa2eQV52WMSTLb0PlMLf1Ajd3S+NjVyZHsNE+S0cNPPbG1foAkHTPwmjxh4msT+r/4PXac97iRSUIwYDnyWfNtyBOjDw/0HUaOTSI/XzFmvd4pbVh9kiy8ojb10Py7bbWVwvWMLLDl2wyS9VPQmfp4jezhgFkyk8Oab8BcbV4h1Q7LYwCJY1B0CRFECUqN8DLa+fWxO9tVSLAAVjJ/pJcEqM38zk= root@3d44e86e2185
+    controlPlane:
+      endpoint: "192.168.101.6"
+      diskGib: '20'
+      memoryMib: '4096'
+      cpus: '2'
+    worker:
+      diskGib: '20'
+      memoryMib: '4096'
+      cpus: '4'
+    segment:
+      gatewayCidr: "192.168.101.1/24"
+      dhcpStart: "192.168.101.151"
+      dhcpEnd: "192.168.101.253"
+    dataVipSegment:
+      gatewayCidr: "192.168.201.1/24"
+      dhcpStart: "192.168.201.151"
+      dhcpEnd: "192.168.201.253"
+      staticIpStart: "192.168.201.30"
+      staticIpEnd: "192.168.201.40"
+    clusterVipSegment:
+      gatewayCidr: "192.168.100.1/24"
+      dhcpStart: "192.168.100.151"
+      dhcpEnd: "192.168.100.253"
+      staticIpStart: "192.168.100.30"
+      staticIpEnd: "192.168.100.40"
+  sharedService:
+    cluster:
+      name: shared-clu
+      plan: dev
+      size: large
+    deployment:
+      datacenter: /tanzu-dc01
+      datastore: /tanzu-dc01/datastore/vsan-storage
+      folder: /tanzu-dc01/vm/selva/Shared
+      network: tkg-shared-service
+      resourcePool: /tanzu-dc01/host/VMware-Cloud/Resources/selva/shared
+    sshKey: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDYPVLZhwx9F8d+uGG+kvsLfwIipTTLNc8IJ8bRJbUxjXF2aBaAQNpuVnccQkvTiON2p1WYZy11/SAL5BR/2/Fq9qjUC0JyDc3oUqKGDGe4p/G8d60LzBq/3bb/TBQfFiDRAwwSdy/A89dEQYe1jhs9UMgLftnV/Cw4G8SnmFoMdiLcoNvKLkRBoyoVhnDs2jHiFw92AyeHfF8m+lcOKzK7AR/i3JCXSSokw0M9u84cojH71kenD0mZVdM1vuIhNr81u4fpUOBrK/TxqdPUOzZhwWbxeLVeRK1RiRGxa2eQV52WMSTLb0PlMLf1Ajd3S+NjVyZHsNE+S0cNPPbG1foAkHTPwmjxh4msT+r/4PXac97iRSUIwYDnyWfNtyBOjDw/0HUaOTSI/XzFmvd4pbVh9kiy8ojb10Py7bbWVwvWMLLDl2wyS9VPQmfp4jezhgFkyk8Oab8BcbV4h1Q7LYwCJY1B0CRFECUqN8DLa+fWxO9tVSLAAVjJ/pJcEqM38zk= root@3d44e86e2185
+    controlPlane:
+      endpoint: "192.168.102.6"
+      diskGib: '20'
+      memoryMib: '4096'
+      cpus: '2'
+      # count: 3
+    worker:
+      diskGib: '20'
+      memoryMib: '4096'
+      cpus: '4'
+      # count: 2
+    segment:
+      gatewayCidr: "192.168.102.1/24"
+      dhcpStart: "192.168.102.151"
+      dhcpEnd: "192.168.102.253"
+    extensions_spec:
+      # This will deploy external DNS extension
+      externalDnsRfc2136:
+        dnsServer: "192.168.100.5"
+        domainName: "arcas.lab"
+        tsigKeyName: "tkg-shared-externaldns"
+        tsigSecret: "jKo+PcFU95QaawuCcpTI6vMn4Aj8MKQHL4eDlqHUM5U="
+      # This will deploy harbor
+      harbor:
+        # Must be atleast 16 characters long
+        adminPassword: Admin!23Admin!23
+        hostname: harbor.arcas.lab
+  workloadClusters:
+    - cluster:
+        name: workload-clu
+        plan: dev
+        size: large
+      deployment:
+        datacenter: /tanzu-dc01
+        datastore: /tanzu-dc01/datastore/vsan-storage
+        folder: /tanzu-dc01/vm/selva/Workload_0
+        network: tkg-workload_0
+        resourcePool: /tanzu-dc01/host/VMware-Cloud/Resources/selva/workload_0
+      sshKey: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDYPVLZhwx9F8d+uGG+kvsLfwIipTTLNc8IJ8bRJbUxjXF2aBaAQNpuVnccQkvTiON2p1WYZy11/SAL5BR/2/Fq9qjUC0JyDc3oUqKGDGe4p/G8d60LzBq/3bb/TBQfFiDRAwwSdy/A89dEQYe1jhs9UMgLftnV/Cw4G8SnmFoMdiLcoNvKLkRBoyoVhnDs2jHiFw92AyeHfF8m+lcOKzK7AR/i3JCXSSokw0M9u84cojH71kenD0mZVdM1vuIhNr81u4fpUOBrK/TxqdPUOzZhwWbxeLVeRK1RiRGxa2eQV52WMSTLb0PlMLf1Ajd3S+NjVyZHsNE+S0cNPPbG1foAkHTPwmjxh4msT+r/4PXac97iRSUIwYDnyWfNtyBOjDw/0HUaOTSI/XzFmvd4pbVh9kiy8ojb10Py7bbWVwvWMLLDl2wyS9VPQmfp4jezhgFkyk8Oab8BcbV4h1Q7LYwCJY1B0CRFECUqN8DLa+fWxO9tVSLAAVjJ/pJcEqM38zk= root@3d44e86e2185
+      controlPlane:
+        endpoint: "192.168.110.6"
+        diskGib: '20'
+        memoryMib: '4096'
+        cpus: '2'
+      worker:
+        diskGib: '20'
+        memoryMib: '4096'
+        cpus: '4'
+      segment:
+        gatewayCidr: "192.168.110.1/24"
+        dhcpStart: "192.168.110.151"
+        dhcpEnd: "192.168.110.253"
+      dataVipSegment:
+        gatewayCidr: "192.168.202.1/24"
+        dhcpStart: "192.168.202.151"
+        dhcpEnd: "192.168.202.253"
+      # This will deploy contour, prometheus and grafana
+      extensionsSpec:
+        grafana:
+          adminPassword: Admin!23
+    - cluster:
+        name: workload-clu1
+        plan: dev
+        size: large
+      deployment:
+        datacenter: /tanzu-dc01
+        datastore: /tanzu-dc01/datastore/vsan-storage
+        folder: /tanzu-dc01/vm/selva/Workload_1
+        network: tkg-workload_1
+        resourcePool: /tanzu-dc01/host/VMware-Cloud/Resources/selva/workload_1
+      sshKey: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDYPVLZhwx9F8d+uGG+kvsLfwIipTTLNc8IJ8bRJbUxjXF2aBaAQNpuVnccQkvTiON2p1WYZy11/SAL5BR/2/Fq9qjUC0JyDc3oUqKGDGe4p/G8d60LzBq/3bb/TBQfFiDRAwwSdy/A89dEQYe1jhs9UMgLftnV/Cw4G8SnmFoMdiLcoNvKLkRBoyoVhnDs2jHiFw92AyeHfF8m+lcOKzK7AR/i3JCXSSokw0M9u84cojH71kenD0mZVdM1vuIhNr81u4fpUOBrK/TxqdPUOzZhwWbxeLVeRK1RiRGxa2eQV52WMSTLb0PlMLf1Ajd3S+NjVyZHsNE+S0cNPPbG1foAkHTPwmjxh4msT+r/4PXac97iRSUIwYDnyWfNtyBOjDw/0HUaOTSI/XzFmvd4pbVh9kiy8ojb10Py7bbWVwvWMLLDl2wyS9VPQmfp4jezhgFkyk8Oab8BcbV4h1Q7LYwCJY1B0CRFECUqN8DLa+fWxO9tVSLAAVjJ/pJcEqM38zk= root@3d44e86e2185
+      controlPlane:
+        endpoint: "192.168.110.6"
+        diskGib: '20'
+        memoryMib: '4096'
+        cpus: '2'
+      worker:
+        diskGib: '20'
+        memoryMib: '4096'
+        cpus: '4'
+      segment:
+        gatewayCidr: "192.168.111.1/24"
+        dhcpStart: "192.168.111.151"
+        dhcpEnd: "192.168.111.253"
+      dataVipSegment:
+        gatewayCidr: "192.168.203.1/24"
+        dhcpStart: "192.168.203.151"
+        dhcpEnd: "192.168.203.253"
+      # This will deploy contour, prometheus and grafana
+      extensionsSpec:
+        grafana:
+          adminPassword: Admin!23
+integrations:
+  api_token: tpfHd61N1H7GApAwco62Fe36nRM6Pv2XFb1lunNnwvCIOWqQvGpRQAx9Qkw1Ausx
+  tmc:
+    is_enabled: true
+    cluster_group: arcas-pipeline
+  to:
+    is_enabled: true
+    api_token: e643426d-be9e-4850-8496-803f0ae6b209
+    wavefront_url: https://surf.wavefront.com
+
+avi:
+  ovaPath: http://10.172.158.76/TKG/alb/controller-20.1.6-9132.ova
+  vmName: alb_controller
+  # password: Admin!23
+  password: <encoded:QWRtaW4hMjM=>
+  deployment:
+    datacenter: /tanzu-dc01
+    datastore: /tanzu-dc01/datastore/vsan-storage
+    folder: /tanzu-dc01/vm/selva/ALB
+    network: vcf-management
+    resourcePool: /tanzu-dc01/host/VMware-Cloud/Resources/selva/alb
+    parameters:
+      gateway: 192.168.200.1
+      netmask: 255.255.255.0
+      ip: 192.168.200.10
+  segment:
+    gatewayCidr: "192.168.200.1/24"
+    dhcpStart: "192.168.200.151"
+    dhcpEnd: "192.168.200.253"
+  conf:
+    dns: [192.168.100.5]
+    ntp: [time.vmware.com]
+    backup:
+      passphrase: VMware123!
+    cert:
+      commonName: alb.arcas.lab
+  cloud:
+    dc: tanzu-dc01
+    network: tkg-avi-mgmt
+    ipamProfileName: tkg-alb-ipam
+    dnsProfile:
+      domain: arcas.lab
+  # vip network
+  dataNetwork:
+    name: tkg-mgmt-data
+    cidr: 192.168.201.0/24
+    staticRange: 192.168.201.20-192.168.201.40
