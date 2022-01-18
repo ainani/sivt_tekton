@@ -1,0 +1,38 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: e2e-setup
+spec:    
+  workspaces:
+    - name: arcas-data
+  tasks:
+    -name: setup-git
+      taskRef:
+        name: git-pvtclone
+      workspaces:
+        -name: arcas-data
+         workspace: arcas-data
+    - name: setup-avi
+      taskRef:
+        name: avi_setup_task
+      workspaces:
+        - name: arcas-data
+          workspace: arcas-data      
+    - name: setup-mgmt
+      taskRef:
+        name: dind-mgmt-create
+      runAfter: 
+        - setup-avi      
+      workspaces:
+        - name: arcas-data
+          workspace: arcas-data
+    - name: setup-wld
+      taskRef: 
+        name: dind-wld-create
+      runAfter: 
+        - setup-mgmt
+      workspaces:
+        - name: arcas-data
+          workspace: arcas-data
+          
+      
