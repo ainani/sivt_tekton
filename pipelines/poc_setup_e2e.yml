@@ -6,15 +6,17 @@ spec:
   workspaces:
     - name: arcas-data
   tasks:
-    -name: setup-git
+    - name: setup-git
       taskRef:
         name: git-pvtclone
       workspaces:
-        -name: arcas-data
-         workspace: arcas-data
+        - name: arcas-data
+          workspace: arcas-data
     - name: setup-avi
       taskRef:
         name: avi_setup_task
+      runAfter: 
+              - setup-git 
       workspaces:
         - name: arcas-data
           workspace: arcas-data      
