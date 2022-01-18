@@ -1,0 +1,10 @@
+kind: Task
+apiVersion: tekton.dev/v1beta1
+metadata:
+  name: git-pvtclone
+spec:
+  steps:    
+    - name: step-gitclone
+      image: 10.202.233.205:5000/library/serviceimage:v1
+      script: |
+            git clone https://smuthukumar:2x5ithxjeJAcucjAC8Kp@gitlab.eng.vmware.com/smuthukumar/arcas-tekton-cicd.git
