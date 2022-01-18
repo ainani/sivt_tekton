@@ -3,12 +3,12 @@ apiVersion: tekton.dev/v1beta1
 metadata:
   name: avi_setup_task
 spec:  
-  steps:
-    - name: clone
-      image: 10.202.233.205:5000/library/arcas-python
-      script: |
-            git clone https://gitlab.eng.vmware.com/arcas-eng/vmware-public.git
+  steps:    
     - name: run_avi_setup
-      image: 10.202.233.205:5000/library/arcas-python
+      image: 10.202.233.205:5000/library/serviceimage:v1
       script: |
-            python3 scripts/__main__.py 'avi' 'deploy'
+            python /tanzu/arcas-tekton-cicd/scripts/__main__.py --root-dir=/tanzu avi deploy
+  workspaces:
+    - name: arcas-data
+
+            
