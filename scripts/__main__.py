@@ -55,11 +55,12 @@ def load_run_config(root_dir):
     support_matrix = yaml.safe_load(FileHelper.read_resource(Paths.SUPPORT_MATRIX_FILE))
     run_config = RunConfig(root_dir=root_dir, spec=spec, state=state, desired_state=desired_state,
                            support_matrix=support_matrix, deployment_platform=DeploymentPlatform.VSPHERE, vmc=None)
-    if spec.vmc:
+    """if spec.vmc:
         run_config.deployment_platform = DeploymentPlatform.VMC
         run_config.vmc = VmcConfig(csp_access_token="", org_id="", sddc_id="", nsx_reverse_proxy_url="", vc_mgmt_ip="",
                                    vc_cloud_user="", vc_cloud_password="", vc_tls_thumbprint="")
         run_config = load_vmc_config(run_config)
+    """
     return run_config
 
 
