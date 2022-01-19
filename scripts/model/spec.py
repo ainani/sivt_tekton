@@ -60,16 +60,16 @@ class Deploy(Deployment):
 
 class DNSProfile(BaseModel):
     name: Optional[str] = Field(
-        None, title="DNS profile name", description="Name for dns profile associated to ALB cloud"
+        "tkg-alb-dns-profile", title="DNS profile name", description="Name for dns profile associated to ALB cloud"
     )
     domain: str
 
 
 class Cloud(BaseModel):
-    name: Optional[str] = Field(None, hidden=True)
+    name: Optional[str] = Field("Default-Cloud", hidden=True)
     mgmtSEGroup: Optional[str] = Field(None, hidden=True)
     workloadSEGroupPrefix: Optional[str] = Field(None, hidden=True)
-    ipamProfileName: Optional[str] = Field(None, hidden=True)
+    ipamProfileName: Optional[str] = Field("tkg-alb-ipam-profile", hidden=True)
     dc: str
     network: str
     dnsProfile: DNSProfile
@@ -398,7 +398,7 @@ class Integrations(BaseModel):
 class MasterSpec(BaseModel):
     bootstrap: Bootstrap
     vsphere: Vsphere
-    vmc: VsphereVmc
+    # vmc: VsphereVmc
     tkg: Tkg
     #integrations: Integrations
     avi: NsxAlb

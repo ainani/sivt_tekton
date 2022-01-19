@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-
+import time
 from retry import retry
 
 from constants.constants import Paths, AlbPrefix, AlbCloudType, ComponentPrefix, AlbLicenseTier, VmPowerState, \
@@ -70,18 +70,18 @@ class ALBWorkflow:
         avi.change_credentials()
         self.version = avi.get_api_version()
         logger.info("Server Version: %s", self.version)  # Get Version
-        avi.patch_license_tier(AlbLicenseTier.ESSENTIALS)
+        # avi.patch_license_tier(AlbLicenseTier.ESSENTIALS)
         avi.set_dns_ntp()
         avi.disable_welcome_screen()
         avi.set_backup_passphrase()
         avi.generate_ssl_cert()  # cert generation
+        self.configure_alb_cloud()
 
         # todo: tmp fix
         avi.disable_welcome_screen()
         avi.set_backup_passphrase()
 
         # update for including configure cloud account details
-        self.configure_alb_cloud ()
 
         self.update_success_status()
 

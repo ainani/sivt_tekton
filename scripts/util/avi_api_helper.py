@@ -293,6 +293,7 @@ class AviApiHelper:
                     f"cloud/{new_cloud_rsp['uuid']}", data=cloud_req, api_version=self.get_api_version()
                 ).json()
         cloud_uuid_obj = {"cloud_uuid": new_cloud_rsp["uuid"]}
+        # time.sleep(300)
         pg_resources = self.get_pg(cloud_uuid_obj)
 
         count = 5
