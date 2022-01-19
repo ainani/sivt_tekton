@@ -79,7 +79,14 @@ class ALBWorkflow:
         # todo: tmp fix
         avi.disable_welcome_screen()
         avi.set_backup_passphrase()
+
+        # update for including configure cloud account details
+        self.configure_alb_cloud ()
+
         self.update_success_status()
+
+
+
 
     @timer
     def avi_controller_validate(self):

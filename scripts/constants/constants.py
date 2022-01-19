@@ -4,6 +4,7 @@ TKG_EXTENSIONS_ROOT = {
     "1.3.0": "/tanzu/tkg-extensions-v1.3.0+vmware.1",
     "1.3.1": "/tanzu/tkg-extensions-v1.3.1+vmware.1",
     "1.4.0": "/tanzu/tkg-standard-repo-v1.4.0",
+    "1.4.1": "/tanzu/tkg-standard-repo-v1.4.1"
 }
 
 CLUSTER_NODE_SIZES = ["small", "medium", "large", "extra-large"]
