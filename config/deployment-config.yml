@@ -9,7 +9,6 @@ onDocker: false
 vsphere:
   server: vcenter.tanzu.lab
   username: administrator@vsphere.local
-  # password: VMware1234!
   password: <encoded:Vk13YXJlMSE=>
   tlsThumbprint: 98:11:21:6E:B4:85:5A:F6:AE:A4:78:EB:D6:DC:55:D9:BB:89:36:E7
 
