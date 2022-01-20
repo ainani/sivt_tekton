@@ -1,0 +1,50 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: main-pipeline
+spec:
+  description: >-
+    The Pipline to run e2e TKG 1.4.1 bringup on vSphere DVS Internet Lab. 
+  workspaces:
+    - name: pipeline-shared-data
+  tasks:
+    - name: start-prep-workspace
+      taskRef:
+        name: git-pvtclone
+      workspaces:
+        - name: task-shared-data
+          workspace: pipeline-shared-data
+    - name: start-avi
+      taskRef:
+        name: avi-setup-task
+      workspaces:
+        - name: task-shared-data
+          workspace: pipeline-shared-data
+      runAfter:
+          - start-prep-workspace
+    - name: start-mgmt-create
+      taskRef:
+        name: dind-mgmt-create
+      workspaces:
+        - name: task-shared-data
+          workspace: pipeline-shared-data
+      runAfter:
+            - start-avi
+    - name: start-shared-cluster-create
+      taskRef:
+        name: dind-sharedcluster-create
+      workspaces:
+        - name: task-shared-data
+          workspace: pipeline-shared-data
+      runAfter:
+            - start-mgmt-create
+    - name: start-workload-cluster
+      taskRef:
+        name: dind-wld-create
+      workspaces: 
+          - name: task-shared-data
+            workspace: pipeline-shared-data
+      runAfter:
+            - start-shared-cluster-create
+
+

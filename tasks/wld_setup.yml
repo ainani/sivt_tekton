@@ -3,9 +3,11 @@ kind: Task
 metadata:
   name: dind-wld-create
 spec:
+  workspaces:
+      - name: task-shared-data
   steps:
-    - image: 10.202.233.205:5000/library/serviceimage:v1
-      name: client
+    - image: 10.202.233.205:80/library/serviceimage:v2
+      name: step-wld-cluster-setup
       env:
       # Connect to the sidecar over TCP, with TLS.
       - name: DOCKER_HOST
@@ -19,17 +21,14 @@ spec:
         #workingDir: /tanzu
       script: |
           ls -l
-          cp -rf arcas-tekton-cicd/config .
-          cp -rf arcas-tekton-cicd/deployment-state .
-          cp -rf arcas-tekton-cicd/desired-state .
-          python /tanzu/arcas-tekton-cicd/scripts/__main__.py --root-dir=/tanzu workload-clusters deploy
+          cd /workspace/task-shared-data
+          python arcas-tekton-cicd/scripts/__main__.py --root-dir=/workspace/task-shared-data workload-clusters deploy
       volumeMounts:
       - mountPath: /certs/client
         name: dind-certs
-  workspaces:
-      - name: arcas-data
+  
   sidecars:
-    - image: docker:dind
+    - image:  10.202.233.205:80/library/docker:dind
       name: mgmtserver
       args:
         - --storage-driver=vfs

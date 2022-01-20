@@ -1,10 +1,18 @@
-kind: Task
 apiVersion: tekton.dev/v1beta1
+kind: Task
 metadata:
   name: git-pvtclone
 spec:
-  steps:    
+  workspaces:
+    - name: task-shared-data
+  steps:
     - name: step-gitclone
-      image: 10.202.233.205:5000/library/serviceimage:v1
+      image: 10.202.233.205:80/library/serviceimage:v2
+      #image: alpine
       script: |
-            git clone https://smuthukumar:2x5ithxjeJAcucjAC8Kp@gitlab.eng.vmware.com/smuthukumar/arcas-tekton-cicd.git
+        cd /workspace/task-shared-data/
+        git clone https://smuthukumar:2x5ithxjeJAcucjAC8Kp@gitlab.eng.vmware.com/smuthukumar/arcas-tekton-cicd.git
+        cp -rf arcas-tekton-cicd/config .
+        cp -rf arcas-tekton-cicd/deployment-state .
+        cp -rf arcas-tekton-cicd/desired-state .
+        ls -la
