@@ -164,9 +164,9 @@ avi:
       netmask: 255.255.255.0
       ip: 192.168.110.40
   segment:
-    gatewayCidr: "192.168.100.1/24"
-    dhcpStart: "192.168.100.151"
-    dhcpEnd: "192.168.100.253"
+    gatewayCidr: "192.168.110.1/24"
+    dhcpStart: "192.168.110.140"
+    dhcpEnd: "192.168.110.199"
   conf:
     dns: [192.168.110.10]
     ntp: [192.168.100.1]
@@ -178,6 +178,7 @@ avi:
     dc: tanzu-dc01
     network: vcf-management
     ipamProfileName: tkg-alb-ipam
+    mgmtSEGroup: Default-Group
     dnsProfile:
       domain: arcas.lab
   # vip network

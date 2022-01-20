@@ -424,7 +424,7 @@ class ComponentPrefix(str, Enum):
     SHARED_CLU_NW = "tkg-shared-service"
     MGMT_DATA_VIP_NW = "tkg-mgmt-data"
     CLUSTER_VIP_NW = "tkg-cluster-vip"
-    WORKLOAD_CLU_NW = "tkg-workload"
+    WORKLOAD_CLU_NW = "vds-tkg-workload"
     WORKLOAD_DATA_VIP_NW = "tkg-workload-data"
     DNS_IPS = "tkg-infra-dns-ips"
     NTP_IPS = "tkg-infra-ntp-ips"

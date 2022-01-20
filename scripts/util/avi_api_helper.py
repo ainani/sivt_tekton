@@ -175,7 +175,7 @@ class AviApiHelper:
         conf_dict["dns_configuration"]["server_list"] = list(
             map(AviApiHelper.get_dns_obj, self.run_config.spec.avi.conf.dns))
         conf_dict["ntp_configuration"]["ntp_servers"] = list(
-            map(AviApiHelper.get_ntp_obj, self.run_config.spec.avi.conf.dns))
+            map(AviApiHelper.get_ntp_obj, self.run_config.spec.avi.conf.ntp))
 
         return self.api.put("systemconfiguration", data=conf_dict).json()
 
