@@ -30,7 +30,7 @@ AVI_PASSWORD: {{ config.spec.avi.password }}
 AVI_SERVICE_ENGINE_GROUP: {{ config.spec.avi.cloud.mgmtSEGroup }}
 AVI_USERNAME: {{ config.spec.avi.username }}
 AVI_CONTROL_PLANE_HA_PROVIDER: "true"
-AVI_MANAGEMENT_CLUSTER_VIP_NETWORK_NAME: {{ cluster_vip_nw }}
+AVI_MANAGEMENT_CLUSTER_VIP_NETWORK_NAME: {{ config.spec.avi.dataNetwork.name  }}
 AVI_MANAGEMENT_CLUSTER_VIP_NETWORK_CIDR: {{ config.spec.avi.dataNetwork.cidr }}
 
 #! ---------------------------------------------------------------------
@@ -117,7 +117,7 @@ VSPHERE_NETWORK: {{ config.spec.tkg.management.deployment.network }}
 VSPHERE_RESOURCE_POOL: {{ config.spec.tkg.management.deployment.resourcePool }}
 
 VSPHERE_SSH_AUTHORIZED_KEY: {{ config.spec.tkg.management.sshKey }}
-VSPHERE_CONTROL_PLANE_ENDPOINT: {{ config.spec.tkg.management.controlPlane.endpoint }}
+#VSPHERE_CONTROL_PLANE_ENDPOINT: {{ config.spec.tkg.management.controlPlane.endpoint }}
 VSPHERE_CONTROL_PLANE_DISK_GIB: "{{ config.spec.tkg.management.controlPlane.diskGib }}"
 VSPHERE_CONTROL_PLANE_MEM_MIB: "{{ config.spec.tkg.management.controlPlane.memoryMib }}"
 VSPHERE_CONTROL_PLANE_NUM_CPUS: "{{ config.spec.tkg.management.controlPlane.cpus }}"
