@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import traceback
 
 from jinja2 import Template
 
@@ -14,6 +15,7 @@ from util.file_helper import FileHelper
 from util.git_helper import Git
 from util.logger_helper import LoggerHelper, log, log_debug
 from util.ssh_helper import SshHelper
+from util.cmd_runner import RunCmd
 from util.tanzu_utils import TanzuUtils
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 
@@ -28,6 +30,7 @@ class WorkloadClusterWorkflow:
         self.cluster_to_deploy = None
         self.tkg_cli_client: TkgCliClient = None
         self.kubectl_client: KubectlClient = None
+        self.runcmd: RunCmd = None
         self.ssh: SshHelper = None
         self.kube_config = os.path.join(self.run_config.root_dir, Paths.REPO_KUBE_TKG_CONFIG)
         self.common_workflow: ClusterCommonWorkflow = None
@@ -43,15 +46,15 @@ class WorkloadClusterWorkflow:
         t = Template(deploy_yaml)
         return t.render(spec=self.run_config.spec, wl_cluster=cluster)
 
-    def initialize_clients(self, ssh):
+    def initialize_clients(self, runcmd):
         if not self.tkg_cli_client:
-            self.tkg_cli_client = TkgCliClient(ssh)
+            self.tkg_cli_client = TkgCliClient(runcmd)
         if not self.kubectl_client:
-            self.kubectl_client = KubectlClient(ssh)
-        if not self.ssh:
-            self.ssh = ssh
+            self.kubectl_client = KubectlClient(runcmd)
+        # if not self.ssh:
+        #     self.ssh = ssh
         if not self.common_workflow:
-            self.common_workflow = ClusterCommonWorkflow(ssh)
+            self.common_workflow = ClusterCommonWorkflow(runcmd)
 
     @log("Updating state file")
     def _update_state(self, task: Task, msg="Successful workload cluster deployment"):
@@ -61,7 +64,8 @@ class WorkloadClusterWorkflow:
             health=HealthEnum.UP,
             version=self.run_config.desired_state.version.tkg,
             name=self.cluster_to_deploy,
-            extensions=WorkloadExtensionState(certManager=ext_state, contour=ext_state, prometheus=ext_state,
+            extensions=WorkloadExtensionState(certManager=ext_state,
+                                              contour=ext_state, prometheus=ext_state,
                                               grafana=ext_state)
         )
         if self.get_cluster_state():
@@ -143,7 +147,8 @@ class WorkloadClusterWorkflow:
         local_file = Paths.LOCAL_GRAFANA_DATA_VALUES.format(root_dir=self.run_config.root_dir)
 
         logger.info(f"Fetching and saving data values yml to {local_file}")
-        self.ssh.copy_file_from_remote(remote_file, local_file)
+        self.runcmd.local_file_copy(remote_file, local_file)
+        # self.ssh.copy_file_from_remote(remote_file, local_file)
 
         encoded_password = CmdHelper.encode_base64(spec.adminPassword)
         logger.info(f"Updating admin password in local copy of grafana-data-values.yaml")
@@ -157,14 +162,16 @@ class WorkloadClusterWorkflow:
         )
 
         logger.info(f"Updating grafana-data-values.yaml on bootstrap VM")
-        self.ssh.copy_file(local_file, remote_file)
+        self.runcmd.local_file_copy (local_file, remote_file)
+        # self.ssh.copy_file(local_file, remote_file)
 
     @log("Updating namespace in grafana-data-values.yaml")
     def _update_grafana_namespace(self, remote_file):
         local_file = Paths.LOCAL_GRAFANA_DATA_VALUES.format(root_dir=self.run_config.root_dir)
 
         logger.info(f"Fetching and saving data values yml to {local_file}")
-        self.ssh.copy_file_from_remote(remote_file, local_file)
+        self.runcmd.local_file_copy(remote_file, local_file)
+        # self.ssh.copy_file_from_remote(remote_file, local_file)
 
         new_namespace = "tanzu-system-dashboards"
 
@@ -174,8 +181,8 @@ class WorkloadClusterWorkflow:
             pattern_replacement_list=[(Constants.GRAFANA_DATA_VALUES_NAMESPACE,
                                        Constants.GRAFANA_DATA_VALUES_NEW_NAMESPACE.format(namespace=new_namespace))],
         )
-
-        self.ssh.copy_file(local_file, remote_file)
+        self.runcmd.local_file_copy (local_file, remote_file)
+        # self.ssh.copy_file(local_file, remote_file)
 
     @log("Deploying contour extension")
     def _deploy_contour(self):
@@ -260,7 +267,9 @@ class WorkloadClusterWorkflow:
                                                                                  package=Constants.CONTOUR_PACKAGE,
                                                                                  name=Constants.CONTOUR_DISPLAY_NAME)
                     logger.info("Copying contour-data-values.yml")
-                    self.ssh.copy_file(Paths.LOCAL_VSPHERE_ALB_CONTOUR_CONFIG, Paths.REMOTE_VSPHERE_ALB_CONTOUR_CONFIG)
+                    self.runcmd.local_file_copy(Paths.LOCAL_VSPHERE_ALB_CONTOUR_CONFIG,
+                                                Paths.REMOTE_VSPHERE_ALB_CONTOUR_CONFIG)
+                    # self.ssh.copy_file(Paths.LOCAL_VSPHERE_ALB_CONTOUR_CONFIG, Paths.REMOTE_VSPHERE_ALB_CONTOUR_CONFIG)
 
                     self.common_workflow.install_package(cluster_name=self.cluster_to_deploy,
                                                          package=Constants.CONTOUR_PACKAGE,
@@ -312,7 +321,8 @@ class WorkloadClusterWorkflow:
                                                                 on_docker=self.run_config.spec.onDocker)
 
                     logger.info("Removing comments from prometheus-data-values.yml")
-                    self.ssh.run_cmd(f"yq -i eval '... comments=\"\"' {Paths.REMOTE_PROMETHEUS_DATA_VALUES}")
+                    self.runcmd.run_cmd_only(f"yq -i eval '... comments=\"\"' {Paths.REMOTE_PROMETHEUS_DATA_VALUES}")
+                    # self.ssh.run_cmd(f"yq -i eval '... comments=\"\"' {Paths.REMOTE_PROMETHEUS_DATA_VALUES}")
 
                     self.common_workflow.install_package(cluster_name=self.cluster_to_deploy,
                                                          package=Constants.PROMETHEUS_PACKAGE,
@@ -353,7 +363,8 @@ class WorkloadClusterWorkflow:
                     self._update_grafana_namespace(remote_file=Paths.REMOTE_GRAFANA_DATA_VALUES)
 
                     logger.info("Removing comments from grafana-data-values.yaml")
-                    self.ssh.run_cmd(f"yq -i eval '... comments=\"\"' {Paths.REMOTE_GRAFANA_DATA_VALUES}")
+                    self.runcmd.run_cmd_only(f"yq -i eval '... comments=\"\"' {Paths.REMOTE_GRAFANA_DATA_VALUES}")
+                    # self.ssh.run_cmd(f"yq -i eval '... comments=\"\"' {Paths.REMOTE_GRAFANA_DATA_VALUES}")
 
                     self.common_workflow.install_package(cluster_name=self.cluster_to_deploy,
                                                          package=Constants.GRAFANA_PACKAGE,
@@ -375,7 +386,7 @@ class WorkloadClusterWorkflow:
                     if cluster.integrations.tmc.attached:
                         logger.info("Cluster is already attached to Tmc.")
                     else:
-                        if self.run_config.spec.integrations.tmc.clusterGroup == None:
+                        if self.run_config.spec.integrations.tmc.clusterGroup is None:
                             cluster_group = 'default'
                         else:
                             cluster_group = self.run_config.spec.integrations.tmc.clusterGroup
@@ -522,14 +533,7 @@ class WorkloadClusterWorkflow:
         logger.info("Infra state: %s", state)
 
         TanzuUtils(self.run_config.root_dir).push_config(logger)
-
-        with SshHelper(
-                self.run_config.spec.bootstrap.server, self.run_config.spec.bootstrap.username,
-                CmdHelper.decode_password(self.run_config.spec.bootstrap.password),
-                self.run_config.spec.onDocker
-        ) as ssh:
-            self.initialize_clients(ssh)
-
+        try:
             for cluster in self.run_config.spec.tkg.workloadClusters:
                 self.cluster_to_deploy = cluster.cluster.name
                 if task == Task.DEPLOY_CLUSTER:
@@ -547,7 +551,8 @@ class WorkloadClusterWorkflow:
                     logger.info(f"Writing templated spec to: {local_spec_file}")
                     FileHelper.dump_spec(templated_spec, local_spec_file)
 
-                    ssh.copy_file(local_spec_file, Paths.TKG_WORKLOAD_CLUSTER_CONFIG_PATH)
+                    # ssh.copy_file(local_spec_file, Paths.TKG_WORKLOAD_CLUSTER_CONFIG_PATH)
+                    self.runcmd.local_file_copy(local_spec_file, Paths.TKG_WORKLOAD_CLUSTER_CONFIG_PATH)
                     self.common_workflow.deploy_tanzu_k8s_cluster(
                         cluster_to_deploy=self.cluster_to_deploy, file_path=Paths.TKG_WORKLOAD_CLUSTER_CONFIG_PATH
                     )
@@ -583,6 +588,8 @@ class WorkloadClusterWorkflow:
                         err = f"Invalid task provided: {task}. Valid tasks: {valid_tasks}"
                         logger.error(err)
                         raise Exception(err)
+        except Exception:
+            logger.error(f"{traceback.format_exc()}")
 
         logger.info("Workload Cluster Workflow complete!")
 
@@ -590,10 +597,11 @@ class WorkloadClusterWorkflow:
     def execute_workflow_1_4_x(self, task: Task):
         logger.info("infra state: %s", self.run_config.state)
         TanzuUtils(self.run_config.root_dir).push_config(logger)
-        with SshHelper(self.run_config.spec.bootstrap.server, self.run_config.spec.bootstrap.username,
-                       CmdHelper.decode_password(self.run_config.spec.bootstrap.password),
-                       self.run_config.spec.onDocker) as ssh:
-            self.initialize_clients(ssh)
+        # with SshHelper(self.run_config.spec.bootstrap.server, self.run_config.spec.bootstrap.username,
+        #                CmdHelper.decode_password(self.run_config.spec.bootstrap.password),
+        #                self.run_config.spec.onDocker) as ssh:
+        self.initialize_clients(self.runcmd)
+        try:
             for cluster in self.run_config.spec.tkg.workloadClusters:
                 self.cluster_to_deploy = cluster.cluster.name
                 if task == Task.DEPLOY_CLUSTER:
@@ -610,8 +618,9 @@ class WorkloadClusterWorkflow:
 
                     logger.info(f"Writing templated spec to: {local_spec_file}")
                     FileHelper.dump_spec(templated_spec, local_spec_file)
+                    self.runcmd.local_file_copy(local_spec_file, Paths.TKG_WORKLOAD_CLUSTER_CONFIG_PATH)
 
-                    ssh.copy_file(local_spec_file, Paths.TKG_WORKLOAD_CLUSTER_CONFIG_PATH)
+                    # ssh.copy_file(local_spec_file, Paths.TKG_WORKLOAD_CLUSTER_CONFIG_PATH)
                     self.common_workflow.deploy_tanzu_k8s_cluster(
                         cluster_to_deploy=self.cluster_to_deploy, file_path=Paths.TKG_WORKLOAD_CLUSTER_CONFIG_PATH
                     )
@@ -641,6 +650,8 @@ class WorkloadClusterWorkflow:
                         err = f"Invalid task provided: {task}. Valid tasks: {valid_tasks}"
                         logger.error(err)
                         raise Exception(err)
+        except Exception:
+            logger.error(f"{traceback.format_exc()}")
 
         logger.info("Workload Cluster Workflow complete!")
 
@@ -652,12 +663,13 @@ class WorkloadClusterWorkflow:
 
     @log("Execute Upgrade Workload cluster workflow")
     def upgrade_workflow(self):
-        with SshHelper(
-                self.run_config.spec.bootstrap.server, self.run_config.spec.bootstrap.username,
-                CmdHelper.decode_password(self.run_config.spec.bootstrap.password),
-                self.run_config.spec.onDocker
-        ) as ssh:
-            ssh.copy_file(self.kube_config, Paths.KUBE_CONFIG_TARGET_PATH)
+        # with SshHelper(
+        #         self.run_config.spec.bootstrap.server, self.run_config.spec.bootstrap.username,
+        #         CmdHelper.decode_password(self.run_config.spec.bootstrap.password),
+        #         self.run_config.spec.onDocker
+        # ) as ssh:
+
+            self.runcmd.local_file_copy(self.kube_config, Paths.KUBE_CONFIG_TARGET_PATH)
             for cluster in self.run_config.spec.tkg.workloadClusters:
                 self.cluster_to_deploy = cluster.cluster.name
                 self.prev_version = next(

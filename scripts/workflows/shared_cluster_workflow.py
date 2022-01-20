@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import traceback
 
 from constants.constants import (TKG_EXTENSIONS_ROOT, Constants,
                                  KubectlCommands, Paths, Task)
@@ -15,6 +16,7 @@ from util.git_helper import Git
 from util.logger_helper import LoggerHelper, log, log_debug
 from util.ssh_helper import SshHelper
 from util.tanzu_utils import TanzuUtils
+from util.cmd_runner import RunCmd
 
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 
@@ -33,6 +35,7 @@ class SharedClusterWorkflow:
         self.tkg_cli_client: TkgCliClient = None
         self.kubectl_client: KubectlClient = None
         self.ssh: SshHelper = None
+        self.runcmd: RunCmd = None
         self.common_workflow: ClusterCommonWorkflow = None
         self._pre_validate()
         # Following values must be set in upgrade scenarios
@@ -70,15 +73,15 @@ class SharedClusterWorkflow:
                     self.current_version):
                 raise ValueError(f"There are no upgrade path available for tkg: {self.current_version}")
 
-    def initialize_clients(self, ssh):
+    def initialize_clients(self, runcmd):
         if not self.tkg_cli_client:
-            self.tkg_cli_client = TkgCliClient(ssh)
+            self.tkg_cli_client = TkgCliClient(runcmd)
         if not self.kubectl_client:
-            self.kubectl_client = KubectlClient(ssh)
-        if not self.ssh:
-            self.ssh = ssh
+            self.kubectl_client = KubectlClient(runcmd)
+        # if not self.ssh:
+        #     self.ssh = ssh
         if not self.common_workflow:
-            self.common_workflow = ClusterCommonWorkflow(ssh)
+            self.common_workflow = ClusterCommonWorkflow(runcmd)
 
     @log("Updating state file")
     def _update_state(self, task: Task, msg="Successful shared cluster deployment"):
@@ -133,14 +136,16 @@ class SharedClusterWorkflow:
                 cd {self.extensions_dir};
                 bash {Paths.HARBOR_GENERATE_PASSWORDS} {Paths.HARBOR_CONFIG}
                 """
-        self.ssh.run_cmd(cmd)
+        # self.ssh.run_cmd(cmd)
+        self.runcmd.run_cmd_only(cmd)
 
     def _update_harbor_data_values(self, remote_file):
 
         local_file = Paths.LOCAL_HARBOR_DATA_VALUES.format(root_dir=self.run_config.root_dir)
 
         logger.info(f"Fetching and saving data values yml to {local_file}")
-        self.ssh.copy_file_from_remote(remote_file, local_file)
+        # self.ssh.copy_file_from_remote(remote_file, local_file)
+        self.runcmd.local_file_copy(remote_file, local_file)
 
         harbor_spec = self.run_config.spec.tkg.sharedService.extensionsSpec.harbor
 
@@ -155,7 +160,8 @@ class SharedClusterWorkflow:
         FileHelper.replace_pattern(src=local_file, target=local_file, pattern_replacement_list=replacement_list)
 
         logger.info(f"Updating harbor-data-values.yaml on bootstrap VM")
-        self.ssh.copy_file(local_file, remote_file)
+        # self.ssh.copy_file(local_file, remote_file)
+        self.runcmd.local_file_copy(local_file, remote_file)
 
     @log("Getting harbor CA certificate")
     def _get_harbor_ca_cert(self, namespace):
@@ -169,7 +175,8 @@ class SharedClusterWorkflow:
         local_file = Paths.LOCAL_EXTERNAL_DNS_DATA_VALUES.format(root_dir=self.run_config.root_dir)
 
         logger.info(f"Fetching and saving data values yml to {local_file}")
-        self.ssh.copy_file_from_remote(remote_file, local_file)
+        # self.ssh.copy_file_from_remote(remote_file, local_file)
+        self.runcmd.local_file_copy(remote_file, local_file)
 
         dns_spec = self.run_config.spec.tkg.sharedService.extensionsSpec.externalDnsRfc2136
 
@@ -189,7 +196,8 @@ class SharedClusterWorkflow:
         FileHelper.replace_pattern(src=local_file, target=local_file, pattern_replacement_list=replacement_list)
 
         logger.info(f"Updating external-dns-data-values.yaml on bootstrap VM")
-        self.ssh.copy_file(local_file, remote_file)
+        # self.ssh.copy_file(local_file, remote_file)
+        self.runcmd.local_file_copy(local_file, remote_file)
 
     def _install_cert_manager_package(self):
         logger.debug(f"Current state of packages: {self.run_config.state.shared_services.extensions}")
@@ -219,7 +227,9 @@ class SharedClusterWorkflow:
                                                                          name=Constants.CONTOUR_DISPLAY_NAME)
 
             logger.info("Copying contour-data-values.yml")
-            self.ssh.copy_file(Paths.LOCAL_VSPHERE_ALB_CONTOUR_CONFIG, Paths.REMOTE_VSPHERE_ALB_CONTOUR_CONFIG)
+            # self.ssh.copy_file(Paths.LOCAL_VSPHERE_ALB_CONTOUR_CONFIG, Paths.REMOTE_VSPHERE_ALB_CONTOUR_CONFIG)
+            self.runcmd.local_file_copy(Paths.LOCAL_VSPHERE_ALB_CONTOUR_CONFIG,
+                                        Paths.REMOTE_VSPHERE_ALB_CONTOUR_CONFIG)
 
             self.common_workflow.install_package(cluster_name=self.cluster_to_deploy, package=Constants.CONTOUR_PACKAGE,
                                                  namespace=self.run_config.spec.tkg.sharedService.packagesTargetNamespace,
@@ -243,7 +253,8 @@ class SharedClusterWorkflow:
                                                                          name=Constants.EXTERNAL_DNS_DISPLAY_NAME)
 
             logger.info("Copying external-dns-data-values.yaml")
-            self.ssh.copy_file(Paths.LOCAL_EXTERNAL_DNS_WITH_CONTOUR, Paths.REMOTE_EXTERNAL_DNS_WITH_CONTOUR)
+            # self.ssh.copy_file(Paths.LOCAL_EXTERNAL_DNS_WITH_CONTOUR, Paths.REMOTE_EXTERNAL_DNS_WITH_CONTOUR)
+            self.runcmd.local_file_copy(Paths.LOCAL_EXTERNAL_DNS_WITH_CONTOUR, Paths.REMOTE_EXTERNAL_DNS_WITH_CONTOUR)
 
             self._update_external_dns_data_values(remote_file=Paths.REMOTE_EXTERNAL_DNS_WITH_CONTOUR)
 
@@ -275,7 +286,8 @@ class SharedClusterWorkflow:
             self._update_harbor_data_values(remote_file=Paths.REMOTE_HARBOR_DATA_VALUES)
 
             logger.info("Removing comments from harbor-data-values.yaml")
-            self.ssh.run_cmd(f"yq -i eval '... comments=\"\"' {Paths.REMOTE_HARBOR_DATA_VALUES}")
+            # self.ssh.run_cmd(f"yq -i eval '... comments=\"\"' {Paths.REMOTE_HARBOR_DATA_VALUES}")
+            self.runcmd.run_cmd_only(f"yq -i eval '... comments=\"\"' {Paths.REMOTE_HARBOR_DATA_VALUES}")
 
             self.common_workflow.install_package(cluster_name=self.cluster_to_deploy, package=Constants.HARBOR_PACKAGE,
                                                  namespace=self.run_config.spec.tkg.sharedService.packagesTargetNamespace,
@@ -293,7 +305,7 @@ class SharedClusterWorkflow:
             if self.state.shared_services.integrations.tmc.attached:
                 logger.info("Cluster is already attached to Tmc.")
             else:
-                if self.spec.integrations.tmc.clusterGroup == None:
+                if self.spec.integrations.tmc.clusterGroup is None:
                     cluster_group = 'default'
                 else:
                     cluster_group = self.spec.integrations.tmc.clusterGroup
@@ -565,10 +577,11 @@ class SharedClusterWorkflow:
     def execute_workflow_1_3_x(self, task: Task):
         logger.info("infra state: %s", self.run_config.state)
         TanzuUtils(self.run_config.root_dir).push_config(logger)
-        with SshHelper(self.run_config.spec.bootstrap.server, self.run_config.spec.bootstrap.username,
-                       CmdHelper.decode_password(self.run_config.spec.bootstrap.password),
-                       self.run_config.spec.onDocker) as ssh:
-            self.initialize_clients(ssh)
+        # with SshHelper(self.run_config.spec.bootstrap.server, self.run_config.spec.bootstrap.username,
+        #                CmdHelper.decode_password(self.run_config.spec.bootstrap.password),
+        #                self.run_config.spec.onDocker) as ssh:
+        try:
+            self.initialize_clients(self.runcmd)
             if task == Task.DEPLOY_CLUSTER:
                 logger.debug(f"Current state of shared cluster: {self.run_config.state.shared_services}")
                 if self.run_config.state.shared_services.deployed:
@@ -581,7 +594,8 @@ class SharedClusterWorkflow:
 
                 logger.info(f'Writing templated spec to: {local_spec_file}')
                 FileHelper.dump_spec(templated_spec, local_spec_file)
-                ssh.copy_file(local_spec_file, Paths.TKG_SHARED_SERVICES_CONFIG_PATH)
+                # ssh.copy_file(local_spec_file, Paths.TKG_SHARED_SERVICES_CONFIG_PATH)
+                self.runcmd.local_file_copy(local_spec_file, Paths.TKG_SHARED_SERVICES_CONFIG_PATH)
                 self.common_workflow.deploy_tanzu_k8s_cluster(cluster_to_deploy=self.cluster_to_deploy,
                                                               file_path=Paths.TKG_SHARED_SERVICES_CONFIG_PATH)
                 self._add_shared_services_label()
@@ -616,6 +630,8 @@ class SharedClusterWorkflow:
                     err = f"Invalid task provided: {task}. Valid tasks: {valid_tasks}"
                     logger.error(err)
                     raise Exception(err)
+        except Exception:
+            logger.error(f"{traceback.format_exc()}")
 
         logger.info('Shared Cluster Workflow complete!')
 
@@ -623,10 +639,12 @@ class SharedClusterWorkflow:
     def execute_workflow_1_4_x(self, task: Task):
         logger.info("infra state: %s", self.run_config.state)
         TanzuUtils(self.run_config.root_dir).push_config(logger)
-        with SshHelper(self.run_config.spec.bootstrap.server, self.run_config.spec.bootstrap.username,
-                       CmdHelper.decode_password(self.run_config.spec.bootstrap.password),
-                       self.run_config.spec.onDocker) as ssh:
-            self.initialize_clients(ssh)
+        # with SshHelper(self.run_config.spec.bootstrap.server, self.run_config.spec.bootstrap.username,
+        #                CmdHelper.decode_password(self.run_config.spec.bootstrap.password),
+        #                self.run_config.spec.onDocker) as ssh:
+        try:
+            self.runcmd: RunCmd = None
+            self.initialize_clients(self.runcmd)
             if task == Task.DEPLOY_CLUSTER:
                 logger.debug(f"Current state of shared cluster: {self.run_config.state.shared_services}")
                 if self.run_config.state.shared_services.deployed:
@@ -639,7 +657,8 @@ class SharedClusterWorkflow:
 
                 logger.info(f'Writing templated spec to: {local_spec_file}')
                 FileHelper.dump_spec(templated_spec, local_spec_file)
-                ssh.copy_file(local_spec_file, Paths.TKG_SHARED_SERVICES_CONFIG_PATH)
+                self.runcmd.local_file_copy(local_spec_file, Paths.TKG_SHARED_SERVICES_CONFIG_PATH)
+                # ssh.copy_file(local_spec_file, Paths.TKG_SHARED_SERVICES_CONFIG_PATH)
                 self.common_workflow.deploy_tanzu_k8s_cluster(cluster_to_deploy=self.cluster_to_deploy,
                                                               file_path=Paths.TKG_SHARED_SERVICES_CONFIG_PATH)
                 self._add_shared_services_label()
@@ -666,6 +685,8 @@ class SharedClusterWorkflow:
                     err = f"Invalid task provided: {task}. Valid tasks: {valid_tasks}"
                     logger.error(err)
                     raise Exception(err)
+        except Exception:
+            logger.error(f"{traceback.format_exc()}")
 
         logger.info('Shared Cluster Workflow complete!')
 
@@ -676,10 +697,11 @@ class SharedClusterWorkflow:
             self.execute_workflow_1_4_x(task)
 
     def upgrade_workflow(self, task: Task):
-        with SshHelper(self.run_config.spec.bootstrap.server, self.run_config.spec.bootstrap.username,
-                       CmdHelper.decode_password(self.run_config.spec.bootstrap.password),
-                       self.run_config.spec.onDocker) as ssh:
-            self.initialize_clients(ssh)
+        # with SshHelper(self.run_config.spec.bootstrap.server, self.run_config.spec.bootstrap.username,
+        #                CmdHelper.decode_password(self.run_config.spec.bootstrap.password),
+        #                self.run_config.spec.onDocker) as ssh:
+        try:
+            self.initialize_clients(self.runcmd)
             self.prev_extensions_root = TKG_EXTENSIONS_ROOT[self.prev_version]
             self.prev_extensions_dir = Paths.TKG_EXTENSIONS_DIR.format(extensions_root=self.prev_extensions_root)
             if task == Task.UPGRADE_CLUSTER:
@@ -711,5 +733,6 @@ class SharedClusterWorkflow:
                     err = f"Invalid task provided: {task}. Valid tasks: {valid_tasks}"
                     logger.error(err)
                     raise Exception(err)
-
             logger.info('Shared Cluster Workflow complete!')
+        except Exception:
+            logger.error(f"{traceback.format_exc()}")

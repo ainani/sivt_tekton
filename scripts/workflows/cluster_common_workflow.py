@@ -13,6 +13,7 @@ from util.file_helper import FileHelper
 from util.git_helper import Git
 from util.logger_helper import LoggerHelper, log, log_debug
 from util.ssh_helper import SshHelper
+from util.cmd_runner import RunCmd
 from util.tanzu_utils import TanzuUtils
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
@@ -23,11 +24,11 @@ RETRY_COUNT = TIMEOUT // DELAY
 
 
 class ClusterCommonWorkflow:
-    def __init__(self, ssh: SshHelper):
-        self.ssh = ssh
-        self.tkg_cli_client = TkgCliClient(ssh)
-        self.kubectl_client = KubectlClient(ssh)
-        self.tmc_cli_client = TmcCliClient(ssh)
+    def __init__(self, runcmd: RunCmd):
+        self.runcmd = runcmd
+        self.tkg_cli_client = TkgCliClient(runcmd)
+        self.kubectl_client = KubectlClient(runcmd)
+        self.tmc_cli_client = TmcCliClient(runcmd)
 
     @log("Commit kubeconfig")
     def commit_kubeconfig(self, root_dir, cluster_type):
@@ -183,7 +184,8 @@ class ClusterCommonWorkflow:
                                 cd {work_dir};
                                 cp {source} {destination}
                             '''
-        self.ssh.run_cmd(copy_config)
+        # self.ssh.run_cmd(copy_config)
+        self.runcmd.run_cmd_only(copy_config)
 
     @log("Deleting TMC extensions Manager")
     def delete_tmc_extensions_mgr(self, cluster_name, work_dir):
@@ -290,7 +292,8 @@ class ClusterCommonWorkflow:
         # Replace $ sign with escaped $ sign for running on container.
         if on_docker:
             cmd = re.sub(r'\$', r'\$', cmd)
-        return self.ssh.run_cmd(cmd)
+        # return self.ssh.run_cmd(cmd)
+        return self.runcmd.run_cmd_only(cmd)
 
     @log("check health of cluster and update state")
     def check_health(self, root_dir, spec: MasterSpec):
@@ -345,7 +348,7 @@ class ClusterCommonWorkflow:
     @log("Upgrading tanzu kubernetes cluster")
     def upgrade_k8s_cluster_1_3_x(self, cluster_name, mgmt_cluster_name, timeout="60m0s", verbose=True):
         logger.info(f"Login with cluster context and cleanup for {cluster_name}")
-        self.ssh.run_cmd(
+        self.runcmd.run_cmd_only(
             TKGCommands.CLUSTER_UPGRADE_CLEANUP.format(
                 cluster_name=cluster_name,
                 mgmt_cluster_name=mgmt_cluster_name
@@ -358,5 +361,8 @@ class ClusterCommonWorkflow:
         logger.info(f"Upgrade cluster: {cluster_name}")
         cmd_option = TKGCommands.TIMEOUT_OPTION.format(timeout=timeout) if timeout else ""
         cmd_option += " -v 9" if verbose else ""
-        self.ssh.run_cmd(TKGCommands.CLUSTER_UPGRADE.format(cluster_name=cluster_name, options=cmd_option))
-        self.ssh.run_cmd(TKGCommands.LIST_ALL_CLUSTERS)
+        # self.ssh.run_cmd(TKGCommands.CLUSTER_UPGRADE.format(cluster_name=cluster_name, options=cmd_option))
+        self.runcmd.run_cmd_only(TKGCommands.CLUSTER_UPGRADE.format(cluster_name=cluster_name,
+                                                                    options=cmd_option))
+        # self.ssh.run_cmd(TKGCommands.LIST_ALL_CLUSTERS)
+        self.runcmd.run_cmd_only(TKGCommands.LIST_ALL_CLUSTERS)
