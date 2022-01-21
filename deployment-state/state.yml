@@ -1,5 +1,5 @@
 avi:
-  deployed: false
+  deployed: true
   health: UP
   name: alb_controller
   version: 20.1.6
