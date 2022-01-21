@@ -22,7 +22,9 @@ spec:
           ls -l
           cd /workspace/task-shared-data
           python arcas-tekton-cicd/scripts/__main__.py --root-dir=/workspace/task-shared-data mgmt deploy
-
+          echo "kubeconfig"
+          cat /root/.kube-tkg/tmp/
+          sleep 3600
       volumeMounts:
       - mountPath: /certs/client
         name: dind-certs

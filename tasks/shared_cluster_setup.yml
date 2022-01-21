@@ -23,6 +23,7 @@ spec:
           ls -l
           cd /workspace/task-shared-data
           python arcas-tekton-cicd/scripts/__main__.py --root-dir=/workspace/task-shared-data shared-services deploy-cluster
+          sleep 3600
       volumeMounts:
       - mountPath: /certs/client
         name: dind-certs
