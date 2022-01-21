@@ -11,6 +11,8 @@ from util.file_helper import FileHelper
 from util.logger_helper import LoggerHelper
 from util.ssh_helper import SshHelper
 import subprocess
+from util.cmd_runner import RunCmd
+import traceback
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 
@@ -28,61 +30,72 @@ class TanzuUtils:
         self.repo_kube_tkg_config = os.path.join(self.root_dir, Paths.REPO_KUBE_TKG_CONFIG)
         self.repo_tanzu_config = os.path.join(self.root_dir, Paths.REPO_TANZU_CONFIG)
         self.repo_tanzu_config_new = os.path.join(self.root_dir, Paths.REPO_TANZU_CONFIG_NEW)
-
+        self.runcmd = RunCmd()
         FileHelper.make_parent_dirs(self.repo_kube_config)
         FileHelper.make_parent_dirs(self.repo_kube_tkg_config)
         FileHelper.make_parent_dirs(self.repo_tanzu_config)
         FileHelper.make_parent_dirs(self.repo_tanzu_config_new)
 
     def pull_config(self):
-        with SshHelper(self.bootstrap.server, self.bootstrap.username, CmdHelper.decode_password(self.bootstrap.password), self.spec.onDocker) as ssh:
-            self.pull_kube_config(ssh)
-            self.pull_kube_tkg_config(ssh)
-            self.pull_tanzu_config(ssh)
 
-    def pull_kube_config(self, ssh: SshHelper):
+        # with SshHelper(self.bootstrap.server, self.bootstrap.username, CmdHelper.decode_password(self.bootstrap.password), self.spec.onDocker) as ssh:
+        self.pull_kube_config()
+        self.pull_kube_tkg_config()
+        self.pull_tanzu_config()
+
+    def pull_kube_config(self):
         remote_kube_config = Paths.REMOTE_KUBE_CONFIG
         try:
-            ssh.run_cmd(f"ls {remote_kube_config}")
+            self.runcmd.run_cmd_only(f"ls {remote_kube_config}")
         except Exception as ex:
             return
-        ssh.copy_file_from_remote(remote_kube_config, self.repo_kube_config)
+        self.runcmd.local_file_copy(remote_kube_config, self.repo_kube_config)
+        # ssh.copy_file_from_remote(remote_kube_config, self.repo_kube_config)
 
-    def pull_kube_tkg_config(self, ssh):
+    def pull_kube_tkg_config(self):
         remote_kube_config = Paths.REMOTE_KUBE_TKG_CONFIG
         try:
-            ssh.run_cmd(f"ls {remote_kube_config}")
+            self.runcmd.run_cmd_only(f"ls {remote_kube_config}")
         except Exception as ex:
             return
-        ssh.copy_file_from_remote(remote_kube_config, self.repo_kube_tkg_config)
+        self.runcmd.local_file_copy(remote_kube_config, self.repo_kube_tkg_config)
 
-    def pull_tanzu_config(self, ssh):
+    def pull_tanzu_config(self):
         if self.desired_state.version.tkg >= '1.4.0':
             remote_tanzu_config_new = Paths.REMOTE_TANZU_CONFIG_NEW
             try:
-                ssh.run_cmd(f"ls {remote_tanzu_config_new}")
+                self.runcmd.run_cmd_only(f"ls {remote_tanzu_config_new}")
+                # ssh.run_cmd(f"ls {remote_tanzu_config_new}")
             except Exception as ex:
                 return
-            ssh.copy_file_from_remote(remote_tanzu_config_new, self.repo_tanzu_config_new)
+            self.runcmd.local_file_copy(remote_tanzu_config_new, self.repo_tanzu_config_new)
+            # ssh.copy_file_from_remote(remote_tanzu_config_new, self.repo_tanzu_config_new)
         else:
             remote_tanzu_config = Paths.REMOTE_TANZU_CONFIG
             try:
-                ssh.run_cmd(f"ls {remote_tanzu_config}")
+                self.runcmd.run_cmd_only(f"ls {remote_tanzu_config}")
+                # ssh.run_cmd(f"ls {remote_tanzu_config}")
             except Exception as ex:
                 return
-            ssh.copy_file_from_remote(remote_tanzu_config, self.repo_tanzu_config)
+            self.runcmd.local_file_copy(remote_tanzu_config, self.repo_tanzu_config)
+            # ssh.copy_file_from_remote(remote_tanzu_config, self.repo_tanzu_config)
 
     def push_config(self, logger):
         logger.info("Copying config files")
+        self.runcmd.run_cmd_only(f"mkdir -p /root/.kube /root/.kube-tkg")
         # with SshHelper(self.bootstrap.server, self.bootstrap.username, CmdHelper.decode_password(self.bootstrap.password), self.spec.onDocker) as ssh:
-        subprocess.run("mkdir -p /root/.kube /root/.kube-tkg")
-        cp_cmd = "cp {} {}".format(self.repo_kube_tkg_config, Paths.REMOTE_KUBE_TKG_CONFIG)
-        subprocess.run(cp_cmd)
-        cp_cmd = "cp {} {}".format(self.repo_kube_config, Paths.REMOTE_KUBE_CONFIG)
-        subprocess.run(cp_cmd)
+        # subprocess.run(f"mkdir -p {}/root/.kube /root/.kube-tkg")
+        #root_dir = "/workspace/shared-data/kubeconfig"
+        # subprocess.run(f"mkdir -p {self.root_dir/} /root/.kube /root/.kube-tkg")
+        # cp_cmd = "cp {} {}".format(self.repo_kube_tkg_config, Paths.REMOTE_KUBE_TKG_CONFIG)
+        self.runcmd.local_file_copy(self.repo_kube_tkg_config, Paths.REMOTE_KUBE_TKG_CONFIG)
+        self.runcmd.local_file_copy(self.repo_kube_config, Paths.REMOTE_KUBE_CONFIG)
+        # cp_cmd = "cp {} {}".format(self.repo_kube_config, Paths.REMOTE_KUBE_CONFIG)
+        # subprocess.run(cp_cmd)
         if self.desired_state.version.tkg >= '1.4.0' and not self.state.shared_services.upgradedFrom:
-            cp_cmd = "cp {} {}".format(self.repo_tanzu_config_new, Paths.REMOTE_TANZU_CONFIG_NEW)
-            subprocess.run(cp_cmd)
+            # cp_cmd = "cp {} {}".format(self.repo_tanzu_config_new, Paths.REMOTE_TANZU_CONFIG_NEW)
+            self.runcmd.local_file_copy(self.repo_tanzu_config_new, Paths.REMOTE_TANZU_CONFIG_NEW)
+            # subprocess.run(cp_cmd)
             # ssh.copy_file(self.repo_tanzu_config_new, Paths.REMOTE_TANZU_CONFIG_NEW)
         # elif self.desired_state.version.tkg == '1.4.0':
         #     ssh.copy_file(self.repo_tanzu_config, Paths.REMOTE_TANZU_CONFIG_NEW)
