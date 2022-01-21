@@ -185,4 +185,4 @@ avi:
   dataNetwork:
     name: vds-tkg-cluster-vip
     cidr: "192.168.20.0/24"
-    staticRange: 192.168.21.100-192.168.21.199
+    staticRange: 192.168.20.100-192.168.20.199
