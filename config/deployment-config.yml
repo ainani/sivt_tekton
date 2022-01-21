@@ -6,7 +6,6 @@ bootstrap:
 
 onDocker: false
 
-#nested arcas lab 
 vsphere:
   server: vcenter.tanzu.lab
   username: administrator@vsphere.local
@@ -184,6 +183,6 @@ avi:
       domain: arcas.lab
   # vip network
   dataNetwork:
-    name: vds-tkg-management-data-pg
-    cidr: "192.168.21.0/24"
+    name: vds-tkg-cluster-vip
+    cidr: "192.168.20.0/24"
     staticRange: 192.168.21.100-192.168.21.199
