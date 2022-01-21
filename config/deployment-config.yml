@@ -115,7 +115,8 @@ tkg:
         folder: /tanzu-dc01/vm/selva/Workload_0
         network: vds-tkg-workload01-pg
         resourcePool: /tanzu-dc01/host/VMware-Cloud/Resources/selva/workload_0
-      sshKey: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDYPVLZhwx9F8d+uGG+kvsLfwIipTTLNc8IJ8bRJbUxjXF2aBaAQNpuVnccQkvTiON2p1WYZy11/SAL5BR/2/Fq9qjUC0JyDc3oUqKGDGe4p/G8d60LzBq/3bb/TBQfFiDRAwwSdy/A89dEQYe1jhs9UMgLftnV/Cw4G8SnmFoMdiLcoNvKLkRBoyoVhnDs2jHiFw92AyeHfF8m+lcOKzK7AR/i3JCXSSokw0M9u84cojH71kenD0mZVdM1vuIhNr81u4fpUOBrK/TxqdPUOzZhwWbxeLVeRK1RiRGxa2eQV52WMSTLb0PlMLf1Ajd3S+NjVyZHsNE+S0cNPPbG1foAkHTPwmjxh4msT+r/4PXac97iRSUIwYDnyWfNtyBOjDw/0HUaOTSI/XzFmvd4pbVh9kiy8ojb10Py7bbWVwvWMLLDl2wyS9VPQmfp4jezhgFkyk8Oab8BcbV4h1Q7LYwCJY1B0CRFECUqN8DLa+fWxO9tVSLAAVjJ/pJcEqM38zk= root@3d44e86e2185
+      sshKey: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDohGnMIYXI4mx7MzJJl4LbXacovb2nn9/x9/QXT0/edlNCeGvnVLltCoE/PZUy1FskXKlcRy2/XF/DPTE8kUUfgdFEbCORn8XRYkg7WdRg6uhTvNFSDhXWealg6yBQGxCk/tiWApQl1BUwwvGqXd3Au3SyMrahP5SKsLj8FNqSePajmVFzM+LxOsFIPKEMjqWZSmqHmyTqIjNGo9UYmRY38bKLfE4bFzhryNfr+jETuaP2pZv1Owa4XLRmp3HUfofAb9Dn2SvpnnvRk0J3nyjg44iu1W2w92itq28avXASnyC271oQMkYDXpGwF8ZW/pPHDaemMnwe7mN8D48+UAKcEOhUwjQO7KIWuPZ9dHniUcGvq6fVqamelePPP+FlDau8BQDLr+ZwGIm+cTlJNoivbuW4jFM3/EIof/BxBiq3ubjb55P/4b490oD+Y1+N8wNsdP+hegowL5MacQsW3QglKYCh8p4tII/fQfaaS16L1FqzabPMjlKuy4pgNxWl6yM= root@5cc7bf2e478d
+
       controlPlane:
         endpoint: "192.168.32.26"
         diskGib: '20'
