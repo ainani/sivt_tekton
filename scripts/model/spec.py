@@ -203,8 +203,8 @@ class Mgmt(BaseModel):
         cluster_name = v.get("cluster").get("name")
         if v.get("worker").get("endpoint") is not None:
             logger.warn("Invalid 'endpoint' key for worker configuration")
-        if re.match("ssh-rsa AAAA[0-9A-Za-z+/]+[=]{0,3} ", v.get("sshKey")) is None:
-            raise ValueError("Provide correct ssh key")
+        # if re.match("ssh-rsa AAAA[0-9A-Za-z+/]+[=]{0,3} ", v.get("sshKey")) is None:
+        #     raise ValueError("Provide correct ssh key")
         if re.match("^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$", cluster_name) is None:
             raise ValueError(
                 f"""
@@ -266,8 +266,8 @@ class SharedServices(BaseModel):
             logger.warn("Invalid 'endpoint' key for worker configuration")
         if control_plane.get("count") is not None and control_plane.get("count") % 2 == 0:
             raise ValueError("control-plane count has to be odd")
-        if re.match("ssh-rsa AAAA[0-9A-Za-z+/]+[=]{0,3} ", v.get("sshKey")) is None:
-            raise ValueError("Provide correct ssh key")
+        # if re.match("ssh-rsa AAAA[0-9A-Za-z+/]+[=]{0,3} ", v.get("sshKey")) is None:
+        #     raise ValueError("Provide correct ssh key")
         if re.match("^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$", cluster_name) is None:
             raise ValueError(
                 f"""
@@ -310,9 +310,9 @@ class WorkloadCluster(BaseModel):
             logger.warn("Invalid 'endpoint' key for worker configuration")
         if control_plane.get("count") is not None and control_plane.get("count") % 2 == 0:
             raise ValueError("control-plane count has to be odd")
-        if re.match("ssh-rsa AAAA[0-9A-Za-z+/]+[=]{0,3} ", v.get("sshKey")) is None:
-            # https://gist.github.com/paranoiq/1932126
-            raise ValueError("Provide correct ssh key")
+        # if re.match("ssh-rsa AAAA[0-9A-Za-z+/]+[=]{0,3} ", v.get("sshKey")) is None:
+        #     # https://gist.github.com/paranoiq/1932126
+        #     raise ValueError("Provide correct ssh key")
         if re.match("^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$", cluster_name) is None:
             raise ValueError(
                 f"""

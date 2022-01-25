@@ -73,7 +73,7 @@ tkg:
     deployment:
       datacenter: /tanzu-dc01
       datastore: /tanzu-dc01/datastore/iscsi-storage
-      folder: /tanzu-dc01/vm/selva/Shared
+      folder: /tanzu-dc01/vm/selva/shared
       network: vds-tkg-management-pg
       resourcePool: /tanzu-dc01/host/VMware-Cloud/Resources/selva/shared
     sshKey: SHARED_CLUSTER_SSHKEY
