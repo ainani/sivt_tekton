@@ -46,15 +46,16 @@ class WorkloadClusterWorkflow:
         t = Template(deploy_yaml)
         return t.render(spec=self.run_config.spec, wl_cluster=cluster)
 
-    def initialize_clients(self, runcmd):
+    def initialize_clients(self):
         if not self.tkg_cli_client:
-            self.tkg_cli_client = TkgCliClient(runcmd)
+            # self.tkg_cli_client = TkgCliClient(self.runcmd)
+            self.tkg_cli_client = TkgCliClient()
         if not self.kubectl_client:
-            self.kubectl_client = KubectlClient(runcmd)
+            self.kubectl_client = KubectlClient()
         # if not self.ssh:
         #     self.ssh = ssh
         if not self.common_workflow:
-            self.common_workflow = ClusterCommonWorkflow(runcmd)
+            self.common_workflow = ClusterCommonWorkflow()
 
     @log("Updating state file")
     def _update_state(self, task: Task, msg="Successful workload cluster deployment"):
@@ -600,7 +601,10 @@ class WorkloadClusterWorkflow:
         # with SshHelper(self.run_config.spec.bootstrap.server, self.run_config.spec.bootstrap.username,
         #                CmdHelper.decode_password(self.run_config.spec.bootstrap.password),
         #                self.run_config.spec.onDocker) as ssh:
-        self.initialize_clients(self.runcmd)
+        # self.runcmd.run_cmd_only()
+        self.initialize_clients()
+        self.runcmd = RunCmd()
+
         try:
             for cluster in self.run_config.spec.tkg.workloadClusters:
                 self.cluster_to_deploy = cluster.cluster.name
@@ -618,6 +622,7 @@ class WorkloadClusterWorkflow:
 
                     logger.info(f"Writing templated spec to: {local_spec_file}")
                     FileHelper.dump_spec(templated_spec, local_spec_file)
+
                     self.runcmd.local_file_copy(local_spec_file, Paths.TKG_WORKLOAD_CLUSTER_CONFIG_PATH)
 
                     # ssh.copy_file(local_spec_file, Paths.TKG_WORKLOAD_CLUSTER_CONFIG_PATH)

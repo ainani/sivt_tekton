@@ -24,11 +24,11 @@ RETRY_COUNT = TIMEOUT // DELAY
 
 
 class ClusterCommonWorkflow:
-    def __init__(self, runcmd: RunCmd):
-        self.runcmd = runcmd
-        self.tkg_cli_client = TkgCliClient(runcmd)
-        self.kubectl_client = KubectlClient(runcmd)
-        self.tmc_cli_client = TmcCliClient(runcmd)
+    def __init__(self):
+        self.runcmd = RunCmd()
+        self.tkg_cli_client = TkgCliClient()
+        self.kubectl_client = KubectlClient()
+        self.tmc_cli_client = TmcCliClient()
 
     @log("Commit kubeconfig")
     def commit_kubeconfig(self, root_dir, cluster_type):

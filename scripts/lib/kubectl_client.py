@@ -6,18 +6,19 @@ from constants.constants import KubectlCommands, Paths, RepaveTkgCommands
 from util.cmd_helper import CmdHelper
 from util.logger_helper import LoggerHelper, log, log_debug
 from util.ssh_helper import SshHelper
+from util.cmd_runner import RunCmd
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 
 
 class KubectlClient:
-    def __init__(self, ssh: SshHelper):
-        self.ssh = ssh
+    def __init__(self):
+        self.ssh = RunCmd()
 
     def set_cluster_context(self, cluster_name):
         logger.info(f"Setting kubectl context to {cluster_name} cluster")
         set_kubectl_context = KubectlCommands.SET_KUBECTL_CONTEXT.format(cluster=cluster_name)
-        return self.ssh.run_cmd(set_kubectl_context)
+        return self.ssh.run_cmd_only(set_kubectl_context)
 
     def get_all_pods(self):
         logger.info("Listing all pods...")
@@ -43,7 +44,7 @@ class KubectlClient:
                 cd {work_dir};
                 {KubectlCommands.APPLY.format(config_file=config_file_path)}
             """
-        return self.ssh.run_cmd(deploy_cert_mgr)
+        return self.ssh.run_cmd_only(deploy_cert_mgr)
 
     def install_tmc_extensions_mgr(self, cluster_name, work_dir, config_file_path):
         self.set_cluster_context(cluster_name)
@@ -52,21 +53,21 @@ class KubectlClient:
                     cd {work_dir};
                     {KubectlCommands.APPLY.format(config_file=config_file_path)}
                 """
-        return self.ssh.run_cmd(install_extensions_mgr)
+        return self.ssh.run_cmd_only(install_extensions_mgr)
 
     def create_namespace(self, work_dir, config_file_path):
         create_namespace = f"""
                     cd {work_dir};
                     {KubectlCommands.APPLY.format(config_file=config_file_path)}
                 """
-        return self.ssh.run_cmd(create_namespace)
+        return self.ssh.run_cmd_only(create_namespace)
 
     def create_secret(self, secret_name, work_dir, config_file_path, namespace):
         cmd = f"""
                 cd {work_dir};
                 {KubectlCommands.CREATE_SECRET.format(name=secret_name, config_file=config_file_path, namespace=namespace)}
                 """
-        return self.ssh.run_cmd(cmd)
+        return self.ssh.run_cmd_only(cmd)
 
     @log("Checking if namespace exists")
     def check_namespace_exists(self, namespace):
@@ -101,13 +102,13 @@ class KubectlClient:
                             cd {work_dir};
                             {KubectlCommands.APPLY.format(config_file=config_file_path)}
                         """
-        return self.ssh.run_cmd(deploy_extension)
+        return self.ssh.run_cmd_only(deploy_extension)
 
     def add_services_label(self, cluster_name, mgmt_cluster_name):
         self.set_cluster_context(mgmt_cluster_name)
 
         logger.info(f"Adding shared services label to cluster: {cluster_name}")
-        self.ssh.run_cmd(KubectlCommands.ADD_SERVICES_LABEL.format(cluster=cluster_name))
+        self.ssh.run_cmd_only(KubectlCommands.ADD_SERVICES_LABEL.format(cluster=cluster_name))
 
     def list_service_accounts(self, namespace, options=""):
         logger.info(f"Listing all service accounts in namespace: {namespace}...")
@@ -130,7 +131,7 @@ class KubectlClient:
     def delete_extension(self, cluster_name, extension_name, namespace):
         self.set_cluster_context(cluster_name=cluster_name)
         logger.info(f"Deleting extension {extension_name} in namespace {namespace}")
-        return self.ssh.run_cmd(KubectlCommands.DELETE_EXTENSION.format(app_name=extension_name, namespace=namespace))
+        return self.ssh.run_cmd_only(KubectlCommands.DELETE_EXTENSION.format(app_name=extension_name, namespace=namespace))
 
     def delete_tmc_extensions_mgr(self, cluster_name, work_dir, config_file_path):
         self.set_cluster_context(cluster_name)
@@ -139,7 +140,7 @@ class KubectlClient:
                     cd {work_dir};
                     {KubectlCommands.DELETE.format(config_file=config_file_path)}
                 """
-        return self.ssh.run_cmd(cmd)
+        return self.ssh.run_cmd_only(cmd)
 
     def install_kapp_controller(self, cluster_name, work_dir, config_file_path):
         self.set_cluster_context(cluster_name)
@@ -148,14 +149,14 @@ class KubectlClient:
                     cd {work_dir};
                     {KubectlCommands.APPLY.format(config_file=config_file_path)}
             """
-        return self.ssh.run_cmd(cmd)
+        return self.ssh.run_cmd_only(cmd)
 
     def get_secret_details(self, secret_name, namespace, work_dir, options=""):
         cmd = f"""
                 cd {work_dir};
                 {KubectlCommands.GET_SECRET_DETAILS.format(name=secret_name, namespace=namespace, options=options)}
             """
-        output = self.ssh.run_cmd(cmd)
+        output = self.ssh.run_cmd_only(cmd)
         return output
 
     def update_secret(self, secret_name, work_dir, config_file_path, namespace):
@@ -163,15 +164,15 @@ class KubectlClient:
                 cd {work_dir};
                 {KubectlCommands.UPDATE_SECRET.format(name=secret_name, config_file=config_file_path, namespace=namespace)}
                 """
-        return self.ssh.run_cmd(cmd)
+        return self.ssh.run_cmd_only(cmd)
 
     def get_oldest_node(self):
         logger.info("Worker Nodes: ")
-        self.ssh.run_cmd(RepaveTkgCommands.GET_NODES_WITH_TIMESTAMP)
+        self.ssh.run_cmd_only(RepaveTkgCommands.GET_NODES_WITH_TIMESTAMP)
         return self.ssh.run_cmd_output(RepaveTkgCommands.GET_OLDEST_WORKER_NODE)[1].strip()
 
     def add_node(self, cluster_name, control_plane_node_count, worker_node_count):
-        self.ssh.run_cmd(
+        self.ssh.run_cmd_only(
             RepaveTkgCommands.ADD_NODES.format(
                 cluster_name=cluster_name,
                 control_plane_node_count=control_plane_node_count,
@@ -181,11 +182,11 @@ class KubectlClient:
 
     def drain_pods_from_node(self, node_name):
         logger.info(f"Drain pods from node: {node_name}")
-        self.ssh.run_cmd(RepaveTkgCommands.DRAIN_PODS.format(node_name=node_name))
+        self.ssh.run_cmd_only(RepaveTkgCommands.DRAIN_PODS.format(node_name=node_name))
 
     def delete_node(self, node_name):
         logger.info(f"Delete node: {node_name}")
-        self.ssh.run_cmd(RepaveTkgCommands.DELETE_NODE.format(node_name=node_name))
+        self.ssh.run_cmd_only(RepaveTkgCommands.DELETE_NODE.format(node_name=node_name))
 
     def get_node_count(self) -> int:
         output = CmdHelper.escape_ansi(self.ssh.run_cmd_output(RepaveTkgCommands.NODE_COUNT)[1].strip())

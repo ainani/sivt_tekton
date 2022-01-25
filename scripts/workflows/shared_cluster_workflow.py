@@ -75,13 +75,13 @@ class SharedClusterWorkflow:
 
     def initialize_clients(self, runcmd):
         if not self.tkg_cli_client:
-            self.tkg_cli_client = TkgCliClient(runcmd)
+            self.tkg_cli_client = TkgCliClient()
         if not self.kubectl_client:
-            self.kubectl_client = KubectlClient(runcmd)
+            self.kubectl_client = KubectlClient()
         # if not self.ssh:
         #     self.ssh = ssh
         if not self.common_workflow:
-            self.common_workflow = ClusterCommonWorkflow(runcmd)
+            self.common_workflow = ClusterCommonWorkflow()
 
     @log("Updating state file")
     def _update_state(self, task: Task, msg="Successful shared cluster deployment"):
@@ -643,7 +643,7 @@ class SharedClusterWorkflow:
         #                CmdHelper.decode_password(self.run_config.spec.bootstrap.password),
         #                self.run_config.spec.onDocker) as ssh:
         try:
-            self.runcmd: RunCmd = None
+            self.runcmd = RunCmd()
             self.initialize_clients(self.runcmd)
             if task == Task.DEPLOY_CLUSTER:
                 logger.debug(f"Current state of shared cluster: {self.run_config.state.shared_services}")

@@ -1,9 +1,9 @@
 ---
 CLUSTER_CIDR: 100.96.0.0/11
-CLUSTER_NAME: {{ spec.tkg.shared_services.cluster.name }}
-CLUSTER_PLAN: {{ spec.tkg.shared_services.cluster.plan }}
-{% if spec.tkg.shared_services.controlPlane.count is not none %}CONTROL_PLANE_MACHINE_COUNT: {{ spec.tkg.shared_services.controlPlane.count }}{% endif %}
-{% if spec.tkg.shared_services.worker.count is not none %}WORKER_MACHINE_COUNT: {{ spec.tkg.shared_services.worker.count }}{% endif %}
+CLUSTER_NAME: {{ spec.tkg.sharedService.cluster.name }}
+CLUSTER_PLAN: {{ spec.tkg.sharedService.cluster.plan }}
+{% if spec.tkg.sharedService.controlPlane.count is not none %}CONTROL_PLANE_MACHINE_COUNT: {{ spec.tkg.sharedService.controlPlane.count }}{% endif %}
+{% if spec.tkg.sharedService.worker.count is not none %}WORKER_MACHINE_COUNT: {{ spec.tkg.sharedService.worker.count }}{% endif %}
 ENABLE_MHC: "true"
 IDENTITY_MANAGEMENT_TYPE: none
 INFRASTRUCTURE_PROVIDER: vsphere
@@ -14,20 +14,20 @@ VSPHERE_USERNAME: {{ spec.vsphere.username }}
 VSPHERE_PASSWORD:  {{ spec.vsphere.password }}
 VSPHERE_TLS_THUMBPRINT: {{ spec.vsphere.tlsThumbprint }}
 
-VSPHERE_DATACENTER: {{ spec.tkg.shared_services.deployment.datacenter }}
-VSPHERE_DATASTORE: {{ spec.tkg.shared_services.deployment.datastore }}
-VSPHERE_FOLDER: {{ spec.tkg.shared_services.deployment.folder }}
-VSPHERE_NETWORK: {{ spec.tkg.shared_services.deployment.network }}
-VSPHERE_RESOURCE_POOL: {{ spec.tkg.shared_services.deployment.resourcePool }}
+VSPHERE_DATACENTER: {{ spec.tkg.sharedService.deployment.datacenter }}
+VSPHERE_DATASTORE: {{ spec.tkg.sharedService.deployment.datastore }}
+VSPHERE_FOLDER: {{ spec.tkg.sharedService.deployment.folder }}
+VSPHERE_NETWORK: {{ spec.tkg.sharedService.deployment.network }}
+VSPHERE_RESOURCE_POOL: {{ spec.tkg.sharedService.deployment.resourcePool }}
 
-VSPHERE_SSH_AUTHORIZED_KEY: {{ spec.tkg.shared_services.sshKey }}
-VSPHERE_CONTROL_PLANE_ENDPOINT: {{ spec.tkg.shared_services.controlPlane.endpoint }}
-VSPHERE_CONTROL_PLANE_DISK_GIB: "{{ spec.tkg.shared_services.controlPlane.diskGib }}"
-VSPHERE_CONTROL_PLANE_MEM_MIB: "{{ spec.tkg.shared_services.controlPlane.memoryMib }}"
-VSPHERE_CONTROL_PLANE_NUM_CPUS: "{{ spec.tkg.shared_services.controlPlane.cpus }}"
-VSPHERE_WORKER_DISK_GIB: "{{ spec.tkg.shared_services.worker.diskGib }}"
-VSPHERE_WORKER_MEM_MIB: "{{ spec.tkg.shared_services.worker.memoryMib }}"
-VSPHERE_WORKER_NUM_CPUS: "{{ spec.tkg.shared_services.worker.cpus }}"
+VSPHERE_SSH_AUTHORIZED_KEY: {{ spec.tkg.sharedService.sshKey }}
+VSPHERE_CONTROL_PLANE_ENDPOINT: {{ spec.tkg.sharedService.controlPlane.endpoint }}
+VSPHERE_CONTROL_PLANE_DISK_GIB: "{{ spec.tkg.sharedService.controlPlane.diskGib }}"
+VSPHERE_CONTROL_PLANE_MEM_MIB: "{{ spec.tkg.sharedService.controlPlane.memoryMib }}"
+VSPHERE_CONTROL_PLANE_NUM_CPUS: "{{ spec.tkg.sharedService.controlPlane.cpus }}"
+VSPHERE_WORKER_DISK_GIB: "{{ spec.tkg.sharedService.worker.diskGib }}"
+VSPHERE_WORKER_MEM_MIB: "{{ spec.tkg.sharedService.worker.memoryMib }}"
+VSPHERE_WORKER_NUM_CPUS: "{{ spec.tkg.sharedService.worker.cpus }}"
 DEPLOY_TKG_ON_VSPHERE7: true
 
 #! ---------------------------------------------------------------------
@@ -48,7 +48,7 @@ TKG_NO_PROXY: {{ spec.tkg.common.proxy.noProxy}}
 # TKG_CUSTOM_IMAGE_REPOSITORY_CA_CERTIFICATE: ""
 
 #! ---------------------------------------------------------------------
-#! Node configuration 
+#! Node configuration
 #! ---------------------------------------------------------------------
 
 {% if spec.tkg.common.node %}
@@ -56,4 +56,4 @@ OS_NAME: {{ spec.tkg.common.node.osName}}
 OS_VERSION: {{ spec.tkg.common.node.osVersion}}
 OS_ARCH: "amd64"
 {% endif %}
-SIZE: {{ wl_cluster.cluster.size }}
+SIZE: LARGE

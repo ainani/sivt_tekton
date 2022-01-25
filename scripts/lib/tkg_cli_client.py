@@ -5,24 +5,27 @@ from constants.constants import TKGCommands, Constants, KubectlCommands
 from retry import retry
 from util.logger_helper import LoggerHelper, log, log_debug
 from util.ssh_helper import SshHelper
+from util.cmd_runner import RunCmd
 import subprocess
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 
 
 class TkgCliClient:
-    def __init__(self, ssh: SshHelper):
-        self.ssh = ssh
+    def __init__(self):
+        self.runcmd = RunCmd()
 
     @log("Getting list of Tanzu clusters")
     def get_clusters(self):
-        output = subprocess.run([TKGCommands.LIST_CLUSTERS_JSON], capture_output=True, text=True).stdout
+        # output = subprocess.run([TKGCommands.LIST_CLUSTERS_JSON], capture_output=True, text=True).stdout
         # exit_code, output = self.ssh.run_cmd_output(TKGCommands.LIST_CLUSTERS_JSON)
+        output = self.runcmd.run_cmd_output(TKGCommands.LIST_CLUSTERS_JSON)
         return json.loads(output)
 
     @log("Getting list of Tanzu clusters(including management cluster)")
     def get_all_clusters(self):
-        output = subprocess.run([TKGCommands.LIST_ALL_CLUSTERS_JSON], capture_output=True, text=True).stdout
+        # output = subprocess.run([TKGCommands.LIST_ALL_CLUSTERS_JSON], capture_output=True, text=True).stdout
+        output = self.runcmd.run_cmd_output(TKGCommands.LIST_ALL_CLUSTERS_JSON)
         # exit_code, output = self.ssh.run_cmd_output(TKGCommands.LIST_ALL_CLUSTERS_JSON)
         return json.loads(output)
 
@@ -47,50 +50,50 @@ class TkgCliClient:
     @log("Deploying Tanzu kubernetes cluster")
     def deploy_cluster(self, config_file_path, verbosity='-v 9'):
         cluster_deploy = TKGCommands.CLUSTER_DEPLOY.format(file_path=config_file_path, verbose=verbosity)
-        return self.ssh.run_cmd(cluster_deploy)
+        return self.runcmd.run_cmd_only(cluster_deploy)
 
     @log("Getting admin context")
     def get_admin_context(self, cluster_name):
         logger.info(f'Getting admin context for cluster: {cluster_name}')
         get_cluster_context = TKGCommands.GET_ADMIN_CONTEXT.format(cluster=cluster_name)
-        return self.ssh.run_cmd(get_cluster_context)
+        return self.runcmd.run_cmd_only(get_cluster_context)
 
     @log("Getting all available packages")
     def list_available_packages(self, json_format=True):
         if json_format:
             cmd = TKGCommands.LIST_AVAILABLE_PACKAGES.format(options=KubectlCommands.OUTPUT_JSON)
-            exit_code, output = self.ssh.run_cmd_output(cmd)
+            exit_code, output = self.runcmd.run_cmd_output(cmd)
             return json.loads(output)
         else:
             cmd = TKGCommands.LIST_AVAILABLE_PACKAGES.format(options="")
-            return self.ssh.run_cmd(cmd)
+            return self.runcmd.run_cmd_only(cmd)
 
     @log("Getting all installed packages")
     def list_installed_packages(self, json_format=True):
         if json_format:
             cmd = TKGCommands.LIST_INSTALLED_PACKAGES.format(options=KubectlCommands.OUTPUT_JSON)
-            exit_code, output = self.ssh.run_cmd_output(cmd)
+            exit_code, output = self.runcmd.run_cmd_output(cmd)
             return json.loads(output)
         else:
             cmd = TKGCommands.LIST_INSTALLED_PACKAGES.format(options="")
-            return self.ssh.run_cmd(cmd)
+            return self.runcmd.run_cmd_only(cmd)
 
     def install_package(self, name, package, namespace, version, options=""):
         logger.info(f"Installing package {package} (ver: {version}) in namespace {namespace}")
         cmd = TKGCommands.INSTALL_PACKAGE.format(name=name, pkgName=package, namespace=namespace, version=version,
                                                  options=options)
-        return self.ssh.run_cmd(cmd)
+        return self.runcmd.run_cmd_only(cmd)
 
     @log("Get installed package details")
     def get_installed_package_details(self, name, namespace, json_format=True):
         if json_format:
             cmd = TKGCommands.GET_PACKAGE_DETAILS.format(name=name, namespace=namespace,
                                                          options=KubectlCommands.OUTPUT_JSON)
-            exit_code, output = self.ssh.run_cmd_output(cmd)
+            exit_code, output = self.runcmd.run_cmd_output(cmd)
             return json.loads(output)
         else:
             cmd = TKGCommands.GET_PACKAGE_DETAILS.format(name=name, namespace=namespace, options="")
-            return self.ssh.run_cmd(cmd)
+            return self.runcmd.run_cmd_only(cmd)
 
     @log("Check if package is installed in given namespace and is in specified version")
     def check_package_installed(self, name, namespace, version):
@@ -115,24 +118,24 @@ class TkgCliClient:
     def get_available_package_details(self, package, json_format=True):
         if json_format:
             cmd = TKGCommands.GET_AVAILABLE_PACKAGE_DETAILS.format(pkgName=package, options=KubectlCommands.OUTPUT_JSON)
-            exit_code, output =  self.ssh.run_cmd_output(cmd)
+            exit_code, output =  self.runcmd.run_cmd_output(cmd)
             return json.loads(output)
         else:
             cmd = TKGCommands.GET_AVAILABLE_PACKAGE_DETAILS.format(pkgName=package, options="")
-            return self.ssh.run_cmd(cmd)
+            return self.runcmd.run_cmd_only(cmd)
 
     @log("Logging into management cluster")
     def login(self, cluster_name):
-        return self.ssh.run_cmd(TKGCommands.TANZU_LOGIN.format(server=cluster_name))
+        return self.runcmd.run_cmd_only(TKGCommands.TANZU_LOGIN.format(server=cluster_name))
 
     def management_cluster_upgrade(self, cluster_name, timeout="60m0s", verbose=True):
         logger.info(f"Upgrading management cluster: {cluster_name}")
         cmd_option = TKGCommands.TIMEOUT_OPTION.format(timeout=timeout) if timeout else ""
         cmd_option += " -v 9" if verbose else ""
-        return self.ssh.run_cmd(TKGCommands.MGMT_CLUSTER_UPGRADE.format(options=cmd_option))
+        return self.runcmd.run_cmd_only(TKGCommands.MGMT_CLUSTER_UPGRADE.format(options=cmd_option))
 
     def tanzu_cluster_upgrade(self, cluster_name, timeout="60m0s", verbose=True):
         logger.info(f"Upgrading tanzu kubernetes cluster: {cluster_name}")
         cmd_option = TKGCommands.TIMEOUT_OPTION.format(timeout=timeout) if timeout else ""
         cmd_option += " -v 9" if verbose else ""
-        return self.ssh.run_cmd(TKGCommands.CLUSTER_UPGRADE.format(cluster_name=cluster_name, options=cmd_option))
+        return self.runcmd.run_cmd_only(TKGCommands.CLUSTER_UPGRADE.format(cluster_name=cluster_name, options=cmd_option))
