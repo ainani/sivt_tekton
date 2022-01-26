@@ -26,7 +26,21 @@ spec:
           ssh-keygen -q -t rsa -N '' -f /root/.ssh/id_rsa
           varchange=`cat /root/.ssh/id_rsa.pub`
           sed  "s~SHARED_CLUSTER_SSHKEY~$varchange~g" config/deployment-config.yml > replace_deployment.yml
+          echo -e "\n===Replaced config====\n"
+          cat replace_deployment.yml
+
           cp -rf replace_deployment.yml config/deployment-config.yml
+          cp -rf /workspace/task-shared-data/kubeconfig-repo/.kube /root/
+          cp -rf /workspace/task-shared-data/kubeconfig-repo/.kube-tkg /root/
+          cp -rf  /workspace/task-shared-data/kubeconfig-repo/.config /root/
+
+          echo -e "\n====== /root/.kube/config  \n"
+          cat /root/.kube/config
+          echo -e "\n====== /root/.kube-tkg/config  \n"
+          cat /root/.kube-tkg/config
+          echo -e "\n====== /root/.config/tanzu/config.yaml  \n"
+          cat /root/.config/tanzu/config.yaml
+
           python arcas-tekton-cicd/scripts/__main__.py --root-dir=/workspace/task-shared-data shared-services deploy-cluster
           
       volumeMounts:
