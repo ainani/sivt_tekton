@@ -21,6 +21,7 @@ spec:
       script: |
           ls -l
           cd /workspace/task-shared-data
+          rm -rf /root/.config
           python arcas-tekton-cicd/scripts/__main__.py --root-dir=/workspace/task-shared-data mgmt deploy
           echo -e "\n ================"
           echo -e "\nkubeconfig\n"
