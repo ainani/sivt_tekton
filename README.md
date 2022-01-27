@@ -33,6 +33,5 @@ cp tkn /usr/bin/;
 Execution: 
 Target the pipeline and execute:
 
-- kubectl apply -f setup_pipeline.yaml
-
-- tkn pipeline start --showlog arcas-cicd 
+- kubectl apply -f tasks/git-pvtclone.yml -f tasks/avi_setup.yml  -f tasks/mgmt_setup.yml -f tasks/shared_cluster_setup.yml -f tasks/wld_setup.yml -f pipelines/main-pipeline.yml
+- kubectl apply -f run/arcas-e2e.yml
