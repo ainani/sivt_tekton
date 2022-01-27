@@ -3,6 +3,8 @@ kind: PipelineRun
 metadata:
   name: arcas-e2e
 spec:
+  timeouts:
+    pipeline: "2h30m0s"
   workspaces:
     - name: pipeline-shared-data
       volumeClaimTemplate:
