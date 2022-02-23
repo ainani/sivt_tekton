@@ -176,6 +176,7 @@ avi:
     cert:
       commonName: avi-controller.tanzu.lab
   cloud:
+    name: tkgm-mgmtcloud
     dc: tanzu-dc01
     network: vcf-management
     ipamProfileName: tkg-alb-ipam

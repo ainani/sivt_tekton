@@ -66,7 +66,7 @@ class DNSProfile(BaseModel):
 
 
 class Cloud(BaseModel):
-    name: Optional[str] = Field("Default-Cloud", hidden=True)
+    name: Optional[str] = Field(None, hidden=True)
     mgmtSEGroup: Optional[str] = Field(None, hidden=True)
     workloadSEGroupPrefix: Optional[str] = Field(None, hidden=True)
     ipamProfileName: Optional[str] = Field("tkg-alb-ipam-profile", hidden=True)

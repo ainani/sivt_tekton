@@ -70,7 +70,7 @@ class ALBWorkflow:
         avi.change_credentials()
         self.version = avi.get_api_version()
         logger.info("Server Version: %s", self.version)  # Get Version
-        # avi.patch_license_tier(AlbLicenseTier.ESSENTIALS)
+        avi.patch_license_tier(AlbLicenseTier.ESSENTIALS)
         avi.set_dns_ntp()
         avi.disable_welcome_screen()
         avi.set_backup_passphrase()
@@ -103,7 +103,8 @@ class ALBWorkflow:
     @timer
     def configure_alb_cloud(self):
         ip = get_alb_ip_address(self.run_config)
-        avi = AviApiHelper(AviApiSpec(ip, "admin", CmdHelper.decode_password(self.run_config.spec.avi.password)),
+        avi = AviApiHelper(AviApiSpec(ip, "admin", CmdHelper.decode_password(
+                           self.run_config.spec.avi.password)),
                            self.run_config)
         avi.configure_cloud()
         avi.configure_static_ip_pool()
