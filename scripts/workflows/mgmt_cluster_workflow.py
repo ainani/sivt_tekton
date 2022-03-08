@@ -29,7 +29,7 @@ class MgmtClusterWorkflow:
         self.run_config = run_config
         self.bootstrap: Bootstrap = self.run_config.spec.bootstrap
         self.cluster_name = self.run_config.spec.tkg.management.cluster.name
-        self.tanzu_client: TkgCliClient = None
+        self.tanzu_client = TkgCliClient()
         logger.info ("Current deployment state: %s", self.run_config.state)
         self._pre_validate ()
 
