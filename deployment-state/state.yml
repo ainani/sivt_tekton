@@ -4,10 +4,10 @@ avi:
   name: alb_controller
   version: 20.1.6
 mgmt:
-  deployed: false
+  deployed: true
   health: UP
-  name: arcas-mgmt
-  version: 1.4.1
+  name: tkg-mgmt
+  version: 1.4.0
 shared_services:
   deployed: false
   extensions:
