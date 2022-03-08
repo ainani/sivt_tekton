@@ -1,0 +1,17 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: upgrade-pipeline
+spec:
+  description: >-
+    The Pipline to run uprade of mgmt, shared, workload cluster
+  workspaces:
+    - name: pipeline-shared-data
+  tasks:
+    - name: start-mgmt-upgrade
+      taskRef:
+        name: dind-mgmt-upgrade
+      workspaces:
+        - name: task-shared-data
+          workspace: pipeline-shared-data
+
