@@ -1,0 +1,19 @@
+apiVersion: config.tanzu.vmware.com/v1alpha1
+clientOptions:
+  cli:
+    repositories:
+    - gcpPluginRepository:
+        bucketName: tanzu-cli-tkg
+        name: core
+    unstableVersionSelector: none
+current: tkg-mgmt
+kind: ClientConfig
+metadata:
+  creationTimestamp: null
+servers:
+- managementClusterOpts:
+    context: tkg-mgmt-admin@tkg-mgmt
+    path: /root/.kube-tkg/config
+  name: tkg-mgmt
+  type: managementcluster
+
