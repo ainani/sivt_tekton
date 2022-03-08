@@ -220,10 +220,10 @@ class MgmtClusterWorkflow:
         #     if not self.tanzu_client:
         #         self.tanzu_client = TkgCliClient (ssh)
         #     # todo: backup old kube config
-            if self.run_config.desired_state.version.tkg < "1.4.0":
-                self.upgrade_mgmt_1_3_x (ssh)
-            else:
-                self.upgrade_mgmt_1_4_x ()
+        if self.run_config.desired_state.version.tkg < "1.4.0":
+            self.upgrade_mgmt_1_3_x (ssh)
+        else:
+            self.upgrade_mgmt_1_4_x ()
             # todo: check if pods are up and running
             # ClusterCommonWorkflow (ssh).commit_kubeconfig (self.run_config.root_dir,
                                                         #    "management")
