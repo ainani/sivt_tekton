@@ -6,7 +6,7 @@ avi:
 mgmt:
   deployed: true
   health: UP
-  name: tkg-mgmt
+  name: mgmt-clu
   version: 1.4.0
 shared_services:
   deployed: false
