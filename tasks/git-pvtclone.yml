@@ -11,7 +11,7 @@ spec:
       #image: alpine
       script: |
         cd /workspace/task-shared-data/
-        git clone https://gitlab.eng.vmware.com/smuthukumar/arcas-tekton-cicd.git
+        git clone https://gitlab.eng.vmware.com/smuthukumar/arcas-tekton-cicd.git -b e2e_sas
         cp -rf arcas-tekton-cicd/config .
         cp -rf arcas-tekton-cicd/deployment-state .
         cp -rf arcas-tekton-cicd/desired-state .
