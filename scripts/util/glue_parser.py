@@ -42,7 +42,6 @@ def file_linker(specfile, configfile):
     disksize = jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtStorageSize']
     memsize = jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtMemorySize']
     cpus = jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtCpuSize']
-
     yamlinput['tkg']['management']['deployment']['datacenter'] = dcname
     yamlinput['tkg']['management']['deployment']['datastore'] = dsname
     foldername = "TEKTON"
@@ -53,8 +52,12 @@ def file_linker(specfile, configfile):
     os.putenv("GOVC_USERNAME", jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser'])
     os.putenv("GOVC_PASSWORD", format_vcpass)
     os.putenv("GOVC_INSECURE", str("true"))
-    govc_cmd = "govc folder.create /{dc}/vm/{foldername}".format(dc=dcname, foldername=foldername)
-    rcmd.run_cmd_only(cmd=govc_cmd)
+    govc_check_folder_cmd = "govc folder.info /{dc}/vm/{foldername}}".\
+        format(dc=dcname, foldername=foldername)
+    folder_info = rcmd.run_cmd_output(govc_check_folder_cmd)
+    if 'not found' in folder_info:
+        govc_cmd = "govc folder.create /{dc}/vm/{foldername}".format(dc=dcname, foldername=foldername)
+        rcmd.run_cmd_only(cmd=govc_cmd)
 
     yamlinput['tkg']['management']['deployment']['folder'] = foldername
     yamlinput['tkg']['management']['deployment']['network'] = mgmt_network
@@ -114,8 +117,9 @@ def file_linker(specfile, configfile):
     yamlinput['tkg']['sharedService']['deployment']['folder'] = foldername
     yamlinput['tkg']['sharedService']['deployment']['network'] = mgmt_network
     yamlinput['tkg']['sharedService']['deployment']['resourcePool'] = resource_pool
-    yamlinput['tkg']['sharedService']['controlPlane']['endpoint'] = \
-        jsonspec['tkgMgmtDataNetwork']['tkgMgmtDataNetworkGatewayCidr']
+    # yamlinput['tkg']['sharedService']['controlPlane']['endpoint'] = \
+    #    jsonspec['tkgMgmtDataNetwork']['tkgMgmtDataNetworkGatewayCidr']
+    #    jsonspec['tkgMgmtDataNetwork']['tkgMgmtDataNetworkGatewayCidr']
     yamlinput['tkg']['sharedService']['controlPlane']['diskGib'] = sdisksize
     yamlinput['tkg']['sharedService']['controlPlane']['memoryMib'] = smemsize
     yamlinput['tkg']['sharedService']['controlPlane']['cpus'] = scpus
@@ -151,8 +155,8 @@ def file_linker(specfile, configfile):
     yamlinput['tkg']['workloadClusters'][0]['deployment']['network'] = \
         jsonspec['tkgWorkloadComponents']['tkgWorkloaNetworkName']
     yamlinput['tkg']['workloadClusters'][0]['deployment']['resourcePool'] = resource_pool
-    yamlinput['tkg']['workloadClusters'][0]['controlPlane']['endpoint'] = \
-        jsonspec['tkgWorkloadDataNetwork']['tkgWorkloadDataNetworkGatewayCidr']
+    # yamlinput['tkg']['workloadClusters'][0]['controlPlane']['endpoint'] = \
+    #    jsonspec['tkgWorkloadDataNetwork']['tkgWorkloadDataNetworkGatewayCidr']
     yamlinput['tkg']['workloadClusters'][0]['controlPlane']['diskGib'] = wdisksize
     yamlinput['tkg']['workloadClusters'][0]['controlPlane']['memoryMib'] = wmemsize
     yamlinput['tkg']['workloadClusters'][0]['controlPlane']['cpus'] = wcpus
@@ -230,13 +234,20 @@ def file_linker(specfile, configfile):
         jsonspec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkName']
     yamlinput['avi']['dataNetwork']['name'] = \
         jsonspec['tkgComponentSpec']['tkgClusterVipNetwork']['tkgClusterVipNetworkName']
-    yamlinput['avi']['dataNetwork']['cidr'] = \
+    preformat_cidr = \
         jsonspec['tkgComponentSpec']['tkgClusterVipNetwork']['tkgClusterVipNetworkGatewayCidr']
+    address_bit = preformat_cidr.split('/')[0]
+    netmask_bit = preformat_cidr.split('/')[1]
+    octect_replace = address_bit.split('.')
+    octect_replace[3] = '0'
+    octect_join = '.'.join(octect_replace)
+    formatted_cidr = octect_join + '/' + netmask_bit
+    yamlinput['avi']['dataNetwork']['cidr'] = formatted_cidr
     startrange = jsonspec['tkgComponentSpec']['tkgClusterVipNetwork']['tkgClusterVipIpStartRange']
     endrange = jsonspec['tkgComponentSpec']['tkgClusterVipNetwork']['tkgClusterVipIpEndRange']
     iprange = str(startrange) + " - " + str(endrange)
     yamlinput['avi']['dataNetwork']['staticRange'] = iprange
-    with open('/tmp/modified.yml', 'w') as stream:
+    with open(configfile, 'w') as stream:
         try:
             yaml.dump(yamlinput, stream, default_flow_style=False)
         except yaml.YAMLError as exc:

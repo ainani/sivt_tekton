@@ -71,7 +71,7 @@ tkg:
       resourcePool: /datacenterName/host/vcenterClusterName/Resources/resourcePoolName
     sshKey: SHARED_CLUSTER_SSHKEY
     controlPlane:
-      endpoint: envSpec['tkgMgmtDataNetwork']['tkgMgmtDataNetworkGatewayCidr']
+      #endpoint: envSpec['tkgMgmtDataNetwork']['tkgMgmtDataNetworkGatewayCidr']
       diskGib: envSpec['tkgMgmtComponents']['tkgMgmtStorageSize
       memoryMib: envSpec['tkgMgmtComponents']['tkgMgmtMemorySize']
       cpus: envSpec['tkgMgmtComponents']['tkgMgmtCpuSize']
@@ -108,7 +108,7 @@ tkg:
         resourcePool: /datacenterName/host/vcenterClusterName/Resources/resourcePoolName
       sshKey: WLD_CLUSTER_SSHKEY
       controlPlane:
-        endpoint: envSpec['tkgWorkloadDataNetwork']['tkgWorkloadDataNetworkGatewayCidr']
+        #endpoint: envSpec['tkgWorkloadDataNetwork']['tkgWorkloadDataNetworkGatewayCidr']
         diskGib: envSpec['tkgWorkloadComponents']['tkgWorkloadStorageSize']
         memoryMib: envSpec['tkgWorkloadComponents']['tkgWorkloadMemorySize']
         cpus: envSpec['tkgWorkloadComponents']['tkgWorkloadCpuSize']
