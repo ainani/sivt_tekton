@@ -18,7 +18,6 @@ class Paths(str, Enum):
     STATE_PATH = "deployment-state/state.yml"
     KUBECONFIG_REPO_PATH = "{root_dir}/kubeconfig-repo"
     JSON_SPEC_PATH = "config/deployment-config.json"
-    TEMP_SPEC_PATH = "/tmp/modified.yml"
 
     # template files in package
     TEMPLATES_ROOT_DIR = "template"
@@ -111,6 +110,24 @@ class Paths(str, Enum):
     EXTERNAL_DNS_CONFIG = "service-discovery/external-dns/external-dns-data-values.yaml"
     EXTERNAL_DNS_EXTENSION_CONFIG = "service-discovery/external-dns/external-dns-extension.yaml"
 
+class MarketPlaceUrl:
+    URL = "https://gtw.marketplace.cloud.vmware.com"
+    API_URL = "https://api.marketplace.cloud.vmware.com"
+
+class ControllerLocation:
+    CONTROLLER_CONTENT_LIBRARY = "TanzuAutomation-Lib"
+    CONTENT_LIBRARY_OVA_NAME = "avi-controller"
+    CONTROLLER_NAME = "avi-controller"
+    CONTROLLER_NAME_VSPHERE = "tkg-vsphere-avi-ctrl-01"
+    CONTROLLER_SE_NAME = "tkgvmc-tkgmgmt-se01"
+    CONTROLLER_SE_NAME2 = "tkgvmc-tkgmgmt-se02"
+    CONTROLLER_SE_WORKLOAD_NAME = "tkgvmc-workload-se01"
+    CONTROLLER_SE_WORKLOAD_NAME2 = "tkgvmc-workload-se02"
+    SE_OVA_TEMPLATE_NAME = "tkgvmc-cloud01-avi-se"
+    SUBSCRIBED_CONTENT_LIBRARY = "SubscribedAutomation-Lib"
+    MARKETPLACE_CONTROLLER_FILENAME = "controller-20-1641297052015.ova"
+    MARKETPLACE_AVI_SOLUTION_NAME = "nsx-advanced-load-balancer-1"
+    VSPHERE_AVI_VERSION = "20.1.6"
 
 class TKGCommands(str, Enum):
     VERSION = "tanzu version"

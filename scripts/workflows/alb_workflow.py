@@ -61,9 +61,8 @@ class ALBWorkflow:
         ip = get_alb_ip_address(self.run_config)
         logger.info("IP Address: %s", ip)
 
-        avi = AviApiHelper(AviApiSpec(ip, "admin", CmdHelper.decode_password(self.run_config.spec.avi.password)),
+        avi = AviApiHelper(AviApiSpec(ip, "admin", CmdHelper.decode_base64(self.run_config.spec.avi.password)),
                            self.run_config)
-
         avi.wait_for_controller()
 
         # Configure Avi Controller
