@@ -20,7 +20,8 @@ logger = LoggerHelper.get_logger(Path(__file__).stem)
 class TanzuUtils:
     def __init__(self, root_dir):
         self.root_dir = root_dir
-        self.spec: MasterSpec = FileHelper.load_spec(os.path.join(self.root_dir, Paths.MASTER_SPEC_PATH))
+        self.spec: MasterSpec = FileHelper.load_spec(os.path.join(self.root_dir,
+                                                                  Paths.MASTER_SPEC_PATH))
         self.bootstrap: Bootstrap = self.spec.bootstrap
         self.desired_state: DesiredState = FileHelper.load_desired_state(
             os.path.join(self.root_dir, Paths.DESIRED_STATE_PATH)
@@ -38,7 +39,9 @@ class TanzuUtils:
 
     def pull_config(self):
 
-        # with SshHelper(self.bootstrap.server, self.bootstrap.username, CmdHelper.decode_password(self.bootstrap.password), self.spec.onDocker) as ssh:
+        # with SshHelper(self.bootstrap.server,
+        # self.bootstrap.username, CmdHelper.decode_
+        # password(self.bootstrap.password), self.spec.onDocker) as ssh:
         self.pull_kube_config()
         self.pull_kube_tkg_config()
         self.pull_tanzu_config()

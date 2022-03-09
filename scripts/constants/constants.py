@@ -17,6 +17,8 @@ class Paths(str, Enum):
     DESIRED_STATE_PATH = "desired-state/desired-state.yml"
     STATE_PATH = "deployment-state/state.yml"
     KUBECONFIG_REPO_PATH = "{root_dir}/kubeconfig-repo"
+    JSON_SPEC_PATH = "config/deployment-config.json"
+    TEMP_SPEC_PATH = "/tmp/modified.yml"
 
     # template files in package
     TEMPLATES_ROOT_DIR = "template"

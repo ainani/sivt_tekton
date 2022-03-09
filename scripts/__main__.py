@@ -25,6 +25,7 @@ from workflows.mgmt_cluster_workflow import MgmtClusterWorkflow
 from workflows.repave_workflow import RepaveWorkflow
 from workflows.shared_cluster_workflow import SharedClusterWorkflow
 from workflows.workload_cluster_workflow import WorkloadClusterWorkflow
+from util.glue_parser import file_linker
 
 logger = LoggerHelper.get_logger("__main__")
 
@@ -71,13 +72,14 @@ def cli(ctx, root_dir):
     ctx.ensure_object(dict)
     ctx.obj["ROOT_DIR"] = root_dir
 
-    # prevalidation
+    # glue parser
+    json_spec_path = os.path.join(ctx.obj["ROOT_DIR"], Paths.JSON_SPEC_PATH)
     deployment_config_filepath = os.path.join(ctx.obj["ROOT_DIR"], Paths.MASTER_SPEC_PATH)
+    file_linker(json_spec_path, deployment_config_filepath)
+    # prevalidation
     if not Path(deployment_config_filepath).is_file():
         logger.warn("Missing config in path: %s", deployment_config_filepath)
-
     os.makedirs(Paths.TMP_DIR, exist_ok=True)
-
 
 @cli.group()
 @click.pass_context
