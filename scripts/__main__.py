@@ -19,7 +19,7 @@ from util.logger_helper import LoggerHelper
 from util.ssh_helper import SshHelper
 from util.ssl_helper import get_thumbprint, get_colon_formatted_thumbprint
 from util.tanzu_utils import TanzuUtils
-from workflows.alb_workflow import ALBWorkflow
+from workflows.ra_alb_workflow import RALBWorkflow
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 from workflows.mgmt_cluster_workflow import MgmtClusterWorkflow
 from workflows.repave_workflow import RepaveWorkflow
@@ -92,7 +92,7 @@ def avi(ctx):
 @click.pass_context
 def avi_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    ALBWorkflow(run_config=run_config).avi_controller_setup()
+    RALBWorkflow(run_config=run_config).avi_controller_setup()
 
 
 @avi.command(name="validate")
@@ -120,7 +120,7 @@ def mgmt_deploy(ctx):
 def mgmt_pre_config(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
     # NsxtWorkflow(run_config).execute_workflow()
-    ALBWorkflow(run_config).alb_mgmt_config()
+    RALBWorkflow(run_config).alb_mgmt_config()
 
 
 @mgmt.command(name="upgrade")

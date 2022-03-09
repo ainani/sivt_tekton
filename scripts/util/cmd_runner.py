@@ -48,5 +48,25 @@ class RunCmd:
         except FileNotFoundError:
             logger.error (f"Error: {traceback.format_exc ()}")
 
+    def runShellCommandAndReturnOutputAsList(self, fin):
+        try:
+            proc = subprocess.Popen(
+                fin,
+                stderr=subprocess.STDOUT,
+                stdout=subprocess.PIPE
+            )
+
+            output = proc.communicate()[0]
+            if output.decode("utf-8").lower().__contains__("error"):
+                returnCode = 1
+            else:
+                returnCode = 0
+        except subprocess.CalledProcessError as e:
+            returnCode = 1
+            output = e.output
+        return output.decode("utf-8").rstrip("\n\r").replace("\x1b[0m", "").replace("\x1b[1m",
+                                                                                    "").split(
+            "\n"), returnCode
+
 
 

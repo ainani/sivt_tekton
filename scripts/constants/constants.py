@@ -111,8 +111,11 @@ class Paths(str, Enum):
     EXTERNAL_DNS_EXTENSION_CONFIG = "service-discovery/external-dns/external-dns-extension.yaml"
 
 class MarketPlaceUrl:
-    URL = "https://gtw.marketplace.cloud.vmware.com"
-    API_URL = "https://api.marketplace.cloud.vmware.com"
+    URL = "https://gtwstg.market.csp.vmware.com"
+    API_URL = "https://apistg.market.csp.vmware.com"
+    PRODUCT_SEARCH_URL = API_URL + "/products?managed=false&filters={%22Publishers%22:[%223bcbbfe3-638a-4ef8-8d63-762f5a5e79a1%22]}"
+    TANZU_PRODUCT = "Tanzu Kubernetes Grid"
+    AVI_PRODUCT = "NSX Advanced Load Balancer"
 
 class ControllerLocation:
     CONTROLLER_CONTENT_LIBRARY = "TanzuAutomation-Lib"
@@ -127,7 +130,7 @@ class ControllerLocation:
     SUBSCRIBED_CONTENT_LIBRARY = "SubscribedAutomation-Lib"
     MARKETPLACE_CONTROLLER_FILENAME = "controller-20-1641297052015.ova"
     MARKETPLACE_AVI_SOLUTION_NAME = "nsx-advanced-load-balancer-1"
-    VSPHERE_AVI_VERSION = "20.1.6"
+    VSPHERE_AVI_VERSION = "20.1.7"
     OVA_LOCATION = ''
     SPEC_FILE_PATH = ''
 

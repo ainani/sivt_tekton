@@ -18,6 +18,9 @@
       "avi-pulse-jwt-token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJsYXN0TmFtZSI6IlB1bHNlIiwic3ViIjoiYzIwNDM1NDItYjdhMS00NTBiLWJmNWMtNTczZTZlYzQzNWFhIiwidXNlcl9uYW1lIjoiYXZpLXB1bHNlLXNyZUB2bXdhcmUuY29tIiwia2lkIjoibXl2bXdhcmUtb2F1dGgtc2VydmVyIiwiaXNzIjoiaHR0cHM6Ly9jdXN0b21lcmNvbm5lY3Qudm13YXJlLmNvbSIsImNuIjoiMjAyOTQyMjUxMSIsImF1dGhvcml0aWVzIjpbIlJPTEVfVVNFUiIsIlJPTEVfQ0xJRU5UIl0sImNsaWVudF9pZCI6IlB1bHNlQ29udHJvbGxlckNsaWVudCIsImZpcnN0TmFtZSI6IkF2aSIsInNjb3BlIjpbInRydXN0IiwicmVhZCIsIndyaXRlIl0sImF0aSI6IjQ1YWYxZmJjLTcxYzItNDY5Yi05OTQ4LTM4YzJkMDdkNDgzZiIsInVzZXJUeXBlIjoiRXN0YWJsaXNoZWQiLCJleHAiOjE2NjgyMjcyNTYsImVtYWlsIjoiYXZpLXB1bHNlLXNyZUB2bXdhcmUuY29tIiwianRpIjoiY2I5ZmFiZWUtNzJkZi00OTcyLThkNDgtZjM1MWRjM2YwNmFiIn0.hE2B9mA4c_i8O0XtsMv2EjEDo6u_I7_thw7fBs5DAAT-boMyzNp84Y9bSSJMZO1zlPoUllQCLh3A96te933jotxeNw-OrHYyBF0HrVrBsVh3vWbYYHTAw1eRONKuGoayY4_mD9uk9eK-zVlUnO-JOxBTpHylQS2doA3DHKnHHy7Nd7BIDHVgwqLBEzPEE8jABvNwtdu6mEiEsT05O-EPeJRMK7i-3g6aMZ0ErhodQT3IKVcBnoMjqKssZWm4RQh7Yv_mlSwOlIWW2IZMaOeimi5FrXlQw6xW0PGzKTGlrR2ldInoPf2_3gjcTjLWp9HGPRXNkHiJah1sOHbN8mN2bQ",
       "kubernetes-ova": "photon"
     },
+    "marketplaceSpec": {
+            "refreshToken": "dHeDKFTvooSFKh2WGsXKy-XY0LKk8EJ_DeuquhZFUDO7BO9fzbFC5iKqEQYTFUpA"
+        },
     "customRepositorySpec":{
       "tkgCustomImageRepository": "",
       "tkgCustomImageRepositoryPublicCaCert": "true/false",
