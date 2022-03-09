@@ -52,7 +52,7 @@ def file_linker(specfile, configfile):
     os.putenv("GOVC_USERNAME", jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser'])
     os.putenv("GOVC_PASSWORD", format_vcpass)
     os.putenv("GOVC_INSECURE", str("true"))
-    govc_check_folder_cmd = "govc folder.info /{dc}/vm/{foldername}}".\
+    govc_check_folder_cmd = "govc folder.info /{dc}/vm/{foldername}".\
         format(dc=dcname, foldername=foldername)
     folder_info = rcmd.run_cmd_output(govc_check_folder_cmd)
     if 'not found' in folder_info:
@@ -198,8 +198,9 @@ def file_linker(specfile, configfile):
     yamlinput['avi']['deployment']['network'] = \
         jsonspec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkName']
     yamlinput['avi']['deployment']['resourcePool'] = resource_pool
-    yamlinput['avi']['deployment']['parameters']['gateway'] = \
-        jsonspec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkGatewayCidr']
+    gateway_cidr = jsonspec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkGatewayCidr']
+    gateway = gateway_cidr.split('/')[0]
+    yamlinput['avi']['deployment']['parameters']['gateway'] = gateway
     yamlinput['avi']['deployment']['parameters']['ip'] = \
         jsonspec['tkgComponentSpec']['aviComponents']['aviClusterIp']
     gw_cidr = jsonspec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkGatewayCidr']
