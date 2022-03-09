@@ -18,7 +18,6 @@ class Paths(str, Enum):
     STATE_PATH = "deployment-state/state.yml"
     KUBECONFIG_REPO_PATH = "{root_dir}/kubeconfig-repo"
     JSON_SPEC_PATH = "config/deployment-config.json"
-    SPEC_FILE_PATH = ''
 
     # template files in package
     TEMPLATES_ROOT_DIR = "template"
@@ -130,6 +129,7 @@ class ControllerLocation:
     MARKETPLACE_AVI_SOLUTION_NAME = "nsx-advanced-load-balancer-1"
     VSPHERE_AVI_VERSION = "20.1.6"
     OVA_LOCATION = ''
+    SPEC_FILE_PATH = ''
 
 class TKGCommands(str, Enum):
     VERSION = "tanzu version"
