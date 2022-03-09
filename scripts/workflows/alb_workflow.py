@@ -6,7 +6,7 @@ import time
 from retry import retry
 
 from constants.constants import Paths, AlbPrefix, AlbCloudType, ComponentPrefix, AlbLicenseTier, VmPowerState, \
-    AlbVrfContext
+    AlbVrfContext, ControllerLocation
 from model.run_config import RunConfig
 from model.status import HealthEnum, Info, State
 from util.avi_api_helper import AviApiHelper, AviApiSpec
@@ -18,6 +18,7 @@ from util.govc_helper import deploy_avi_controller_ova, get_alb_ip_address, expo
     change_vms_power_state, wait_for_vm_to_get_ip, find_vm_by_name, update_vm_cpu_memory, get_vm_power_state, \
     get_vm_mac_addresses
 from util.logger_helper import LoggerHelper, log
+from util.marketplace_helper import fetch_avi_ova
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 
@@ -52,10 +53,16 @@ class ALBWorkflow:
         if not Path(ova_path).is_file():
             logger.warn("Missing ova in path from resource: %s", ova_path)
             if not self.run_config.spec.avi.ovaPath:
-                logger.error(
-                    "Missing ova file url in spec. ova file location is mandatory if resource is not available"
+                logger.info(
+                    "No Ova file provided. Downloading from MarketPkace"
                 )
-                return
+                download_status, status, ova_location = fetch_avi_ova(specfile=Paths.SPEC_FILE_PATH)
+                if download_status is None:
+                    logger.error(f"Downloading Avi Ova Failed. Msg: {status}")
+                elif download_status:
+                    logger.info(f"Downloading Avi Ova has completed. Msg: {status}")
+                    ControllerLocation.OVA_LOCATION = ova_location
+
         deploy_avi_controller_ova(self.run_config)
         # Get Ip Address
         ip = get_alb_ip_address(self.run_config)

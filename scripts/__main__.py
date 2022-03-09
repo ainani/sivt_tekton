@@ -74,6 +74,7 @@ def cli(ctx, root_dir):
 
     # glue parser
     json_spec_path = os.path.join(ctx.obj["ROOT_DIR"], Paths.JSON_SPEC_PATH)
+    Paths.SPEC_FILE_PATH = json_spec_path
     deployment_config_filepath = os.path.join(ctx.obj["ROOT_DIR"], Paths.MASTER_SPEC_PATH)
     file_linker(json_spec_path, deployment_config_filepath)
     # prevalidation

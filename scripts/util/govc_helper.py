@@ -4,7 +4,7 @@ from pathlib import Path
 
 from jinja2 import Template
 
-from constants.constants import Paths, VmPowerState
+from constants.constants import Paths, VmPowerState, ControllerLocation
 from model.run_config import RunConfig, DeploymentPlatform
 from model.spec import MasterSpec
 from util.cmd_helper import CmdHelper as Cli
@@ -47,8 +47,11 @@ def export_govc_env_vars(run_config: RunConfig):
 
 
 def deploy_avi_controller_ova(run_config: RunConfig):
-    ova_path = os.path.join(run_config.root_dir, Paths.ALB_OVA_PATH)
-    ova_path = ova_path if Path(ova_path).is_file() else run_config.spec.avi.ovaPath
+    if not ControllerLocation.OVA_LOCATION:
+        ova_path = os.path.join(run_config.root_dir, Paths.ALB_OVA_PATH)
+        ova_path = ova_path if Path(ova_path).is_file() else run_config.spec.avi.ovaPath
+    else:
+        ova_path = ControllerLocation.OVA_LOCATION
     logger.info("Deploy ALB using govc and ova: %s", os.path.basename(ova_path))
     template_avi_govc_config(run_config.spec)
     export_govc_env_vars(run_config)
