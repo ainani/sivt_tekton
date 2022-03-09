@@ -259,7 +259,7 @@ class AviApiHelper:
             "name": self.run_config.spec.avi.cloud.name,
             "vcenter_configuration": {
                 "username": self.run_config.spec.vsphere.username,
-                "password": f"{CmdHelper.decode_password(self.run_config.spec.vsphere.password)}",
+                "password": f"{CmdHelper.decode_base64(self.run_config.spec.vsphere.password)}",
                 "vcenter_url": self.run_config.spec.vsphere.server,
                 "privilege": "WRITE_ACCESS",
                 "datacenter": self.run_config.spec.avi.cloud.dc,

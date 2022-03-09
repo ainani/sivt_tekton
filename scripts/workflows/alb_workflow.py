@@ -91,9 +91,6 @@ class ALBWorkflow:
 
         self.update_success_status()
 
-
-
-
     @timer
     def avi_controller_validate(self):
         ip = self.run_config.spec.avi.deployment.parameters.ip
@@ -109,7 +106,7 @@ class ALBWorkflow:
     @timer
     def configure_alb_cloud(self):
         ip = get_alb_ip_address(self.run_config)
-        avi = AviApiHelper(AviApiSpec(ip, "admin", CmdHelper.decode_password(
+        avi = AviApiHelper(AviApiSpec(ip, "admin", CmdHelper.decode_base64(
                            self.run_config.spec.avi.password)),
                            self.run_config)
         avi.configure_cloud()
@@ -117,7 +114,7 @@ class ALBWorkflow:
 
     def deploy_se_vms(self, ova_path, vms, networks):
         avi = AviApiHelper(
-            AviApiSpec('35.163.7.218', "admin", CmdHelper.decode_password(self.run_config.spec.avi.password)),
+            AviApiSpec('35.163.7.218', "admin", CmdHelper.decode_base64(self.run_config.spec.avi.password)),
             self.run_config)
         controller_ip = get_alb_ip_address(self.run_config)
         dc = self.run_config.spec.avi.deployment.datacenter
