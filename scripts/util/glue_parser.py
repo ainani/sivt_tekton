@@ -6,7 +6,6 @@ from util.cmd_helper import CmdHelper
 import socket
 import struct
 
-
 def file_linker(specfile, configfile):
     with open(specfile) as f:
         jsonspec = json.load(f)
@@ -201,7 +200,7 @@ def file_linker(specfile, configfile):
         jsonspec['tkgComponentSpec']['aviComponents']['aviClusterIp']
     gw_cidr = jsonspec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkGatewayCidr']
 
-    netmask_bit = gw_cidr.split('/')
+    netmask_bit = gw_cidr.split('/')[1]
     host_bits = 32 - int(netmask_bit)
     netmask = socket.inet_ntoa(struct.pack('!I', (1 << 32) - (1 << host_bits)))
     yamlinput['avi']['deployment']['parameters']['netmask'] = netmask
@@ -213,10 +212,11 @@ def file_linker(specfile, configfile):
         jsonspec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtServiceIpStartrange']
     yamlinput['avi']['segment']['dhcpEnd'] = \
         jsonspec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtServiceIpEndrange']
-
     # segment
-    yamlinput['avi']['conf']['dns'][0] = jsonspec['envSpec']['infraComponents']['dnsServersIp']
-    yamlinput['avi']['conf']['ntp'][0] = jsonspec['envSpec']['infraComponents']['ntpServers']
+    # yamlinput['avi']['conf']['dns'] = jsonspec['envSpec']['infraComponents']['dnsServersIp']
+    # yamlinput['avi']['conf']['ntp'] = jsonspec['envSpec']['infraComponents']['ntpServers']
+    avi_dns_server = jsonspec['envSpec']['infraComponents']['dnsServersIp']
+    avi_ntp_server = jsonspec['envSpec']['infraComponents']['ntpServers']
     yamlinput['avi']['conf']['backup']['passphrase'] = \
         jsonspec['tkgComponentSpec']['aviComponents']['aviBackupPassphraseBase64']
     yamlinput['avi']['conf']['backup']['commonName'] = \
@@ -236,9 +236,18 @@ def file_linker(specfile, configfile):
     endrange = jsonspec['tkgComponentSpec']['tkgClusterVipNetwork']['tkgClusterVipIpEndRange']
     iprange = str(startrange) + " - " + str(endrange)
     yamlinput['avi']['dataNetwork']['staticRange'] = iprange
-    with open(configfile, 'w') as stream:
+    with open('/tmp/modified.yml', 'w') as stream:
         try:
             yaml.dump(yamlinput, stream, default_flow_style=False)
         except yaml.YAMLError as exc:
             print(exc)
-
+    with open(configfile) as f:
+        r_string = '[' + avi_dns_server + ']'
+        replace_string = f.read().replace('avidnsserver', r_string)
+    with open(configfile, 'w') as f:
+        f.write(replace_string)
+    with open(configfile) as f:
+        r_string = '[' + avi_ntp_server + ']'
+        replace_string = f.read().replace('avintpserver', r_string)
+    with open(configfile, 'w') as f:
+        f.write(replace_string)

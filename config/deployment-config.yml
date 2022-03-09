@@ -159,8 +159,8 @@ avi:
     dhcpStart: envSpec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtServiceIpStartrange']
     dhcpEnd: envSpec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtServiceIpEndrange']
   conf:
-    dns: envSpec['infraComponents']['dnsServersIp']
-    ntp: envSpec['infraComponents']['ntpServers']
+    dns: avidnsserver
+    ntp: avintpserver
     backup:
       passphrase: envSpec['tkgComponentSpec']['aviComponents']['aviBackupPassphraseBase64']
     cert:
