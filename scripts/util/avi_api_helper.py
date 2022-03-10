@@ -98,7 +98,9 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
     rcmd = cmd_runner.RunCmd()
     try:
         find_command = "govc library.ls /{}/".format(ControllerLocation.CONTROLLER_CONTENT_LIBRARY)
+        logger.info('Running find for existing library')
         output = rcmd.run_cmd_output(find_command)
+        logger.info('Library found: {}'.format(output) )
         if str(output[0]).__contains__(ControllerLocation.CONTROLLER_NAME):
             logger.info("Avi controller is already present in content library")
             return "SUCCESS", 200
@@ -119,6 +121,7 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
     json_object = json.dumps(payload, indent=4)
     sess = requests.request("POST", MarketPlaceUrl.URL + "/api/v1/user/login", headers=headers,
                             data=json_object, verify=False)
+    logger.info('Session details: {}'.format(sess.status_code))
     if sess.status_code != 200:
         return None, "Failed to login and obtain csp-auth-token"
     else:
@@ -138,6 +141,7 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
         # else:
         slug = "true"
         _solutionName = getProductSlugId(MarketPlaceUrl.AVI_PRODUCT, headers)
+        logger.info('Solution name from marketplace: {}'.format(_solutionName))
         if _solutionName[0] is None:
             return None, "Failed to find product on Marketplace " + str(_solutionName[1])
         solutionName = _solutionName[0]
@@ -148,11 +152,13 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
         else:
             ls = []
             product_id = product.json()['response']['data']['productid']
+            logger.info('Product ID: {}'.format(product_id))
             for metalist in product.json()['response']['data']['productdeploymentfilesList']:
                 if metalist["appversion"] == avi_version:
                     objectid = metalist['fileid']
                     filename = metalist['name']
                     ls.append(filename)
+                    logger.info('filename: {}'.format(filename))
                     break
         payload = {
             "deploymentFileId": objectid,
@@ -165,6 +171,8 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
                                          MarketPlaceUrl.URL + "/api/v1/products/" + product_id + "/download",
                                          headers=headers, data=json_object, verify=False)
         if presigned_url.status_code != 200:
+            logger.error('Error on request. Code: {}\n Error: {}'.format(presigned_url.status_code,
+                                                                         presigned_url.text))
             return None, "Failed to obtain pre-signed URL"
         else:
             download_url = presigned_url.json()["response"]["presignedurl"]
@@ -214,21 +222,16 @@ def downloadAviControllerAndPushToContentLibrary(vcenter_ip, vcenter_username, p
         os.putenv("GOVC_PASSWORD", password)
         os.putenv("GOVC_INSECURE", "true")
         rcmd = cmd_runner.RunCmd()
-        res = pushAviToContenLibraryMarketPlace(jsonspec)
-        if res[0] is None:
-            return res[0], res[1]
+        logger.info('Check if library is already present')
+        VC_Content_Library_name = jsonspec['envSpec']['vcenterDetails']["contentLibraryName"]
+        VC_AVI_OVA_NAME = jsonspec['envSpec']['vcenterDetails']["aviOvaName"]
+        find_command = ["govc", "library.ls", "/" + VC_Content_Library_name + "/"]
+        output = rcmd.runShellCommandAndReturnOutputAsList(find_command)
+        if str(output[0]).__contains__(VC_Content_Library_name):
+            logger.info(VC_Content_Library_name + " is already present")
         else:
-            find_command = ["govc", "library.ls"]
-            output = rcmd.runShellCommandAndReturnOutputAsList(find_command)
-            VC_Content_Library_name = jsonspec['envSpec']['vcenterDetails']["contentLibraryName"]
-            VC_AVI_OVA_NAME = jsonspec['envSpec']['vcenterDetails']["aviOvaName"]
-            if str(output[0]).__contains__(VC_Content_Library_name):
-                logger.info(VC_Content_Library_name + " is already present")
-            else:
-                text = VC_Content_Library_name + "is not present, for internet restricted env please create " \
-                                                     "content library, and import avi controller to it. "
-                logger.error(text)
-                return None, text
+            logger.info(VC_Content_Library_name + " is not present in the content library")
+            res = pushAviToContenLibraryMarketPlace(jsonspec)
             find_command = ["govc", "library.ls", "/" + VC_Content_Library_name + "/"]
             output = rcmd.runShellCommandAndReturnOutputAsList(find_command)
             if output[1] != 0:
@@ -248,7 +251,8 @@ def ra_avi_download(jsonspec):
 
     vcenter = jsonspec['envSpec']['vcenterDetails']["vcenterAddress"]
     vcenter_user = jsonspec['envSpec']['vcenterDetails']["vcenterSsoUser"]
-    vcpass = CmdHelper.decode_base64(jsonspec['envSpec']['vcenterDetails']["vcenterSsoUser"]),
+    vcpass_base64 = jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
+    vcpass = CmdHelper.decode_base64(vcpass_base64)
     refresh_token = jsonspec['envSpec']['marketplaceSpec']['refreshToken']
     os.putenv("GOVC_URL", "https://" + vcenter + "/sdk")
     os.putenv("GOVC_USERNAME", vcenter_user)
@@ -256,8 +260,27 @@ def ra_avi_download(jsonspec):
     os.putenv("GOVC_INSECURE", "true")
     if not refresh_token:
         logger.info("refreshToken not provided")
+        rcmd = cmd_runner.RunCmd()
+        logger.info('Check if library is already present')
+        VC_Content_Library_name = jsonspec['envSpec']['vcenterDetails']["contentLibraryName"]
+        VC_AVI_OVA_NAME = jsonspec['envSpec']['vcenterDetails']["aviOvaName"]
+        find_command = ["govc", "library.ls", "/" + VC_Content_Library_name + "/"]
+        output = rcmd.runShellCommandAndReturnOutputAsList(find_command)
+        if str(output[0]).__contains__(VC_Content_Library_name):
+            logger.info(VC_Content_Library_name + " is already present")
+            return True
+        else:
+            logger.info(VC_Content_Library_name + " is not present in the content library")
+            return False
     else:
+        logger.info("Fetching ALB..")
         down = downloadAviControllerAndPushToContentLibrary(vcenter, vcenter_user, vcpass, jsonspec)
+        if down[0] is None:
+            logger.error('Error encountered in fetching avi')
+            return False
+        return True
+
+
 
 class AviApiHelper:
     def __init__(self, avi_api_spec: AviApiSpec, run_config: RunConfig) -> None:

@@ -52,10 +52,10 @@ def file_linker(specfile, configfile):
     os.putenv("GOVC_USERNAME", jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser'])
     os.putenv("GOVC_PASSWORD", format_vcpass)
     os.putenv("GOVC_INSECURE", str("true"))
-    govc_check_folder_cmd = "govc folder.info /{dc}/vm/{foldername}".\
-        format(dc=dcname, foldername=foldername)
+    govc_check_folder_cmd = "govc folder.info /{dc}/vm/*".\
+        format(dc=dcname)
     folder_info = rcmd.run_cmd_output(govc_check_folder_cmd)
-    if 'not found' in folder_info:
+    if not foldername in folder_info:
         govc_cmd = "govc folder.create /{dc}/vm/{foldername}".format(dc=dcname, foldername=foldername)
         rcmd.run_cmd_only(cmd=govc_cmd)
 

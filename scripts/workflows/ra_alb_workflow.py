@@ -10,7 +10,7 @@ from constants.constants import Paths, AlbPrefix, AlbCloudType, ComponentPrefix,
     AlbVrfContext, ControllerLocation
 from model.run_config import RunConfig
 from model.status import HealthEnum, Info, State
-from util.avi_api_helper import AviApiHelper, AviApiSpec
+from util.avi_api_helper import AviApiHelper, AviApiSpec, ra_avi_download
 from util.cmd_helper import CmdHelper, timer
 from util.file_helper import FileHelper
 from util.git_helper import Git
@@ -52,20 +52,21 @@ class RALBWorkflow:
         if self.run_config.state.avi.deployed:
             logger.debug("NSX-ALB is deployed")
             return
+        avi_status = ra_avi_download(self.jsonspec)
         # deploy OVA
-        ova_path = os.path.join(self.run_config.root_dir, Paths.ALB_OVA_PATH)
-        if not Path(ova_path).is_file():
-            logger.warn("Missing ova in path from resource: %s", ova_path)
-            if not self.run_config.spec.avi.ovaPath:
-                logger.info(
-                    "No Ova file provided. Downloading from MarketPkace"
-                )
-                download_status, status, ova_location = fetch_avi_ova(specfile=Paths.SPEC_FILE_PATH)
-                if download_status is None:
-                    logger.error(f"Downloading Avi Ova Failed. Msg: {status}")
-                elif download_status:
-                    logger.info(f"Downloading Avi Ova has completed. Msg: {status}")
-                    ControllerLocation.OVA_LOCATION = ova_location
+        # ova_path = os.path.join(self.run_config.root_dir, Paths.ALB_OVA_PATH)
+        # if not Path(ova_path).is_file():
+        #     logger.warn("Missing ova in path from resource: %s", ova_path)
+        #     if not self.run_config.spec.avi.ovaPath:
+        #         logger.info(
+        #             "No Ova file provided. Downloading from MarketPkace"
+        #         )
+        #         download_status, status, ova_location = fetch_avi_ova(specfile=Paths.SPEC_FILE_PATH)
+        #         if download_status is None:
+        #             logger.error(f"Downloading Avi Ova Failed. Msg: {status}")
+        #         elif download_status:
+        #             logger.info(f"Downloading Avi Ova has completed. Msg: {status}")
+        #             ControllerLocation.OVA_LOCATION = ova_location
 
         refreshToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
 
