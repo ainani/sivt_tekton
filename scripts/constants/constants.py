@@ -30,6 +30,7 @@ class Paths(str, Enum):
     SUPPORT_MATRIX_FILE = f"{TEMPLATES_ROOT_DIR}/support-matrix.yml"
     VSPHERE_WORKLOAD_SERVICES_SPEC_J2 = f"{TEMPLATES_ROOT_DIR}/vsphere_workload_cluster_deploy.yaml.j2"
     VSPHERE_WORKLOAD_SERVICES_SPEC = f"vsphere_workload_cluster_deploy.yml"
+    CERT_CONVERTOR = f"{TEMPLATES_ROOT_DIR}/pem_to_one_line_converter.sh"
 
     # tmp local
     TMP_DIR = ".tmp"
@@ -130,9 +131,26 @@ class ControllerLocation:
     SUBSCRIBED_CONTENT_LIBRARY = "SubscribedAutomation-Lib"
     MARKETPLACE_CONTROLLER_FILENAME = "controller-20-1641297052015.ova"
     MARKETPLACE_AVI_SOLUTION_NAME = "nsx-advanced-load-balancer-1"
-    VSPHERE_AVI_VERSION = "20.1.7"
+    VSPHERE_AVI_VERSION = "20.1.6"
     OVA_LOCATION = ''
     SPEC_FILE_PATH = ''
+    CONTROLLER_NAME2 = "avi-controller2"
+    CONTROLLER_NAME3 = "avi-controller3"
+    CONTROLLER_NAME_VSPHERE2 = "tkg-vsphere-avi-ctrl-02"
+    CONTROLLER_NAME_VSPHERE3 = "tkg-vsphere-avi-ctrl-03"
+
+class GovcCommands(str, Enum):
+    DEPLOY_OVA = "govc vm.deploy"
+    FIND_VMS_BY_NAME = "govc find . -type m -name {vm_name} {options}"
+    FIND_DATACENTER_BY_NAME = "govc find . -type d -name {dc_name} {options}"
+    FIND_CLUSTERS_BY_NAME = "govc find . -type c -name {clu_name} {options}"
+    FIND_FOLDERS_BY_NAME = "govc find . -type f -name {folder_name} {options}"
+    FIND_RESOURCE_POOLS_BY_NAME = "govc find . -type p -name {rp_name} {options}"
+    FIND_NETWORKS_BY_NAME = "govc find . -type n -name {network_name} {options}"
+    CREATE_RESOURCE_POOL = "govc pool.create {options} {pool}"
+    CREATE_FOLDER = "govc folder.create {options} {folder}"
+    DEPLOY_LIBRARY_OVA = "govc library.deploy {options} {location} {name}"
+    GET_VM_IP = "govc vm.ip -dc={datacenter} {options} {name}"
 
 class TKGCommands(str, Enum):
     VERSION = "tanzu version"
@@ -519,3 +537,40 @@ class AlbVrfContext(str, Enum):
 class AkoType:
     KEY = "type"
     VALUE = "management"
+
+class AlbEndpoint:
+    CRUD_SSL_CERT = "https://{ip}/api/sslkeyandcertificate"
+    IMPORT_SSL_CERTIFICATE = CRUD_SSL_CERT+"/validate"
+    CRUD_SYSTEM_CONFIG = url = "https://{ip}/api/systemconfiguration"
+    LICENSE_URL = "https://{ip}/api/licensing"
+    AVI_HA = "https://{ip}/api/cluster"
+    AVI_HA_RUNTIME = "https://{ip}/api/cluster/runtime"
+
+class CertName:
+    NAME = "tkgvmc-avi-cert"
+    VSPHERE_CERT_NAME = "tkgvsphere-avi-cert"
+    COMMON_NAME = "avi.demo.com"
+    VSPHERE_COMMON_NAME = "tkgvsphere-avi-cert_common_name"
+
+
+class AviSize:
+    ESSENTIALS = {
+        "cpu": "4",
+        "memory": "12288"
+
+    }
+    SMALL = {
+        "cpu": "8",
+        "memory": "24576"
+
+    }
+    MEDIUM = {
+        "cpu": "16",
+        "memory": "32768"
+
+    }
+    LARGE = {
+        "cpu": "26",
+        "memory": "51200"
+
+    }

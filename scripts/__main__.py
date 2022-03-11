@@ -95,11 +95,11 @@ def avi_deploy(ctx):
     RALBWorkflow(run_config=run_config).avi_controller_setup()
 
 
-@avi.command(name="validate")
-@click.pass_context
-def avi_validate(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    ALBWorkflow(run_config).avi_controller_validate()
+# @avi.command(name="validate")
+# @click.pass_context
+# def avi_validate(ctx):
+#     run_config = load_run_config(ctx.obj["ROOT_DIR"])
+#     ALBWorkflow(run_config).avi_controller_validate()
 
 
 @cli.group()

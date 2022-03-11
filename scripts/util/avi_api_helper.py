@@ -3,49 +3,29 @@ import os
 import time
 from pathlib import Path
 from util import cmd_runner
-
+import base64
 import requests
 import urllib3
 from avi.sdk.avi_api import ApiSession, AviCredentials
 from requests import HTTPError
 from tqdm import tqdm
-
+from util.ShellHelper import runProcess
 from constants.api_payloads import AlbPayload
-from constants.constants import AlbCloudType, AlbLicenseTier, ControllerLocation, MarketPlaceUrl
+from constants.constants import Paths, AlbCloudType, AlbLicenseTier, ControllerLocation, MarketPlaceUrl,\
+    AviSize, CertName
+from constants.alb_api_constants import AlbPayload, AlbEndpoint
 from model.run_config import RunConfig
 from model.spec import NetworkSegment
 from util.cmd_helper import CmdHelper
 from util.logger_helper import LoggerHelper, log
+from util.govc_client import GovcClient
+from util.replace_value import replaceValueSysConfig, replaceCertConfig
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 # Reference: https://github.com/vmware/alb-sdk/blob/eng/python/avi/sdk/README.md
-
-
-def login(func):
-    def inner(*args, **kwargs):
-        logger.debug("-" * 80)
-        api_creds = AviCredentials()
-        self = args[0]
-        api_creds.update_from_ansible_module(self.avi_api_spec)
-        self.api = ApiSession.get_session(
-            api_creds.controller,
-            api_creds.username,
-            password=api_creds.password,
-            timeout=api_creds.timeout,
-            tenant=api_creds.tenant,
-            tenant_uuid=api_creds.tenant_uuid,
-            token=api_creds.token,
-            port=api_creds.port,
-        )
-        result = func(*args, **kwargs)
-        self.api.close()
-        logger.debug("-" * 80)
-        return result
-
-    return inner
 
 
 class AviApiSpec:
@@ -167,6 +147,8 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
         }
 
         json_object = json.dumps(payload, indent=4).replace('\"true\"', 'true')
+        logger.info('header: {}'.format(headers))
+        logger.info('data: {}'.format(json_object))
         presigned_url = requests.request("POST",
                                          MarketPlaceUrl.URL + "/api/v1/products/" + product_id + "/download",
                                          headers=headers, data=json_object, verify=False)
@@ -239,13 +221,23 @@ def downloadAviControllerAndPushToContentLibrary(vcenter_ip, vcenter_username, p
             if str(output[0]).__contains__(VC_AVI_OVA_NAME):
                 logger.info(VC_AVI_OVA_NAME + " avi controller is already present in content library")
             else:
-                logger.error(VC_AVI_OVA_NAME + " need to be present in content library for internet "
+                logger.error(VC_AVI_OVA_NAME + " need to be present in content library for internet"
                                                                "restricted env, please push avi "
                                                                "controller to content library.")
                 return None, VC_AVI_OVA_NAME + " not present in the content library " + VC_Content_Library_name
         return "SUCCESS", 200
     except Exception as e:
         return None, str(e)
+
+def isAviHaEnabled(hafield):
+    try:
+        enable_avi_ha = hafield
+        if str(enable_avi_ha).lower() == "true":
+            return True
+        else:
+            return False
+    except:
+        return False
 
 def ra_avi_download(jsonspec):
 
@@ -280,807 +272,847 @@ def ra_avi_download(jsonspec):
             return False
         return True
 
+def check_controller_is_up(ip):
+    url = "https://" + str(ip)
+    headers = {
+        "Content-Type": "application/json"
+    }
+    payload = {}
+    response_login = None
+    count = 0
+    status = None
+    try:
+        response_login = requests.request("GET", url, headers=headers, data=payload, verify=False)
+        status = response_login.status_code
+    except:
+        pass
+    while (status != 200 or status is None) and count < 150:
+        count = count + 1
+        try:
+            response_login = requests.request("GET", url, headers=headers, data=payload, verify=False)
+            if response_login.status_code == 200:
+                break
+        except:
+            pass
+        logger.info("Waited for  " + str(count * 10) + "s, retrying.")
+        time.sleep(10)
+    if response_login is not None:
+        if response_login.status_code != 200:
+            return None
+        else:
+            logger.info("Controller is up and running in   " + str(count * 10) + "s.")
+            return "UP"
+    else:
+        logger.error("Controller is not reachable even after " + str(count * 10) + "s wait")
+        return None
 
+def obtain_first_csrf(ip):
+    url = "https://" + str(ip) + "/login"
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "username": "admin",
+        "password": "58NFaGDJm(PJH0G"
+    }
+    modified_payload = json.dumps(payload, indent=4)
+    response_csrf = requests.request("POST", url, headers=headers, data=modified_payload, verify=False)
+    if response_csrf.status_code != 200:
+        if str(response_csrf.text).__contains__("Invalid credentials"):
+            return "SUCCESS"
+        else:
+            return None
+    cookies_string = ""
+    cookiesString = requests.utils.dict_from_cookiejar(response_csrf.cookies)
+    for key, value in cookiesString.items():
+        cookies_string += key + "=" + value + "; "
+    return cookiesString['csrftoken'], cookies_string
 
-class AviApiHelper:
-    def __init__(self, avi_api_spec: AviApiSpec, run_config: RunConfig) -> None:
-        self.avi_api_spec = avi_api_spec
-        self.ip = avi_api_spec.params["controller"]
-        self.run_config: RunConfig = run_config
-        self.api: ApiSession = None
+def obtain_second_csrf(ip, avienc_pass):
+    url = "https://" + str(ip) + "/login"
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    str_enc_avi = str(avienc_pass)
+    base64_bytes_avi = str_enc_avi.encode('ascii')
+    enc_bytes_avi = base64.b64decode(base64_bytes_avi)
+    password_avi = enc_bytes_avi.decode('ascii').rstrip("\n")
+    payload = {
+        "username": "admin",
+        "password": password_avi
+    }
+    modified_payload = json.dumps(payload, indent=4)
+    response_csrf = requests.request("POST", url, headers=headers, data=modified_payload, verify=False)
+    if response_csrf.status_code != 200:
+        return None
+    cookies_string = ""
+    cookiesString = requests.utils.dict_from_cookiejar(response_csrf.cookies)
+    for key, value in cookiesString.items():
+        cookies_string += key + "=" + value + "; "
+    # current_app.config['csrftoken'] = cookiesString['csrftoken']
+    return cookiesString['csrftoken'], cookies_string
 
-    @log("Wait for controller to be UP!!")
-    def wait_for_controller(self) -> None:
-        count = 60
-        while count > 0:
+def set_avi_admin_password(ip, first_csrf, avi_version, aviencpass):
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": first_csrf[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": avi_version,
+        "x-csrftoken": first_csrf[0]
+    }
+    str_enc_avi = str(aviencpass)
+    base64_bytes_avi = str_enc_avi.encode('ascii')
+    enc_bytes_avi = base64.b64decode(base64_bytes_avi)
+    password_avi = enc_bytes_avi.decode('ascii').rstrip("\n")
+    payload = {"old_password": "58NFaGDJm(PJH0G",
+               "password": password_avi,
+               "username": "admin"
+               }
+    modified_payload = json.dumps(payload, indent=4)
+    url = "https://" + ip + "/api/useraccount"
+    response_csrf = requests.request("PUT", url, headers=headers, data=modified_payload, verify=False)
+    if response_csrf.status_code != 200:
+        return None
+    else:
+        return "SUCCESS"
+
+def set_dns_ntp_smtp_settings(ip, second_csrf, avi_version):
+    with open('./systemConfig1.json', 'r') as openfile:
+        json_object = json.load(openfile)
+    url = AlbEndpoint.CRUD_SYSTEM_CONFIG.format(ip=ip)
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": second_csrf[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": avi_version,
+        "x-csrftoken": second_csrf[0]
+    }
+    json_object_m = json.dumps(json_object, indent=4)
+    response_csrf = requests.request("PUT", url, headers=headers, data=json_object_m, verify=False)
+    if response_csrf.status_code != 200:
+        return None
+    else:
+        return "SUCCESS"
+
+def get_system_configuration_and_set_values(ip, second_csrf, avi_version, jsonspec):
+    url = AlbEndpoint.CRUD_SYSTEM_CONFIG.format(ip=ip)
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": second_csrf[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": avi_version,
+        "x-csrftoken": second_csrf[0]
+    }
+    payload = {}
+    response_csrf = requests.request("GET", url, headers=headers, data=payload, verify=False)
+    if response_csrf.status_code != 200:
+        return None
+    os.system("rm -rf ./systemConfig1.json")
+    json_object = json.dumps(response_csrf.json(), indent=4)
+    ntp = jsonspec['envSpec']['infraComponents']['ntpServers']
+    dns = jsonspec(force=True)['envSpec']['infraComponents']['dnsServersIp']
+    search_domain = jsonspec['envSpec']['infraComponents']['searchDomains']
+    with open("./systemConfig1.json", "w") as outfile:
+        outfile.write(json_object)
+    replaceValueSysConfig("./systemConfig1.json", "default_license_tier", "name", "ENTERPRISE")
+    replaceValueSysConfig("./systemConfig1.json", "email_configuration", "smtp_type", "SMTP_NONE")
+    replaceValueSysConfig("./systemConfig1.json", "dns_configuration", "false",
+                          dns)
+    replaceValueSysConfig("./systemConfig1.json", "ntp_configuration", "ntp",
+                          ntp)
+    replaceValueSysConfig("./systemConfig1.json", "dns_configuration", "search_domain",
+                          search_domain)
+    return "SUCCESS"
+
+def disable_welcome_screen(ip, second_csrf, avi_version):
+    url = AlbEndpoint.CRUD_SYSTEM_CONFIG.format(ip=ip)
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": second_csrf[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": avi_version,
+        "x-csrftoken": second_csrf[0]
+    }
+    data = {
+        "replace": {
+            "welcome_workflow_complete": "true",
+            "global_tenant_config": {
+                "tenant_vrf": False,
+                "se_in_provider_context": False,
+                "tenant_access_to_provider_se": True,
+            },
+        }
+    }
+    response_csrf = requests.request("PATCH", url, headers=headers, data=data, verify=False)
+    if response_csrf.status_code != 200:
+        return None
+    else:
+        return "SUCCESS"
+
+def obtain_avi_version(ip, jsonspec):
+    url = "https://" + str(ip) + "/login"
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    str_enc_avi = str(jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64'])
+    base64_bytes_avi = str_enc_avi.encode('ascii')
+    enc_bytes_avi = base64.b64decode(base64_bytes_avi)
+    password_avi = enc_bytes_avi.decode('ascii').rstrip("\n")
+    payload = {
+        "username": "admin",
+        "password": password_avi
+    }
+    modified_payload = json.dumps(payload, indent=4)
+    response_avi = requests.request("POST", url, headers=headers, data=modified_payload, verify=False)
+    if response_avi.status_code != 200:
+        return None, response_avi.txt
+    return response_avi.json()["version"]["Version"], 200
+
+def get_backup_configuration(ip, second_csrf, avi_version):
+    url = "https://" + ip + "/api/backupconfiguration"
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": second_csrf[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": avi_version,
+        "x-csrftoken": second_csrf[0]
+    }
+    body = {}
+    json_object = json.dumps(body, indent=4)
+    response_csrf = requests.request("GET", url, headers=headers, data=json_object, verify=False)
+    if response_csrf.status_code != 200:
+        return None, response_csrf.text
+    else:
+        return response_csrf.json()["results"][0]["url"], 200
+
+def setBackupPhrase(ip, seconcsrf, url_backup, aviVersion, avi_backup_phrase):
+    url = url_backup
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": seconcsrf[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": aviVersion,
+        "x-csrftoken": seconcsrf[0]
+    }
+    str_enc_avi_backup = str(avi_backup_phrase)
+    base64_bytes_avi_backup = str_enc_avi_backup.encode('ascii')
+    enc_bytes_avi_backup = base64.b64decode(base64_bytes_avi_backup)
+    password_avi_backup = enc_bytes_avi_backup.decode('ascii').rstrip("\n")
+    body = {
+        "add": {"backup_passphrase": password_avi_backup}
+    }
+    json_object = json.dumps(body, indent=4)
+    response_csrf = requests.request("PATCH", url, headers=headers, data=json_object, verify=False)
+    if response_csrf.status_code != 200:
+        return None, response_csrf.text
+    else:
+        return response_csrf.json()["url"], 200
+
+def get_avi_cluster_info(ip, csrf2, aviVersion):
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": csrf2[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": aviVersion,
+        "x-csrftoken": csrf2[0]
+    }
+    url = AlbEndpoint.AVI_HA.format(ip=ip)
+    try:
+        response_csrf = requests.request("GET", url, headers=headers, verify=False)
+        if response_csrf.status_code != 200:
+            return None, response_csrf.text
+        return response_csrf.json(), "SUCCESS"
+    except Exception as e:
+        return None, str(e)
+
+def form_avi_ha_cluster(ip, jsonspec, govc_client, aviVersion):
+    avienc_pass = jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64']
+    csrf2 = obtain_second_csrf(ip, avienc_pass)
+    if csrf2 is None:
+        logger.error('Failed to get csrf2 info')
+        return None
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": csrf2[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": aviVersion,
+        "x-csrftoken": csrf2[0]
+    }
+
+    try:
+        data_center = jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
+        info, status = get_avi_cluster_info(ip, csrf2, aviVersion)
+        if info is None:
+            logger.error("Failed to get status of cluster: {}".format(str(status)))
+            return None
+        avi_ip = jsonspec['tkgComponentSpec']['aviComponents']['aviController01Ip']
+        avi_ip2 = jsonspec['tkgComponentSpec']['aviComponents']['aviController02Ip']
+        avi_ip3 = jsonspec['tkgComponentSpec']['aviComponents']['aviController03Ip']
+        clusterIp = jsonspec['tkgComponentSpec']['aviComponents']['aviClusterIp']
+        nodes = info["nodes"]
+        _list = []
+        _cluster = {}
+        for node in nodes:
             try:
-                response = requests.get(f"https://{self.ip}", verify=False)
-                logger.debug("status code: %s", response.status_code)
-                if response.status_code == requests.codes.ok:
-                    logger.info("Server UP")
-                    return
+                _list.append(node["ip"]["addr"])
+                if str(node["ip"]["addr"]) == avi_ip:
+                    _cluster["vm_uuid"] = node["vm_uuid"]
+                    _cluster["vm_mor"] = node["vm_mor"]
+                    _cluster["vm_hostname"] = node["vm_hostname"]
             except:
                 pass
-            print("Waiting for 10 seconds")
-            time.sleep(10)
-            count -= 1
-        logger.warn("status code: %s", response.status_code)
-        raise Exception("Server not UP after 10 min!!!")
-
-    @login
-    def get_api_version(self) -> dict:
-        return self.api.remote_api_version["Version"]
-
-    @log("Change Credentials for firstboot")
-    def change_credentials(self) -> dict:
-        api_creds = AviCredentials()
-        api_creds.update_from_ansible_module(self.avi_api_spec)
-        old_password = self.avi_api_spec.params.get("old_password")
-        data = {"old_password": old_password, "password": api_creds.password}
-
-        first_pwd = old_password
-        second_pwd = api_creds.password
-
-        password_changed = False
-        try:
-            logger.info("Test with default password")
-            api = ApiSession.get_session(
-                api_creds.controller,
-                api_creds.username,
-                password=first_pwd,
-                timeout=api_creds.timeout,
-                tenant=api_creds.tenant,
-                tenant_uuid=api_creds.tenant_uuid,
-                token=api_creds.token,
-                port=api_creds.port,
-            )
-
-            rsp = api.put("useraccount", data=data)
-            if rsp:
-                password_changed = True
-        except Exception:
-            pass
-        if not password_changed:
-            try:
-                self.get_api_version()
-                password_changed = True
-                rsp = {"msg": "password already changed"}
-            except Exception:
-                pass
-        if password_changed:
-            logger.info("Password changed")
-            return rsp
-        else:
-            raise Exception("Password change error")
-
-    @staticmethod
-    def get_ip_obj(ip, type):
-        return {"addr": ip, "type": type}
-
-    @staticmethod
-    def get_dns_obj(ip):
-        return AviApiHelper.get_ip_obj(ip, "V4")
-
-    @staticmethod
-    def get_ntp_obj(ip):
-        return AviApiHelper.get_ip_obj(ip, "DNS")
-
-    @login
-    @log("Set DNS and NTP")
-    def set_dns_ntp(self) -> dict:
-        # get configuration
-        conf_dict = self.api.get("systemconfiguration").json()
-
-        # update configuration
-        conf_dict["email_configuration"]["smtp_type"] = "SMTP_NONE"
-        conf_dict["dns_configuration"]["server_list"] = list(
-            map(AviApiHelper.get_dns_obj, self.run_config.spec.avi.conf.dns))
-        conf_dict["ntp_configuration"]["ntp_servers"] = list(
-            map(AviApiHelper.get_ntp_obj, self.run_config.spec.avi.conf.ntp))
-
-        return self.api.put("systemconfiguration", data=conf_dict).json()
-
-    @login
-    @log("Disable Welcome screen after login")
-    def disable_welcome_screen(self):
-        data = {
-            "replace": {
-                "welcome_workflow_complete": "true",
-                "global_tenant_config": {
-                    "tenant_vrf": False,
-                    "se_in_provider_context": False,
-                    "tenant_access_to_provider_se": True,
-                },
-            }
-        }
-        return self.api.patch("systemconfiguration", data=data, api_version=self.get_api_version()).json()
-
-    @login
-    @log("Set backup  passphrase")
-    def set_backup_passphrase(self):
-        bkup_uuid = self.api.get("backupconfiguration", api_version=self.get_api_version()).json()["results"][0]["uuid"]
-        data = {"add": {"backup_passphrase": self.run_config.spec.avi.conf.backup.passphrase}}
-        return self.api.patch(f"backupconfiguration/{bkup_uuid}", data=data, api_version=self.get_api_version()).json()
-
-    @login
-    @log("Generate SSL Certificate and update system certificate")
-    def generate_ssl_cert(self):
-        sslcerts = self.api.get("sslkeyandcertificate").json()
-        data = {
-            "type": "SSL_CERTIFICATE_TYPE_SYSTEM",
-            "name": self.run_config.spec.avi.conf.cert.commonName,
-            "certificate_base64": True,
-            "key_base64": True,
-            "certificate": {
-                "days_until_expire": 365,
-                "self_signed": True,
-                "subject": {
-                    "organization": "VMware INC",
-                    "locality": "Palo Alto",
-                    "state": "CA",
-                    "country": "US",
-                    "common_name": self.run_config.spec.avi.conf.cert.commonName,
-                    "organization_unit": "VMwareEngineering",
-                },
-                "subject_alt_names": [self.api.controller_ip],
-            },
-            "key_params": {"algorithm": "SSL_KEY_ALGORITHM_RSA", "rsa_params": {"key_size": "SSL_KEY_2048_BITS"}},
-        }
-        if not any(x["name"] == self.run_config.spec.avi.conf.cert.commonName for x in sslcerts["results"]):
-            url = self.api.post("sslkeyandcertificate", data=data, api_version=self.get_api_version()).json()["url"]
-        else:
-            url = next(
-                x["url"] for x in sslcerts["results"] if x["name"] == self.run_config.spec.avi.conf.cert.commonName)
-        sysconfig = self.api.get("systemconfiguration").json()
-        logger.debug(f"sysconfig:  {sysconfig}")
-        # replace certificate
-        sysconfig["portal_configuration"]["sslkeyandcertificate_refs"] = [url]
-        print(sysconfig)
-        return self.api.put("systemconfiguration", data=sysconfig, api_version=self.get_api_version()).json()
-
-    def get_cloud_uuid(self) -> str:
-        cloud_rsp = self.api.get("cloud").json()
-        if any(x["name"] == self.run_config.spec.avi.cloud.name for x in cloud_rsp["results"]):
-            return next(x for x in cloud_rsp["results"] if x["name"] == self.run_config.spec.avi.cloud.name)["uuid"]
-        else:
-            logger.warn("cloud not yet available")
-
-    def get_pg(self, cloud_uuid_obj):
-        return self.api.post(
-            "vimgrvcenterruntime/retrieve/portgroups", data=cloud_uuid_obj, api_version=self.get_api_version()
-        ).json()["resource"]["vcenter_pg_names"]
-
-    @login
-    @log("Configure cloud")
-    def configure_cloud(self):
-        cloud_rsp = self.api.get("cloud").json()
-        logger.debug(f"cloud_rsp {cloud_rsp}")
-
-        cloud_req = {
-            "name": self.run_config.spec.avi.cloud.name,
-            "vcenter_configuration": {
-                "username": self.run_config.spec.vsphere.username,
-                "password": f"{CmdHelper.decode_base64(self.run_config.spec.vsphere.password)}",
-                "vcenter_url": self.run_config.spec.vsphere.server,
-                "privilege": "WRITE_ACCESS",
-                "datacenter": self.run_config.spec.avi.cloud.dc,
-            },
-            "apic_mode": False,
-            "dhcp_enabled": True,
-            "mtu": 1500,
-            "prefer_static_routes": False,
-            "enable_vip_static_routes": False,
-            "license_type": "LIC_CORES",
-            "ipam_provider_ref": "",
-            "dns_provider_ref": "",
-        }
-
-        if not any(x["name"] == self.run_config.spec.avi.cloud.name for x in cloud_rsp["results"]):
-            new_cloud_rsp = self.api.post("cloud", data=cloud_req, api_version=self.get_api_version()).json()
-        else:
-            new_cloud_rsp = next(x for x in cloud_rsp["results"] if x["name"] == self.run_config.spec.avi.cloud.name)
-            present_ipam, output = self.configure_ipam_dns_precheck(self.run_config.spec.avi.cloud.ipamProfileName)
-            # add more validation
-            if present_ipam and new_cloud_rsp["ipam_provider_ref"] == output["uuid"]:
-                logger.warn("Cloud IPAM already configured")
-                cloud_req["ipam_provider_ref"] = output["uuid"]
-
-            present_dns, output = self.configure_ipam_dns_precheck(self.run_config.spec.avi.cloud.dnsProfile.name)
-            if present_dns and new_cloud_rsp["dns_provider_ref"] == output["uuid"]:
-                logger.warn("Cloud DNS already configured")
-                cloud_req["dns_provider_ref"] = output["uuid"]
-            if not (present_ipam and present_dns):
-                self.api.put(
-                    f"cloud/{new_cloud_rsp['uuid']}", data=cloud_req, api_version=self.get_api_version()
-                ).json()
-        cloud_uuid_obj = {"cloud_uuid": new_cloud_rsp["uuid"]}
-        # time.sleep(300)
-        pg_resources = self.get_pg(cloud_uuid_obj)
-
-        count = 5
-        while not any(pg["name"] == self.run_config.spec.avi.cloud.network for pg in pg_resources) and count > 0:
-            logger.warn("No PortGroups found with name %s, waiting for 10s", self.run_config.spec.avi.cloud.network)
-            time.sleep(10)
-            count -= 1
-            pg_resources = self.get_pg(cloud_uuid_obj)
-        if not any(pg["name"] == self.run_config.spec.avi.cloud.network for pg in pg_resources):
-            raise ValueError(f"Portgroup {self.run_config.spec.avi.cloud.network} not available in Avi")
-
-        pg_uuid = next(pg["uuid"] for pg in pg_resources if pg["name"] == self.run_config.spec.avi.cloud.network)
-
-        se_groups = self.api.get(
-            "serviceenginegroup-inventory",
-            api_version=self.get_api_version(),
-            params={"cloud_ref.uuid": new_cloud_rsp["uuid"]},
-        ).json()["results"]
-        se_grp_config = next(x["config"] for x in se_groups if x["config"]["name"] == "Default-Group")
-        se_grp_url = se_grp_config["url"]
-        # configure HA in SE group
-        self.configure_se_grp(se_grp_config["uuid"])
-
-        cloud_req["vcenter_configuration"][
-            "management_network"
-        ] = f"https://{self.run_config.spec.vsphere.server}/api/vimgrnwruntime/{pg_uuid}"
-        cloud_req["ipam_provider_ref"] = self.configure_ipam()["url"]
-        cloud_req["dns_provider_ref"] = self.configure_dns()["url"]
-        cloud_req["se_group_template_ref"] = se_grp_url
-        return self.api.put(f"cloud/{new_cloud_rsp['uuid']}", data=cloud_req, api_version=self.get_api_version()).json()
-
-    def configure_ipam_dns_precheck(self, name: str) -> tuple:
-        ipam_dns_profiles = self.api.get("ipamdnsproviderprofile", api_version=self.get_api_version()).json()
-        if any(x["name"] == name for x in ipam_dns_profiles["results"]):
-            logger.info("IPAM/DNS Profile already exist")
-            return True, next(x for x in ipam_dns_profiles["results"] if x["name"] == name)
-        return False, None
-
-    def get_ipam_uuid(self, cloud_uuid, ipamdnsproviderprofile_name, page=1):
-        ipam_resp = self.api.get("ipamdnsproviderprofile").json()
-        count = ipam_resp["count"]
-        logger.debug(f"ipam count: {count}, page: {page}")
-
-        if any(x["name"] == ipamdnsproviderprofile_name for x in ipam_resp["results"]):
-            return next(x["uuid"] for x in ipam_resp["results"] if x["name"] == ipamdnsproviderprofile_name)
-        if ((page - 1) * 20 + len(ipam_resp["results"])) != count:
-            return self.get_ipam_uuid(cloud_uuid, ipamdnsproviderprofile_name, page + 1)
-        return False
-
-    def get_se_group_uuid(self, cloud_uuid, se_group_name, page=1):
-        serviceengine_resp = self.api.get("serviceenginegroup").json()
-        count = serviceengine_resp["count"]
-        logger.debug(f"serviceengine count: {count}, page: {page}")
-
-        if any(x["name"] == se_group_name for x in serviceengine_resp["results"]):
-            return next(x["uuid"] for x in serviceengine_resp["results"] if x["name"] == se_group_name)
-        if ((page - 1) * 20 + len(serviceengine_resp["results"])) != count:
-            return self.get_serviceengine_uuid(cloud_uuid, se_group_name, page + 1)
-        return False
-
-    def get_ssl_uuid(self, cloud_uuid, common_name, page=1):
-        ssl_resp = self.api.get("sslkeyandcertificate").json()
-        count = ssl_resp["count"]
-        logger.debug(f"SSL count: {count}, page: {page}")
-        if any(x["name"] == common_name for x in ssl_resp["results"]):
-            return next(x["uuid"] for x in ssl_resp["results"] if x["name"] == common_name)
-        if ((page - 1) * 20 + len(ssl_resp["results"])) != count:
-            return self.get_ssl_uuid(cloud_uuid, common_name, page + 1)
-
-    @log()
-    def get_network_inventory(self, cloud_uuid, page=1):
-        return self.api.get(
-            "network-inventory", api_version=self.get_api_version(), params={"cloud_ref.uuid": cloud_uuid, "page": page}
-        ).json()
-
-    def get_network_uuid(self, cloud_uuid, network_name, page=1):
-        network_resp = self.get_network_inventory(cloud_uuid, page)
-        count = network_resp["count"]
-        logger.debug(f"network count: {count}, page: {page}")
-
-        if any(x["config"]["name"] == network_name for x in network_resp["results"]):
-            return next(x["config"]["uuid"] for x in network_resp["results"] if x["config"]["name"] == network_name)
-        if ((page - 1) * 20 + len(network_resp["results"])) != count:
-            return self.get_network_uuid(cloud_uuid, network_name, page + 1)
-        return False
-
-    @log("Configure IPAM")
-    def configure_ipam(self) -> dict:
-        present, output = self.configure_ipam_dns_precheck(self.run_config.spec.avi.cloud.ipamProfileName)
-        if present:
-            return output
-        count = 5
-        network_name = self.run_config.spec.avi.dataNetwork.name
-        while count > 0:
-            network_uuid = self.get_network_uuid(self.get_cloud_uuid(), network_name)
-            if network_uuid:
-                break
-            logger.warn("No networks found with name %s, waiting for 10s", network_name)
-            time.sleep(10)
-            count -= 1
-
-        if not network_uuid:
-            # todo: add in prevalidate
-            raise ValueError(f"Network with name {network_name} not available")
-        data = {
-            "name": self.run_config.spec.avi.cloud.ipamProfileName,
-            "internal_profile": {
-                "ttl": 30,
-                "usable_networks": [{"nw_ref": f"https://{self.api.controller_ip}/api/network/{network_uuid}"}],
-            },
-            "allocate_ip_in_vrf": False,
-            "type": "IPAMDNS_TYPE_INTERNAL",
-            "gcp_profile": {"match_se_group_subnet": False, "use_gcp_network": False},
-            "azure_profile": {"use_enhanced_ha": False, "use_standard_alb": False},
-        }
-        return self.api.post("ipamdnsproviderprofile", api_version=self.get_api_version(), data=data).json()
-
-    @log("Configure DNS")
-    def configure_dns(self) -> dict:
-        present, output = self.configure_ipam_dns_precheck(self.run_config.spec.avi.cloud.dnsProfile.name)
-        if present:
-            return output
-        data = {
-            "name": self.run_config.spec.avi.cloud.dnsProfile.name,
-            "internal_profile": {
-                "ttl": 30,
-                "dns_service_domain": [
-                    {"domain_name": self.run_config.spec.avi.cloud.dnsProfile.domain, "pass_through": True}
-                ],
-            },
-            "allocate_ip_in_vrf": False,
-            "type": "IPAMDNS_TYPE_INTERNAL_DNS",
-            "gcp_profile": {"match_se_group_subnet": False, "use_gcp_network": False},
-            "azure_profile": {"use_enhanced_ha": False, "use_standard_alb": False},
-        }
-        return self.api.post("ipamdnsproviderprofile", api_version=self.get_api_version(), data=data).json()
-
-    @login
-    @log("Configure static IP pool")
-    def configure_static_ip_pool(self) -> dict:
-        network_name = self.run_config.spec.avi.dataNetwork.name
-        network_uuid = self.get_network_uuid(self.get_cloud_uuid(), network_name)
-        if not network_uuid:
-            raise ValueError(f"Network with name {network_name} not available")
-
-        net_dvpg = self.api.get(f"network/{network_uuid}", api_version=self.get_api_version()).json()
-        logger.debug("Networks for dvpg %s: %s", network_name, net_dvpg)
-
-        # todo: append instead of replace
-        net_dvpg["configured_subnets"] = [
-            {
-                "prefix": {
-                    "ip_addr": {"addr": f'{self.run_config.spec.avi.dataNetwork.cidr.split("/")[0]}', "type": "V4"},
-                    "mask": int(f'{self.run_config.spec.avi.dataNetwork.cidr.split("/")[1]}'),
-                },
-                "static_ip_ranges": [
-                    {
-                        "range": {
-                            "begin": {"addr": f'{self.run_config.spec.avi.dataNetwork.staticRange.split("-")[0]}',
-                                      "type": "V4"},
-                            "end": {"addr": f'{self.run_config.spec.avi.dataNetwork.staticRange.split("-")[1]}',
-                                    "type": "V4"},
-                        },
-                        "type": "STATIC_IPS_FOR_VIP",
-                    }
-                ],
-            }
-        ]
-
-        return self.api.put(f"network/{network_uuid}", data=net_dvpg, api_version=self.get_api_version()).json()
-
-    @login
-    @log("Configure default SE group")
-    def configure_se_grp(self, se_grp_uuid):
-        api_version = self.get_api_version()
-        se_grp_data = self.api.get(f"serviceenginegroup/{se_grp_uuid}", api_version=api_version).json()
-        se_grp_data["ha_mode"] = "HA_MODE_LEGACY_ACTIVE_STANDBY"
-        se_grp_data["algo"] = "PLACEMENT_ALGO_DISTRIBUTED"
-        se_grp_data["active_standby"] = True
-        se_grp_data["max_scaleout_per_vs"] = 2
-        return self.api.put(
-            f"serviceenginegroup/{se_grp_uuid}",
-            api_version=api_version,
-            data=se_grp_data,
-        ).json()
-
-    def get_group_object_by_uuid(self, group, uuid):
-        try:
-            response = self.api.get(f"{group}/{uuid}", verify=False)
-            if response.status_code == requests.codes.ok:
-                return response.json()
-        except:
+        if avi_ip in _list and avi_ip2 in _list and avi_ip3 in _list:
+            logger.info("Avi HA cluster is already configured")
+            return True
+        logger.info("Forming Ha cluster")
+        payload = AlbPayload.AVI_HA_CLUSTER.format(cluster_uuid=info["uuid"], cluster_name="Alb-Cluster",
+                                                   cluster_ip1=avi_ip, vm_uuid_get=_cluster["vm_uuid"],
+                                                   vm_mor_get=_cluster["vm_mor"],
+                                                   vm_hostname_get=_cluster["vm_hostname"], cluster_ip2=avi_ip2,
+                                                   cluster_ip3=avi_ip3, tennat_uuid_get=info["tenant_uuid"],
+                                                   virtual_ip_get=clusterIp)
+        url = AlbEndpoint.AVI_HA.format(ip=ip)
+        response_csrf = requests.request("PUT", url, headers=headers, data=payload, verify=False)
+        if response_csrf.status_code != 200:
+            logger.error('Error on HA formation: {}'.format(str(response_csrf.text)))
             return None
-
-    def get_group(self, group):
-        try:
-            response = self.api.get(f"{group}", verify=False)
-            if response.status_code == requests.codes.ok:
-                return response.json()
-        except:
-            return None
-
-    def validate_avi_data_network_config(self):
-        status = True
-        msg = []
-
-        network_uuid = self.get_network_uuid(self.get_cloud_uuid(), self.run_config.spec.avi.dataNetwork.name)
-        network = self.get_group_object_by_uuid("network", network_uuid)
-
-        if not network:
-            msg.append("Network management config validation failed. ")
-            status = False
-        else:
-            subnet = network['configured_subnets'][0]
-            cidr = self.run_config.spec.avi.dataNetwork.cidr.split('/')[0]
-            if cidr != subnet['prefix']['ip_addr']['addr']:
-                msg.append("Network subnet prefix config validation failed. ")
-                status = False
-            begin = self.run_config.spec.avi.dataNetwork.staticRange.split('-')[0]
-            end = self.run_config.spec.avi.dataNetwork.staticRange.split('-')[1]
-            if begin != subnet["static_ranges"][0]["begin"]["addr"] or \
-                    end != subnet["static_ranges"][0]["end"]["addr"]:
-                msg.append("Network static ip address range failed. ")
-                status = False
-
-        if status:
-            msg.append("Network validation passed. ")
-        return msg, status
-
-    def validate_avi_cloud_config(self):
-        status = True
-        msg = []
-
-        cloud_rsp = self.api.get("cloud-inventory", api_version=self.get_api_version()).json()
-        cloud = next(x for x in cloud_rsp["results"] if x["config"]["name"] == self.run_config.spec.avi.cloud.name)
-        if not cloud:
-            msg.append("Cloud server doesn't exist. ")
-            status = False
-
-        config = cloud["config"]
-        vcenter_config = config["vcenter_configuration"]
-        if vcenter_config["privilege"] != "WRITE_ACCESS":
-            msg.append("Privilege access validation check failed. ")
-            status = False
-
-        pg_name = self.run_config.spec.avi.cloud.network
-        pg_uuid = self.get_network_uuid(self.get_cloud_uuid(), pg_name)
-        mgmt_net_res = self.get_group_object_by_uuid("vimgrnwruntime", pg_uuid)
-        if not mgmt_net_res or mgmt_net_res["url"] != vcenter_config["management_network"]:
-            msg.append("Network management config validation failed. ")
-            status = False
-
-        ipam_uuid = self.get_ipam_uuid(self.get_cloud_uuid(), self.run_config.spec.avi.cloud.ipamProfileName)
-        ipam_res = self.get_group_object_by_uuid("ipamdnsproviderprofile", ipam_uuid)
-        if not ipam_res or ipam_res["url"] != config["ipam_provider_ref"]:
-            msg.append("IPAM config validation failed. ")
-            status = False
-
-        dns_uuid = self.get_ipam_uuid(self.get_cloud_uuid(), self.run_config.spec.avi.cloud.dnsProfile.name)
-        dns_res = self.get_group_object_by_uuid("ipamdnsproviderprofile", dns_uuid)
-        if not dns_res or dns_res["url"] != config["dns_provider_ref"]:
-            msg.append("DNS config validation failed. ")
-            status = False
-
-        se_group_uuid = self.get_se_group_uuid(self.get_cloud_uuid(), self.run_config.spec.avi.cloud.mgmtSEGroup)
-        se_group_res = self.get_group_object_by_uuid("serviceenginegroup", se_group_uuid)
-        if not se_group_res or se_group_res["url"] != config["se_group_template_ref"]:
-            msg.append("Service engine group template validation failed. ")
-            status = False
-
-        if config["dhcp_enabled"] or not config["prefer_static_routes"]:
-            msg.append("Static routes not enabled. ")
-
-        ssl_uuid = self.get_ssl_uuid("sslkeyandcertificate", self.run_config.spec.avi.conf.cert.commonName)
-        ssl_res = self.get_group_object_by_uuid("sslkeyandcertificate", ssl_uuid)
-        if not ssl_res or ssl_res["name"] != self.run_config.spec.avi.conf.cert.commonName:
-            msg.append("SSL certificate validation failed. ")
-            status = False
-
-        if cloud['status']['state'] != "CLOUD_STATE_PLACEMENT_READY":
-            msg.append(f"Cloud status is {cloud['status']['state']}")
-            status = False
-
-        # if cloud['status']['se_image_state'][0]['state'] != "IMG_GEN_COMPLETE":
-        #     msg.append(f"SE Image status is {cloud['status']['se_image_state'][0]['state']}")
-        #     status = False
-
-        if vcenter_config["datacenter"] != self.run_config.spec.avi.cloud.dc:
-            msg.append(f"Datacenter configured is {vcenter_config['datacenter']}")
-            status = False
-
-        if status:
-            msg.append("Cloud validation check passed. ")
-
-        return msg, status
-
-    @login
-    @log("Validate Spec file")
-    def validate_avi_controller(self):
-
-        cloud_valid_msg, cloud_valid_status = self.validate_avi_cloud_config()
-        data_valid_msg, data_valid_status = self.validate_avi_data_network_config()
-
-        msg = "".join(cloud_valid_msg) + "".join(data_valid_msg)
-
-        if cloud_valid_status and data_valid_status:
-            return msg, True
-        else:
-            return msg, False
-
-    @login
-    def create_cloud(self, cloud_type: AlbCloudType):
-        cloud_name = self.run_config.spec.avi.cloud.name
-        alb_cloud = self.api.get("cloud", params={"name": cloud_name}, api_version=self.get_api_version()).json()[
-            "results"]
-        if len(alb_cloud) == 0:
-            if cloud_type == AlbCloudType.NONE:
-                body = AlbPayload.CREATE_NONE_CLOUD.format(cloud_name=self.run_config.spec.avi.cloud.name)
-            else:
-                msg = f"Only None type cloud creation is supported. Requested for {cloud_type} type."
-                logger.error(msg)
-                raise ValueError(msg)
-            logger.info(f"Creating cloud [{cloud_name}]")
-            res = self.api.post("cloud", data=json.loads(body), api_version=self.get_api_version())
+        count = 0
+        list_of_nodes = []
+        while count < 180:
+            response_csrf = requests.request("GET", url, headers=headers, verify=False)
             try:
-                res.raise_for_status()
-            except HTTPError as ex:
-                logger.error(f"Failed to create cloud [{cloud_name}]. Response: {res.text}")
-                raise ex
-            return res.json()
-        else:
-            logger.info(f"Found existing cloud [{cloud_name}]. Skipping creation.")
-        return alb_cloud[0]
-
-    @login
-    def create_se_group(self, se_group_name):
-        cloud_name = self.run_config.spec.avi.cloud.name
-        alb_cloud = self.api.get("cloud", params={"name": cloud_name}, api_version=self.get_api_version()).json()[
-            "results"]
-        if len(alb_cloud) == 0:
-            raise ValueError(f"Failed to create SE group {se_group_name}. Cloud [{cloud_name}] not found.")
-
-        se_group = \
-            self.api.get("serviceenginegroup",
-                         params={"cloud_ref.uuid": alb_cloud[0]["uuid"], "name": se_group_name}).json()[
-                "results"]
-        if len(se_group) == 0:
-            logger.info(f"Creating SE group [{se_group_name}] on cloud [{cloud_name}]")
-            body = AlbPayload.CREATE_SE_GROUP.format(name=se_group_name, cloud_url=alb_cloud[0]["url"])
-            res = self.api.post("serviceenginegroup", data=json.loads(body), api_version=self.get_api_version())
-            try:
-                res.raise_for_status()
-            except HTTPError as ex:
-                logger.error(f"Failed to create SE group. Response: {res.text}")
-                raise ex
-            return res.json()
-        else:
-            logger.info(f"Found existing SE group [{se_group_name}] on cloud [{cloud_name}]. Skipping creation.")
-        return se_group[0]
-
-    @login
-    def create_network(self, network_name, network: NetworkSegment):
-        cloud_name = self.run_config.spec.avi.cloud.name
-        alb_cloud = self.api.get("cloud", params={"name": cloud_name}, api_version=self.get_api_version()).json()[
-            "results"]
-        if len(alb_cloud) == 0:
-            raise ValueError(f"Failed to create network {network_name}. Cloud [{cloud_name}] not found.")
-
-        alb_network = \
-            self.api.get("network", params={"cloud_ref.uuid": alb_cloud[0]["uuid"], "name": network_name}).json()[
-                "results"]
-
-        if len(alb_network) == 0:
-            logger.info(f"Creating network [{network_name}] on cloud [{cloud_name}]")
-            ip, netmask = network.gatewayCidr.split('/')
-            body = AlbPayload.CREATE_NETWORK.format(name=network_name, cloud_url=alb_cloud[0]["url"], subnet_ip=ip,
-                                                    netmask=netmask, static_ip_start=network.staticIpStart,
-                                                    static_ip_end=network.staticIpEnd)
-            res = self.api.post("network", data=json.loads(body), api_version=self.get_api_version())
-            try:
-                res.raise_for_status()
-            except HTTPError as ex:
-                logger.error(f"Failed to create network. Response: {res.text}")
-                raise ex
-            return res.json()
-        else:
-            logger.info(f"Found existing network [{network_name}] on cloud [{cloud_name}]. Skipping creation.")
-        return alb_network[0]
-
-    @login
-    def create_ipam_profile(self, profile_name, usable_network_urls):
-        alb_ipam_profile = self.api.get("ipamdnsproviderprofile", params={"name": profile_name},
-                                        api_version=self.get_api_version()).json()["results"]
-        if len(alb_ipam_profile) == 0:
-            logger.info(f"Creating IPAM profile [{profile_name}]")
-            ipam_networks = [json.loads(AlbPayload.IPAM_NETWORK.format(network_url=nw)) for nw in usable_network_urls]
-            body = AlbPayload.CREATE_INTERNAL_IPAM.format(name=profile_name, ipam_networks=json.dumps(ipam_networks))
-            res = self.api.post("ipamdnsproviderprofile", data=json.loads(body),
-                                api_version=self.get_api_version())
-            try:
-                res.raise_for_status()
-            except HTTPError as ex:
-                logger.error(f"Failed to create IPAM profile. Response: {res.text}")
-                raise ex
-            return res.json()
-        else:
-            logger.info(f"Found existing IPAM profile [{profile_name}]. Skipping creation.")
-        return alb_ipam_profile[0]
-
-    @login
-    def update_se_group_and_ipam_profile(self, se_group_url, ipam_profile_url):
-        cloud_name = self.run_config.spec.avi.cloud.name
-        alb_cloud = self.api.get("cloud", params={"name": cloud_name}, api_version=self.get_api_version()).json()[
-            "results"]
-        if len(alb_cloud) == 0:
-            raise ValueError(f"Failed to update SE group and IPAM profile. Cloud [{cloud_name}] not found.")
-        if all(["se_group_template_ref" in alb_cloud[0] and se_group_url in alb_cloud[0]["se_group_template_ref"],
-                "ipam_provider_ref" in alb_cloud[0] and ipam_profile_url in alb_cloud[0]["ipam_provider_ref"]]):
-            logger.info(f"SE Group and IPAM profiles already updated on cloud [{cloud_name}]. Skipping update.")
-            return alb_cloud[0]
-        logger.info(f"Updating SE group and IPAM profile for cloud [{cloud_name}]")
-        cloud = alb_cloud[0]
-        cloud["ipam_provider_ref"] = ipam_profile_url
-        cloud["se_group_template_ref"] = se_group_url
-
-        res = self.api.put(f"cloud/{cloud['uuid']}", data=cloud, api_version=self.get_api_version())
-        try:
-            res.raise_for_status()
-        except HTTPError as ex:
-            logger.error(f"Failed to update SE group and IPAM profile of cloud {cloud_name}. Response: {res.text}")
-            raise ex
-        return res.json()
-
-    @login
-    def generate_se_ova(self):
-        cloud_name = self.run_config.spec.avi.cloud.name
-        alb_cloud = self.api.get("cloud", params={"name": cloud_name}, api_version=self.get_api_version()).json()[
-            "results"]
-        if len(alb_cloud) == 0:
-            raise ValueError(f"Failed to generate SE OVA. Cloud [{cloud_name}] not found.")
-
-        logger.info(f"Generating SE OVA for cloud [{cloud_name}]")
-        body = AlbPayload.GENERATE_SE_OVA.format(cloud_uuid=alb_cloud[0]["uuid"])
-        res = self.api.post("fileservice/seova", data=json.loads(body), api_version=self.get_api_version())
-        try:
-            res.raise_for_status()
-        except HTTPError as ex:
-            logger.error(f"Failed to generate SE OVA. Response: {res.text}")
-            raise ex
-        return res.text
-
-    @login
-    def download_se_ova(self, file_path, replace_existing=False):
-        if not replace_existing and os.path.exists(file_path):
-            logger.info(f"File already exists at {file_path}. Skipping download.")
-            return file_path
-        elif os.path.exists(file_path):
-            os.remove(file_path)
-        self.generate_se_ova()
-        cloud_name = self.run_config.spec.avi.cloud.name
-        alb_cloud = self.api.get("cloud", params={"name": cloud_name}, api_version=self.get_api_version()).json()[
-            "results"]
-        if len(alb_cloud) == 0:
-            raise ValueError(f"Failed to generate SE OVA. Cloud [{cloud_name}] not found.")
-
-        logger.info(f"Downloading SE OVA for cloud [{cloud_name}]")
-        file_name = file_path.split('/')[-1]
-        with self.api.get("fileservice/seova",
-                          params={"file_format": "ova", "cloud_uuid": {alb_cloud[0]["uuid"]}},
-                          api_version=self.get_api_version()) as res:
-            try:
-                res.raise_for_status()
-            except HTTPError as ex:
-                logger.error(f"Failed to get SE OVA. Response: {res.text}")
-                raise ex
-            block_size = 1024 * 1024
-            total_size_in_bytes = int(res.headers.get('content-length', 0))
-            logger.info(f"File size: {total_size_in_bytes}Bytes")
-            with tqdm.wrapattr(open(file_path, "wb"), "write",
-                               miniters=1, desc=file_name,
-                               total=int(res.headers.get('content-length', 0))) as fout:
-                for chunk in res.iter_content(chunk_size=block_size):
-                    fout.write(chunk)
-
-        if not os.path.exists(file_path) or os.path.getsize(file_path) != total_size_in_bytes:
-            raise Exception(f"Error while downloading file {file_name}. ")
-        return file_path
-
-    @login
-    def get_auth_token(self):
-        cloud_name = self.run_config.spec.avi.cloud.name
-        alb_cloud = self.api.get("cloud", params={"name": cloud_name}).json()["results"]
-        if len(alb_cloud) == 0:
-            raise ValueError(f"Failed to generate token. Cloud [{cloud_name}] not found.")
-
-        res = self.api.get("securetoken-generate", params={"cloud_uuid": alb_cloud[0]["uuid"]},
-                           api_version=self.get_api_version())
-        try:
-            res.raise_for_status()
-        except HTTPError as ex:
-            logger.error(f"Failed to get auth token. Response: {res.text}")
-            raise ex
-        return res.json()["auth_token"]
-
-    @login
-    def get_cluster_uuid(self):
-        res = self.api.get("cluster", api_version=self.get_api_version())
-        try:
-            res.raise_for_status()
-        except HTTPError as ex:
-            logger.error(f"Failed to get cluster UUID. Response: {res.text}")
-            raise ex
-        return res.json()["uuid"]
-
-    def patch_license_tier(self, license_tier: AlbLicenseTier):
-        body = AlbPayload.PATCH_DEFAULT_LICENSE_TIER.format(license_tier=license_tier)
-        # Field (default_license_tier) is introduced in later versions(v17_2_5)
-        res = self.api.patch("systemconfiguration", data=json.loads(body), api_version="17.2.5")
-        try:
-            res.raise_for_status()
-        except HTTPError as ex:
-            logger.error(f"Failed to patch default license tier. Response: {res.text}")
-            raise ex
-        return res.json()
-
-    def get_service_engine(self, name):
-        cloud_name = self.run_config.spec.avi.cloud.name
-        alb_cloud = self.api.get("cloud", params={"name": cloud_name}).json()["results"]
-        if len(alb_cloud) == 0:
-            raise ValueError(f"Failed to get SE. Cloud [{cloud_name}] not found.")
-
-        res = self.api.get("serviceengine", params={"cloud_ref.uuid": alb_cloud[0]["uuid"], "name": name},
-                           api_version=self.get_api_version())
-        try:
-            res.raise_for_status()
-        except HTTPError as ex:
-            logger.error(f"Failed to get SE by name: {name}. Response: {res.text}")
-            raise ex
-        return res.json()["results"]
-
-    def update_se_engine(self, se_name, se_group_url, mac_addresses):
-        service_engine = self.get_service_engine(se_name)
-        if len(service_engine) == 0:
-            raise ValueError(f"Failed to update SE [{se_name}]. SE not found.")
-        logger.info(f"Updating SE [{se_name}]")
-        se = service_engine[0]
-        se["se_group_ref"] = se_group_url
-
-        for vnic in se["data_vnics"]:
-            for k, v in vnic.items():
-                if v in mac_addresses.values():
-                    vnic["dhcp_enabled"] = True
+                if len(response_csrf.json()["nodes"]) == 3:
+                    for node in response_csrf.json()["nodes"]:
+                        list_of_nodes.append(node["ip"]["addr"])
                     break
+            except:
+                pass
+            time.sleep(10)
+            logger.info("Waited " + str(count * 10) + "s for getting cluster ips, retrying")
+            count = count + 1
 
-        res = self.api.put(f"serviceengine/{se['uuid']}", data=se, api_version=self.get_api_version())
-        try:
-            res.raise_for_status()
-        except HTTPError as ex:
-            logger.error(f"Failed to update SE [{se_name}]. Response: {res.text}")
-            raise ex
-        return res.json()
+        if avi_ip not in list_of_nodes or avi_ip2 not in list_of_nodes or not avi_ip3 in list_of_nodes:
+            logger.error("Failed to form the cluster ips not found in nodes list")
+            return None
+        logger.info("Getting cluster runtime status")
+        runtime = 0
+        run_time_url = AlbEndpoint.AVI_HA_RUNTIME.format(ip=ip)
+        all_up = False
+        while runtime < 180:
+            try:
+                response_csrf = requests.request("GET", run_time_url, headers=headers, verify=False)
+                if response_csrf.status_code != 200:
+                    return None, "Failed to get cluster runtime status " + (str(response_csrf.text))
+                node_statuses = response_csrf.json()["node_states"]
+                if node_statuses is not None:
+                    logger.info("Checking node " + str(node_statuses[0]["mgmt_ip"]) + " state: " + str(
+                        node_statuses[0]["state"]))
+                    logger.info("Checking node " + str(node_statuses[1]["mgmt_ip"]) + " state: " + str(
+                        node_statuses[1]["state"]))
+                    logger.info("Checking node " + str(node_statuses[2]["mgmt_ip"]) + " state: " + str(
+                        node_statuses[2]["state"]))
+                    logger.info(
+                        "***********************************************************************************")
+                    if node_statuses[0]["state"] == "CLUSTER_ACTIVE" and node_statuses[1][
+                        "state"] == "CLUSTER_ACTIVE" and node_statuses[2]["state"] == "CLUSTER_ACTIVE":
+                        all_up = True
+                        break
+            except:
+                pass
+            runtime = runtime + 1
+            time.sleep(10)
+        if not all_up:
+            return None, "All nodes are not in active atate on wating 30 min"
+        return "SUCCESS", "Successfully formed Ha Cluster"
+    except Exception as e:
+        return None, str(e)
 
-    def get_vrf_context(self, name):
-        cloud_name = self.run_config.spec.avi.cloud.name
-        alb_cloud = self.api.get("cloud", params={"name": cloud_name}, api_version=self.get_api_version()).json()[
-            "results"]
-        if len(alb_cloud) == 0:
-            raise ValueError(f"Failed to get VRF context. Cloud [{cloud_name}] not found.")
+def import_ssl_certificate(ip, csrf2, certificate, certificate_key, avi_version):
+    body = AlbPayload.IMPORT_CERT.format(cert=certificate, cert_key=certificate_key)
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": csrf2[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": avi_version,
+        "x-csrftoken": csrf2[0]
+    }
+    certName = CertName.VSPHERE_CERT_NAME
+    url = AlbEndpoint.IMPORT_SSL_CERTIFICATE.format(ip=ip)
+    response_csrf = requests.request("POST", url, headers=headers, data=body, verify=False)
+    if response_csrf.status_code != 201:
+        return None, response_csrf.text
+    else:
+        output = response_csrf.json()
+        dic = {}
+        dic['issuer_common_name'] = output['certificate']['issuer']['common_name']
+        dic['issuer_distinguished_name'] = output['certificate']['issuer']['distinguished_name']
+        dic['subject_common_name'] = output['certificate']['subject']['common_name']
+        dic['subject_organization_unit'] = output['certificate']['subject']['organization_unit']
+        dic['subject_organization'] = output['certificate']['subject']['organization']
+        dic['subject_locality'] = output['certificate']['subject']['locality']
+        dic['subject_state'] = output['certificate']['subject']['state']
+        dic['subject_country'] = output['certificate']['subject']['country']
+        dic['subject_distinguished_name'] = output['certificate']['subject']['distinguished_name']
+        dic['not_after'] = output['certificate']['not_after']
+        dic['cert_name'] = certName
+        return dic, "SUCCESS"
 
-        res = self.api.get("vrfcontext", params={"cloud_ref.uuid": alb_cloud[0]["uuid"], "name": name})
-        try:
-            res.raise_for_status()
-        except HTTPError as ex:
-            logger.error(f"Failed to get VRF context named [{name}] for cloud [{cloud_name}]. Response: {res.text}")
-            raise ex
-        return res.json()["results"]
+def get_ssl_certificate_status(ip, csrf2, name, aviVersion):
+    body = {}
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": csrf2[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": aviVersion,
+        "x-csrftoken": csrf2[0]
+    }
+    url = "https://" + ip + "/api/sslkeyandcertificate"
+    json_object = json.dumps(body, indent=4)
+    response_csrf = requests.request("GET", url, headers=headers, data=json_object, verify=False)
+    if response_csrf.status_code != 200:
+        return None, response_csrf.text
+    else:
+        for re in response_csrf.json()["results"]:
+            if re['name'] == name:
+                return re["url"], "SUCCESS"
+        return "NOT_FOUND", "SUCCESS"
 
-    def patch_vrf_context(self, vrf_uuid, id_next_hop_map):
-        routes = [json.loads(AlbPayload.VRF_STATIC_ROUTE.format(route_id=k, next_hop_ip=v)) for k, v in
-                  id_next_hop_map.items()]
-        body = AlbPayload.PATCH_VRF_CONTEXT.format(vrf_routes_list=json.dumps(routes))
-        logger.info(f"Patching VRF context: [{vrf_uuid}]")
-        res = self.api.patch(f"vrfcontext/{vrf_uuid}", data=json.loads(body), api_version=self.get_api_version())
-        try:
-            res.raise_for_status()
-        except HTTPError as ex:
-            logger.error(f"Failed to update VRF context [{vrf_uuid}]. Response: {res.text}")
-            raise ex
-        return res.json()
+def create_imported_ssl_certificate(ip, csrf2, dic, cer, key, avi_version):
+    certName = CertName.VSPHERE_CERT_NAME
+    body = AlbPayload.IMPORTED_CERTIFICATE.format(cert=cer, subject_common_name=dic['subject_common_name'],
+                                                  org_unit=dic['subject_organization_unit'],
+                                                  org=dic['subject_organization'], location=dic['subject_locality'],
+                                                  state_name=dic['subject_state'], country_name=dic['subject_country'],
+                                                  distinguished_name=dic['subject_distinguished_name'],
+                                                  not_after_time=dic['not_after'], cert_name=certName, cert_key=key)
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": csrf2[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": avi_version,
+        "x-csrftoken": csrf2[0]
+    }
+    url = AlbEndpoint.CRUD_SSL_CERT.format(ip=ip)
+    response_csrf = requests.request("POST", url, headers=headers, data=body, verify=False)
+    if response_csrf.status_code != 201:
+        return None, response_csrf.text
+    else:
+        return response_csrf.json()["url"], "SUCCESS"
+
+def generate_ssl_certificate_vsphere(ip, csrf2, avi_fqdn, avi_version, jsonspec):
+    common_name = avi_fqdn
+    ips = [str(ip), common_name]
+    hafield = jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
+    if isAviHaEnabled(hafield):
+        avi_fqdn2 = jsonspec['tkgComponentSpec']['aviComponents']['aviController02Fqdn']
+        avi_ip2 = jsonspec['tkgComponentSpec']['aviComponents']['aviController02Ip']
+        avi_fqdn3 = jsonspec['tkgComponentSpec']['aviComponents']['aviController03Fqdn']
+        avi_ip3 = jsonspec['tkgComponentSpec']['aviComponents']['aviController03Ip']
+        clusterIp = jsonspec['tkgComponentSpec']['aviComponents']['aviClusterIp']
+        cluster_fqdn = jsonspec['tkgComponentSpec']['aviComponents']['aviClusterFqdn']
+        ips.append(avi_ip2)
+        ips.append(avi_fqdn2)
+        ips.append(avi_ip3)
+        ips.append(avi_fqdn3)
+        ips.append(clusterIp)
+        ips.append(cluster_fqdn)
+        common_name = cluster_fqdn
+    san = json.dumps(ips)
+    body = AlbPayload.SELF_SIGNED_CERT.format(name=CertName.VSPHERE_CERT_NAME,
+                                              common_name=common_name, san_list=san)
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": csrf2[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": avi_version,
+        "x-csrftoken": csrf2[0]
+    }
+    url = AlbEndpoint.CRUD_SSL_CERT.format(ip=ip)
+    response_csrf = requests.request("POST", url, headers=headers, data=body, verify=False)
+    if response_csrf.status_code != 201:
+        return None, response_csrf.text
+    else:
+        return response_csrf.json()["url"], "SUCCESS"
+
+def get_current_cert_config(ip, csrf2, generated_ssl_url, avi_version):
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": csrf2[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": avi_version,
+        "x-csrftoken": csrf2[0]
+    }
+    body = {}
+    url = AlbEndpoint.CRUD_SYSTEM_CONFIG.format(ip=ip)
+    response_csrf = requests.request("GET", url, headers=headers, data=body, verify=False)
+    if response_csrf.status_code != 200:
+        return None, response_csrf.text
+    else:
+        json_object = json.dumps(response_csrf.json(), indent=4)
+        os.system("rm -rf systemConfig.json")
+        with open("./systemConfig.json", "w") as outfile:
+            outfile.write(json_object)
+        replaceCertConfig("systemConfig.json", "portal_configuration", "sslkeyandcertificate_refs",
+                          generated_ssl_url)
+        return response_csrf.json()["url"], "SUCCESS"
+
+
+def replaceWithNewCert(ip, csrf2, aviVersion):
+    with open("./systemConfig.json", 'r') as file2:
+        json_object = json.load(file2)
+
+    json_object_mo = json.dumps(json_object, indent=4)
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": csrf2[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": aviVersion,
+        "x-csrftoken": csrf2[0]
+    }
+    url = "https://" + ip + "/api/systemconfiguration/?include_name="
+    response_csrf = requests.request("PUT", url, headers=headers, data=json_object_mo, verify=False)
+    if response_csrf.status_code != 200:
+        return None, response_csrf.text
+    else:
+        return "SUCCESS", 200
+
+def configure_alb_licence(ip, csrf2, license_key, avi_version):
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": csrf2[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": avi_version,
+        "x-csrftoken": csrf2[0]
+    }
+    body = AlbPayload.LICENSE.format(serial_number=license_key)
+    url = AlbEndpoint.LICENSE_URL.format(ip=ip)
+    response_csrf = requests.request("GET", url, headers=headers, verify=False)
+    if response_csrf.status_code != 200:
+        return None, response_csrf.text
+    licenses = response_csrf.json()["licenses"]
+    for license in licenses:
+        if license["license_string"] == license_key:
+            return "SUCESS", "Already license is applied"
+    response_csrf = requests.request("PUT", url, headers=headers, data=body, verify=False)
+    if response_csrf.status_code != 200:
+        return None, response_csrf.text
+    response_csrf = requests.request("GET", url, headers=headers, verify=False)
+    if response_csrf.status_code != 200:
+        return None, response_csrf.text
+    licenses = response_csrf.json()["licenses"]
+    for license in licenses:
+        if license["license_string"] == license_key:
+            return "SUCESS", "License is applied successfully"
+    return None, "Failed to apply License"
+
+
+def manage_avi_certificates(ip, avi_version, jsonspec, avi_fqdn, cert_name):
+    rcmd = cmd_runner.RunCmd()
+    avienc_pass = jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64']
+    csrf2 = obtain_second_csrf(ip, avienc_pass)
+    if csrf2 is None:
+        logger.error("Failed to get csrf from new set password")
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed to get csrf from new set password",
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500, False
+    try:
+        avi_cert = jsonspec['tkgComponentSpec']['aviComponents']['aviCertPath']
+        avi_key = jsonspec['tkgComponentSpec']['aviComponents']['aviCertKeyPath']
+        license_key = jsonspec['tkgComponentSpec']['aviComponents']['aviLicenseKey']
+    except:
+        avi_cert = ""
+        avi_key = ""
+        license_key = ""
+    if avi_cert and avi_key:
+        exist = True
+        msg1 = ""
+        msg2 = ""
+        if not Path(avi_cert).exists():
+            exist = False
+            msg1 = "Certificate does not exist, please copy certificate file to location" + avi_cert
+        if not Path(avi_key).exists():
+            exist = False
+            msg2 = "Certificate key does not exist, please copy key file to location " + avi_key
+        if not exist:
+            logger.error(msg1 + " " + msg2)
+            d = {
+                "responseType": "ERROR",
+                "msg": msg1 + " " + msg2,
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500, False
+        key_name = Path(avi_key).name
+        cert_file_name = Path(avi_key).name
+        os.system("rm -rf " + key_name)
+        os.system("rm -rf " + cert_file_name)
+        shell_cmd = """awk 'NF \{sub(/\\r/, ""); printf "%s\\n",$0;}' $1 >> $2"""
+        converter_file_path = "/tmp/pem_to_one_line_converter.sh"
+        with open(converter_file_path, 'w') as rsh:
+            rsh.write(shell_cmd)
+        logger.info("Changing permission for cert replacer")
+        file_permission_cmd = "chmod +x {}".format(converter_file_path)
+        rcmd.run_cmd_only(file_permission_cmd)
+        run_cert_cmd = ".{conv_script} {avi_cert} {cert_fn}".format(conv_script=converter_file_path,
+                                                                    avi_cert=avi_cert,
+                                                                    cert_fn=cert_file_name)
+        cer = Path(cert_file_name).read_text().strip("\n")
+        avi_controller_cert = cer
+        key_cmd = ".{conv_script} {avi_key} {key_nm}".format(conv_script=converter_file_path,
+                                                               avi_key=avi_key,
+                                                               key_nm=key_name)
+        rcmd.run_cmd_only(key_cmd)
+        key = Path(key_name).read_text().strip("\n")
+        avi_controller_cert_key = key
+        if not avi_controller_cert or not avi_controller_cert_key:
+            logger.error("Certificate or key provided is empty")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Certificate or key provided is empty",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500, False
+        import_cert, error = import_ssl_certificate(ip, csrf2, avi_controller_cert,
+                                                    avi_controller_cert_key, avi_version)
+        if import_cert is None:
+            logger.error("Avi cert import failed " + str(error))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Avi cert import failed " + str(error),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500, False
+        cert_name = import_cert['cert_name']
+    get_cert = get_ssl_certificate_status(ip, csrf2, cert_name, avi_version)
+    if get_cert[0] is None:
+        logger.error("Failed to get certificate status " + str(get_cert[1]))
+        d = {
+            "responseType": "ERROR",
+            "msg": "Avi cert import failed " + str(error),
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500, False
+    if get_cert[0] == "NOT_FOUND":
+        logger.info("Generating cert")
+        if avi_cert and avi_key:
+            res = create_imported_ssl_certificate(ip, csrf2, import_cert, cer, key, avi_version)
+        else:
+            res = generate_ssl_certificate_vsphere(ip, csrf2, avi_fqdn, avi_version, jsonspec)
+        url = res[0]
+        if res[0] is None:
+            logger.error("Failed to generate the ssl certificate")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to generate the ssl certificate " + res[1],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500, False
+    else:
+        url = get_cert[0]
+    get_cert = get_current_cert_config(ip, csrf2, url, avi_version)
+    if get_cert[0] is None:
+        logger.error("Failed to get current certificate: {}".format(get_cert[1]))
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed to get current certificate " + get_cert[1],
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500, False
+
+    logger.info("Replacing cert")
+    replace_cert = replaceWithNewCert(ip, csrf2, avi_version)
+    if replace_cert[0] is None:
+        logger.error("Failed replace the certificate" + replace_cert[1])
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed replace the certificate " + replace_cert[1],
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500, False
+
+    if license_key:
+        res, status = configure_alb_licence(ip, csrf2, license_key, avi_version)
+        if res is None:
+            logger.error("Failed to apply licesnce " + str(status))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to apply licesnce " + str(status),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500, False
+        logger.info(status)
+    d = {
+        "responseType": "SUCCESS",
+        "msg": "Certificate managed successfully",
+        "ERROR_CODE": 200
+    }
+    return json.dumps(d), 200, True
+
+
+def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_location,
+                          deploy_options, performOtherTask, avi_version, jsonspec):
+    try:
+        data_center = jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
+        if not govc_client.get_vm_ip(vm_name, datacenter_name=data_center):
+            logger.info("Deploying avi controller..")
+            govc_client.deploy_library_ova(location=controller_ova_location, name=vm_name,
+                                           options=deploy_options)
+            avi_size = jsonspec['tkgComponentSpec']['aviComponents']['aviSize']
+            size = str(avi_size).lower()
+            if size not in ["essentials", "small", "medium", "large"]:
+                logger.error("Wrong avi size provided supported  essentials/small/medium/large " +
+                             avi_size)
+                return None
+            if size == "essentials":
+                cpu = AviSize.ESSENTIALS["cpu"]
+                memory = AviSize.ESSENTIALS["memory"]
+            elif size == "small":
+                cpu = AviSize.SMALL["cpu"]
+                memory = AviSize.SMALL["memory"]
+            elif size == "medium":
+                cpu = AviSize.MEDIUM["cpu"]
+                memory = AviSize.MEDIUM["memory"]
+            elif size == "large":
+                cpu = AviSize.LARGE["cpu"]
+                memory = AviSize.LARGE["memory"]
+            change_VM_config = ["govc", "vm.change", "-dc=" + data_center, "-vm=" + vm_name, "-c=" + cpu,
+                                "-m=" + memory]
+            power_on = ["govc", "vm.power", "-dc=" + data_center, "-on=true", vm_name]
+            runProcess(change_VM_config)
+            runProcess(power_on)
+            ip = govc_client.get_vm_ip(vm_name, datacenter_name=data_center, wait_time='30m')
+            if ip is None:
+                logger.error("Failed to get ip of avi controller on waiting 30m")
+                return None
+
+    except Exception as e:
+        logger.error("Failed to deploy  the vm from library due to " + str(e))
+        return None
+
+    ip = govc_client.get_vm_ip(vm_name, datacenter_name=data_center)[0]
+    logger.info("Checking controller is up")
+    if check_controller_is_up(ip) is None:
+        logger.error("Controller service is not up")
+        return None
+    if performOtherTask:
+        csrf = obtain_first_csrf(ip)
+        if csrf is None:
+            logger.error("Failed to get First csrf value.")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to get First csrf",
+                "ERROR_CODE": 500
+            }
+            return None
+        if csrf == "SUCCESS":
+            logger.info("Password of appliance already changed")
+        else:
+            avienc_pass = jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64']
+            if set_avi_admin_password(ip, csrf, avi_version, avienc_pass) is None:
+                logger.error("Failed to set the avi admin password")
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to set the avi admin password",
+                    "ERROR_CODE": 500
+                }
+                return None
+        avienc_pass = jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64']
+        csrf2 = obtain_second_csrf(ip, avienc_pass)
+        if csrf2 is None:
+            logger.error("Failed to get csrf from new set password")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to get csrf from new set password",
+                "ERROR_CODE": 500
+            }
+            return None
+        else:
+            logger.info("Obtained csrf with new credential successfully")
+        if get_system_configuration_and_set_values(ip, csrf2, avi_version, jsonspec) is None:
+            logger.error("Failed to set the system configuration")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to set the system configuration",
+                "ERROR_CODE": 500
+            }
+            return None
+        else:
+            logger.info("Got system configuration successfully")
+        if set_dns_ntp_smtp_settings(ip, csrf2, avi_version) is None:
+            logger.error("Set Dns Ntp smtp failed.")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Set Dns Ntp smtp failed.",
+                "ERROR_CODE": 500
+            }
+            return None
+        else:
+            logger.info("Set DNs Ntp Smtp successfully")
+        if disable_welcome_screen(ip, csrf2, avi_version) is None:
+            logger.error("Failed to disable welcome screen")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to disable welcome screen",
+                "ERROR_CODE": 500
+            }
+            return None
+        else:
+            logger.info("Disable welcome screen successfully")
+        deployed_avi_version = obtain_avi_version(ip)
+        if deployed_avi_version[0] is None:
+            logger.error("Failed to login and obtain avi version")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to login and obtain avi version " + deployed_avi_version[1],
+                "ERROR_CODE": 500
+            }
+            return None
+        avi_version = deployed_avi_version[0]
+        backup_url = get_backup_configuration(ip, csrf2, avi_version)
+        if backup_url[0] is None:
+            logger.error("Failed to get backup configuration")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to get backup configuration " + backup_url[1],
+                "ERROR_CODE": 500
+            }
+            return None
+        else:
+            logger.info("Got backup configuration successfully")
+        logger.info("Set backup pass phrase")
+        avi_backup_phrase = jsonspec['tkgsComponentSpec']['aviComponents']['aviBackupPassphraseBase64']
+        setBackup = setBackupPhrase(ip, csrf2, backup_url[0], avi_version, avi_backup_phrase)
+        if setBackup[0] is None:
+            logger.error("Failed to set backup pass phrase")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to set backup pass phrase " + str(setBackup[1]),
+                "ERROR_CODE": 500
+            }
+            return None
+    d = {
+        "responseType": "SUCCESS",
+        "msg": "Configured avi",
+        "ERROR_CODE": 200
+    }
+    return True
