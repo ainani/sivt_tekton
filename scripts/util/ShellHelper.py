@@ -1,6 +1,5 @@
 import subprocess
 import re
-from flask import current_app
 from subprocess import Popen, PIPE, STDOUT
 
 
@@ -30,7 +29,6 @@ def runProcess(fin):
     for line in p.stdout:
         std = line.decode("utf-8").replace("\n", "")
         stream2 += std+"\n"
-        current_app.logger.info(std)
         if std.strip(" ").startswith("Error"):
             stream += std+"\n"
             stream2 = stream
@@ -47,9 +45,7 @@ def runShellCommandWithPolling(fin):
         )
         proc.wait()
         output = proc.poll()
-        current_app.logger.info(output)
         if output != 0:
-            current_app.logger.error(output)
             raise AssertionError("Failed " + str(output))
     except subprocess.CalledProcessError as e:
         returnCode = 1

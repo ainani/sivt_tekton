@@ -6,14 +6,19 @@ import sys
 import tarfile
 import time
 import argparse
-from flask import current_app
-
 from threading import Timer
 from six.moves.urllib.request import Request, urlopen
 from pyVmomi import vim, vmodl
 from pyVim import connect
 from pyVim.connect import Disconnect
 import atexit
+from util.logger_helper import LoggerHelper, log
+from pathlib import Path
+import urllib3
+from constants.constants import SegmentsName
+
+logger = LoggerHelper.get_logger(Path(__file__).stem)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 sys.path.append("../")
 
@@ -141,21 +146,21 @@ def deploySeOva(vcenterhost, username, password, vm_name, folder, datacenter_nam
         # These errors might be handleable by supporting the parameters in
         # CreateImportSpecParams
         if cisr.error:
-            current_app.logger.error("The following errors will prevent import of this OVA:")
+            logger.error("The following errors will prevent import of this OVA:")
             for error in cisr.error:
-                current_app.logger.error("%s" % error)
+                logger.error("%s" % error)
             return 1
         ovf_handle.set_spec(cisr)
         lease = resource_pool.ImportVApp(cisr.importSpec, get_folder(si, datacenter, folder))
         while lease.state == vim.HttpNfcLease.State.initializing:
-            current_app.logger.info("Waiting for lease to be ready...")
+            logger.info("Waiting for lease to be ready...")
             time.sleep(1)
         if lease.state == vim.HttpNfcLease.State.error:
-            current_app.logger.error("Lease error: %s" % lease.error)
+            logger.error("Lease error: %s" % lease.error)
             return 1
         if lease.state == vim.HttpNfcLease.State.done:
             return 0
-        current_app.logger.info("Starting deploy...")
+        logger.info("Starting deploy...")
         ovf_handle.upload_disks(lease, host)
 
     return checkforIpAddress(si, vm_name)
@@ -177,19 +182,19 @@ def destroy_vm(SI, foder, Datacenter, vm_name):
         datacenter = get_dc(SI, Datacenter)
         VM = get_obj_particular_folder(content, [vim.VirtualMachine], foder, datacenter, SI, vm_name)
         if VM is None:
-            current_app.logger.info(f"Unable to locate VirtualMachine. Arguments given: {vm_name}")
+            logger.info(f"Unable to locate VirtualMachine. Arguments given: {vm_name}")
             return None
         # while VM:
         if format(VM.runtime.powerState) == "poweredOn":
-            current_app.logger.info("Attempting to power off {0}".format(VM.name))
+            logger.info("Attempting to power off {0}".format(VM.name))
             TASK = VM.PowerOffVM_Task()
             wait_for_task(TASK, SI)
-            current_app.logger.info("{0}".format(TASK.info.state))
+            logger.info("{0}".format(TASK.info.state))
 
-        current_app.logger.info("Destroying VM from vSphere.")
+        logger.info("Destroying VM from vSphere.")
         TASK = VM.Destroy_Task()
         wait_for_task(TASK, SI)
-        current_app.logger.info(f"{vm_name} destroyed.")
+        logger.info(f"{vm_name} destroyed.")
     except Exception as e:
         return None
 
@@ -201,14 +206,14 @@ def checkforIpAddress(si, vm_name):
     if vm is None:
         return None
     if vm.runtime.powerState == 'poweredOff':
-        current_app.logger.info("Vm is in Power off state turning it on")
+        logger.info("Vm is in Power off state turning it on")
         try:
             task = vm.PowerOn()
             wait_for_task(task, si)
         except Exception as e:
             raise AssertionError("Failed to power on the vm " + str(e))
         while vm.guest.ipAddress is None and count < 300:
-            current_app.logger.info("Waiting , retrying.")
+            logger.info("Waiting , retrying.")
             time.sleep(1)
             count = count + 1
     if vm.guest.ipAddress is None:
@@ -319,7 +324,7 @@ def get_rp(si, datacenter, name):
             if rp_name:
                 return rp_name
             else:
-                current_app.logger.info("No resource pool found in datacenter " + datacenter.name)
+                logger.info("No resource pool found in datacenter " + datacenter.name)
                 return None
         finally:
             container_view.Destroy()
@@ -714,7 +719,7 @@ def getDvPortGroupId(vcenterIp, vcenterUser, vcenterPassword, networkName, vc_da
         try:
             datacenter = get_dc(si, vc_data_center)
         except Exception as e:
-            current_app.logger.error(str(e))
+            logger.error(str(e))
             return None
         network = getNetwork(datacenter, networkName)
         switch = network.config.distributedVirtualSwitch
@@ -723,5 +728,5 @@ def getDvPortGroupId(vcenterIp, vcenterUser, vcenterPassword, networkName, vc_da
                 return portgroup.config.key
         return None
     except Exception as e:
-        current_app.logger.error(str(e))
+        logger.error(str(e))
         return None

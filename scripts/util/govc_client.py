@@ -1,6 +1,5 @@
 import os
 import json
-from flask import current_app
 from constants.constants import GovcCommands, VmPowerState
 from util import cmd_runner
 
@@ -15,7 +14,7 @@ class GovcClient:
         self.set_env_vars()
 
     def set_env_vars(self):
-        current_app.logger.info("Setting GOVC environment variables")
+
         os.environ["GOVC_URL"] = self.vcenter_ip
         os.environ["GOVC_USERNAME"] = self.vcenter_username
         os.environ["GOVC_PASSWORD"] = self.vcenter_password

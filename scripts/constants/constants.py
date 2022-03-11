@@ -499,6 +499,15 @@ class NsxtServicePaths(str, Enum):
     DNS_UDP = "/infra/services/DNS-UDP"
     ANY = "ANY"
 
+class SegmentsName:
+    DISPLAY_NAME_AVI_MANAGEMENT = "tkgvmc-avi-mgmt-segment"
+    DISPLAY_NAME_CLUSTER_VIP = "tkgvmc-clustervip-segment01"
+    DISPLAY_NAME_TKG_WORKLOAD = "tkgvmc-workload-segment01"
+    DISPLAY_NAME_TKG_WORKLOAD_DATA_SEGMENT = "tkgvmc-workload-data-segment01"
+    DISPLAY_NAME_TKG_SharedService_Segment = "tkgvmc-shared-service-segment"
+    DISPLAY_NAME_AVI_DATA_SEGMENT = "tkgvmc-mgmtdata-segment"
+
+    DISPLAY_NAME_VCF_TKG_SharedService_Segment = "tkg-vsphere-nsxt-shared-service-segment"
 
 class NsxtScopes(str, Enum):
     CGW_ALL = "/infra/labels/cgw-all"
