@@ -12,7 +12,7 @@ from tqdm import tqdm
 from util.ShellHelper import runProcess
 from constants.api_payloads import AlbPayload
 from constants.constants import Paths, AlbCloudType, AlbLicenseTier, ControllerLocation, MarketPlaceUrl,\
-    AviSize, CertName
+    AviSize, CertName, Env
 from constants.alb_api_constants import AlbPayload, AlbEndpoint
 from model.run_config import RunConfig
 from model.spec import NetworkSegment
@@ -159,13 +159,17 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
         else:
             download_url = presigned_url.json()["response"]["presignedurl"]
 
-        response_csfr = requests.request("GET", download_url, headers=headers, verify=False, timeout=600)
+        response_csfr = requests.request("GET", download_url, headers=headers, verify=False,
+                                         timeout=600, stream=True)
+        logger.info('ls: {}'.format(ls[0]))
         if response_csfr.status_code != 200:
             return None, response_csfr.text
         else:
             command = "rm -rf {}".format(ls[0])
             rcmd.run_cmd_only(command)
+            logger.info('Downloading the content')
             with open(ls[0], 'wb') as f:
+                logger.info('file transfer in progress..')
                 f.write(response_csfr.content)
         command = "mv {} /tmp/{}/.ova".format(ls[0], ControllerLocation.CONTROLLER_NAME)
         rcmd.run_cmd_only(command)
@@ -415,7 +419,7 @@ def get_system_configuration_and_set_values(ip, second_csrf, avi_version, jsonsp
     os.system("rm -rf ./systemConfig1.json")
     json_object = json.dumps(response_csrf.json(), indent=4)
     ntp = jsonspec['envSpec']['infraComponents']['ntpServers']
-    dns = jsonspec(force=True)['envSpec']['infraComponents']['dnsServersIp']
+    dns = jsonspec['envSpec']['infraComponents']['dnsServersIp']
     search_domain = jsonspec['envSpec']['infraComponents']['searchDomains']
     with open("./systemConfig1.json", "w") as outfile:
         outfile.write(json_object)
@@ -431,6 +435,7 @@ def get_system_configuration_and_set_values(ip, second_csrf, avi_version, jsonsp
 
 def disable_welcome_screen(ip, second_csrf, avi_version):
     url = AlbEndpoint.CRUD_SYSTEM_CONFIG.format(ip=ip)
+    env = "vsphere"
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
@@ -439,17 +444,8 @@ def disable_welcome_screen(ip, second_csrf, avi_version):
         "x-avi-version": avi_version,
         "x-csrftoken": second_csrf[0]
     }
-    data = {
-        "replace": {
-            "welcome_workflow_complete": "true",
-            "global_tenant_config": {
-                "tenant_vrf": False,
-                "se_in_provider_context": False,
-                "tenant_access_to_provider_se": True,
-            },
-        }
-    }
-    response_csrf = requests.request("PATCH", url, headers=headers, data=data, verify=False)
+    body = AlbPayload.WELCOME_SCREEN_UPDATE.format(tenant_vrf=json.dumps(env == env))
+    response_csrf = requests.request("PATCH", url, headers=headers, data=body, verify=False)
     if response_csrf.status_code != 200:
         return None
     else:
@@ -1078,7 +1074,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
             return None
         else:
             logger.info("Disable welcome screen successfully")
-        deployed_avi_version = obtain_avi_version(ip)
+        deployed_avi_version = obtain_avi_version(ip, jsonspec)
         if deployed_avi_version[0] is None:
             logger.error("Failed to login and obtain avi version")
             d = {
@@ -1100,7 +1096,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
         else:
             logger.info("Got backup configuration successfully")
         logger.info("Set backup pass phrase")
-        avi_backup_phrase = jsonspec['tkgsComponentSpec']['aviComponents']['aviBackupPassphraseBase64']
+        avi_backup_phrase = jsonspec['tkgComponentSpec']['aviComponents']['aviBackupPassphraseBase64']
         setBackup = setBackupPhrase(ip, csrf2, backup_url[0], avi_version, avi_backup_phrase)
         if setBackup[0] is None:
             logger.error("Failed to set backup pass phrase")

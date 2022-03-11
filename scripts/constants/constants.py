@@ -564,6 +564,11 @@ class CertName:
     COMMON_NAME = "avi.demo.com"
     VSPHERE_COMMON_NAME = "tkgvsphere-avi-cert_common_name"
 
+class Env:
+    VMC = "vmc"
+    VSPHERE = "vsphere"
+    VCF = "vcf"
+    YTT_FILE_LOCATION = "/root/.tanzu/tkg/providers/infrastructure-vsphere/ytt"
 
 class AviSize:
     ESSENTIALS = {

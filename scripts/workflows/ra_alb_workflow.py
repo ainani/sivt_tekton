@@ -184,10 +184,10 @@ class RALBWorkflow:
             dsname = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
             rp_pool = dcname + "/host/" + clustername + "/Resources/" + parent_resourcepool
             foldername = "TEKTON"
-            options = f"-options {Paths.GOVC_AVI_DEPLOY_CONFIG} -dc={dcname} -ds={dsname} -folder={foldername} -pool=/{rp_pool}"
+            options = f"-options {VSPHERE_ALB_DEPLOY_JSON} -dc={dcname} -ds={dsname} -folder={foldername} -pool=/{rp_pool}"
             if isAviHaEnabled(ha_field):
-                options2 = f"-options {Paths.VSPHERE_ALB_DEPLOY_JSON2} -dc={dcname} -ds={dsname} -folder={foldername} -pool=/{rp_pool}"
-                options3 = f"-options {Paths.VSPHERE_ALB_DEPLOY_JSON3} -dc={dcname} -ds={dsname} -folder={foldername} -pool=/{rp_pool}"
+                options2 = f"-options {VSPHERE_ALB_DEPLOY_JSON2} -dc={dcname} -ds={dsname} -folder={foldername} -pool=/{rp_pool}"
+                options3 = f"-options {VSPHERE_ALB_DEPLOY_JSON3} -dc={dcname} -ds={dsname} -folder={foldername} -pool=/{rp_pool}"
         else:
             logger.error("Currently other then dev plan is not supported")
             return None

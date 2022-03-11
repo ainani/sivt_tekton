@@ -93,7 +93,7 @@
       "aviController03Fqdn": "",
       "aviController03Ip": "",
       "aviClusterIp": "192.168.110.40",
-      "aviSize": "medium",
+      "aviSize": "essentials",
       "aviCertPath": "",
       "aviCertKeyPath": "",
       "aviLicenseKey": "",
