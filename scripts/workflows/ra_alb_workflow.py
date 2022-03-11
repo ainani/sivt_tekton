@@ -156,7 +156,7 @@ class RALBWorkflow:
             if isAviHaEnabled(ha_field):
                 fqdn2 = avi_fqdn2
                 fqdn3 = avi_fqdn3
-            deploy_options = Template(FileHelper.read_resource(Paths.GOVC_AVI_DEPLOY_CONFIG_J2))
+            deploy_options = Template(FileHelper.read_resource(Paths.VSPHERE_ALB_DEPLOY_J2))
             FileHelper.write_to_file(
                 deploy_options.render(ip=ip, netmask=netmask, gateway=gateway, fqdn=fqdn,
                                       network=mgmgt_name, vm_name=controller_name),
@@ -165,11 +165,11 @@ class RALBWorkflow:
                 FileHelper.write_to_file(
                     deploy_options.render(ip=ip2, netmask=netmask, gateway=gateway, fqdn=fqdn2,
                                           network=mgmgt_name, vm_name=controller_name2),
-                    Paths.GOVC_AVI_DEPLOY_CONFIG_J2)
+                    Paths.VSPHERE_ALB_DEPLOY_JSON2)
                 FileHelper.write_to_file(
                     deploy_options.render(ip=ip3, netmask=netmask, gateway=gateway, fqdn=fqdn3,
                                           network=mgmgt_name, vm_name=controller_name3),
-                    Paths.GOVC_AVI_DEPLOY_CONFIG_J2)
+                    Paths.VSPHERE_ALB_DEPLOY_JSON3)
             VC_Content_Library_name = self.jsonspec['envSpec']['vcenterDetails'][
                     "contentLibraryName"]
             VC_AVI_OVA_NAME = self.jsonspec['envSpec']['vcenterDetails'][

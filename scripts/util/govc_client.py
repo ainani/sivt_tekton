@@ -2,14 +2,17 @@ import os
 import json
 from constants.constants import GovcCommands, VmPowerState
 from util import cmd_runner
-
+from util.cmd_helper import CmdHelper
 
 class GovcClient:
-    def __init__(self, config, cmd_helper: cmd_runner):
+    def __init__(self, jsonspec, cmd_helper: cmd_runner):
+
         self.cmd_runner = cmd_helper
-        self.vcenter_ip = config['VC_IP']
-        self.vcenter_username = config['VC_USER']
-        self.vcenter_password = config['VC_PASSWORD']
+        self.vcenter_ip = jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
+        self.vcenter_username = jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
+        vcpass_base64 = jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
+        password = CmdHelper.decode_base64(vcpass_base64)
+        self.vcenter_password = password
         self.skip_verification = True
         self.set_env_vars()
 

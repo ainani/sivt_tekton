@@ -32,12 +32,13 @@ class Paths(str, Enum):
     VSPHERE_WORKLOAD_SERVICES_SPEC = f"vsphere_workload_cluster_deploy.yml"
     CERT_CONVERTOR = f"{TEMPLATES_ROOT_DIR}/pem_to_one_line_converter.sh"
     VSPHERE_ALB_DEPLOY_J2 = f"{TEMPLATES_ROOT_DIR}/deploy_vsphere_alb_controller_config.json.j2"
-    VSPHERE_ALB_DEPLOY_JSON = "/tmp/deploy_vsphere_alb_controller_config.json"
-    VSPHERE_ALB_DEPLOY_JSON2 = "/tmp/deploy_vsphere_alb_controller_config2.json"
-    VSPHERE_ALB_DEPLOY_JSON3 = "/tmp/deploy_vsphere_alb_controller_config3.json"
+
 
     # tmp local
     TMP_DIR = ".tmp"
+    VSPHERE_ALB_DEPLOY_JSON = f"{TMP_DIR}/deploy_vsphere_alb_controller_config.json"
+    VSPHERE_ALB_DEPLOY_JSON2 = f"{TMP_DIR}/deploy_vsphere_alb_controller_config2.json"
+    VSPHERE_ALB_DEPLOY_JSON3 = f"{TMP_DIR}/deploy_vsphere_alb_controller_config3.json"
     GOVC_AVI_DEPLOY_CONFIG = f"{TMP_DIR}/deploy_avi_govc_config.json"
     GOVC_OVA_DEPLOY_CONFIG = f"{TMP_DIR}/deploy_ova_govc_config.json"
     GOVC_AVI_SE_DEPLOY_CONFIG = f"{TMP_DIR}/deploy_avi_se_govc_config.json"

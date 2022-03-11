@@ -55,8 +55,9 @@ def file_linker(specfile, configfile):
     govc_check_folder_cmd = "govc folder.info /{dc}/vm/*".\
         format(dc=dcname)
     folder_info = rcmd.run_cmd_output(govc_check_folder_cmd)
-    if not foldername in folder_info:
-        govc_cmd = "govc folder.create /{dc}/vm/{foldername}".format(dc=dcname, foldername=foldername)
+    if not folder_info:
+        govc_cmd = "govc folder.create /{dc}/vm/{foldername}".format(dc=dcname,
+                                                                     foldername=foldername)
         rcmd.run_cmd_only(cmd=govc_cmd)
 
     yamlinput['tkg']['management']['deployment']['folder'] = foldername
