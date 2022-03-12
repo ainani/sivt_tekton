@@ -12,7 +12,7 @@ levels = {
 
 logging.basicConfig(
     level=levels[os.environ.get("LOG_LEVEL", "DEBUG").lower()],
-    format="%(asctime)s [%(module)s:%(funcName)s] [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
+    format="%(asctime)s [%(module)s:%(funcName)s] [%(threadName)-12.12s] [%(lineno)-1.1s] [%(levelname)-5.5s]  %(message)s",
     datefmt="%Y-%m-%d %I:%M:%S %p",
 )
 logger = logging.getLogger(__name__)
@@ -65,14 +65,13 @@ def add_color(logger_method, color):
 for level, color in zip(("info", "warn", "error", "debug"), (GREEN, ORANGE, RED, LBLUE)):
     setattr(logger, level, add_color(getattr(logger, level), color))
 
-
 class LoggerHelper:
     @staticmethod
     def get_logger(
         name, colored_logger=True, loglevel=levels[os.environ.get("LOG_LEVEL", "DEBUG").lower()], output_shell=False
     ):
         log_formatter = logging.Formatter(
-            "%(asctime)s [%(module)s:%(funcName)s] [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
+            "%(asctime)s [%(module)s:%(funcName)s] [%(threadName)-12.12s] [%(lineno)-1.1s] [%(levelname)-5.5s]  %(message)s")
         logger = logging.getLogger(name)
         logger.setLevel(loglevel)
 

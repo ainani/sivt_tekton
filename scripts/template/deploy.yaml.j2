@@ -1,127 +1,74 @@
-{# https://docs.ansible.com/ansible/latest/user_guide/playbooks_filters.html #}
-{# https://jinja.palletsprojects.com/en/3.0.x/
-https://jinja2docs.readthedocs.io/en/stable/ #}
-{# # https://docs.vmware.com/en/VMware-Tanzu-Kubernetes-Grid/1.3/vmware-tanzu-kubernetes-grid-13/GUID-tanzu-config-reference.html #}
----
 #! ---------------------------------------------------------------------
-#! Basic cluster creation configuration
+#! vSphere non proxy env configs
 #! ---------------------------------------------------------------------
-
-CLUSTER_CIDR: 100.96.0.0/11
-SERVICE_CIDR: 100.64.0.0/13
-CLUSTER_NAME: {{ config.spec.tkg.management.cluster.name }}
-CLUSTER_PLAN: {{ config.spec.tkg.management.cluster.plan }}
-ENABLE_CEIP_PARTICIPATION: "true"
-ENABLE_MHC: "true"
-
-#! ---------------------------------------------------------------------
-#! NSX Advanced Load Balancer configuration
-#! ---------------------------------------------------------------------
-
-AVI_CA_DATA_B64: "{{ avi_cert }}"
-AVI_CLOUD_NAME: {{ config.spec.avi.cloud.name }}
-AVI_CONTROLLER: {{ config.spec.avi.fqdn }}
-AVI_DATA_NETWORK: {{ config.spec.avi.dataNetwork.name }}
-AVI_DATA_NETWORK_CIDR: {{ config.spec.avi.dataNetwork.cidr }}
-AVI_ENABLE: "true"
+AVI_CA_DATA_B64: {{ avi_cert }}
+AVI_CLOUD_NAME: tkgvsphere-cloud01
+AVI_CONTROLLER: {{ ip }}
+AVI_DATA_NETWORK: {{ wpName }}
+AVI_DATA_NETWORK_CIDR: {{ wipIpNetmask }}
+AVI_ENABLE: 'true'
 AVI_LABELS: |
-    {{ avi_label_key }}: {{ avi_label_value }}
-AVI_PASSWORD: {{ config.spec.avi.password }}
-AVI_SERVICE_ENGINE_GROUP: {{ config.spec.avi.cloud.mgmtSEGroup }}
-AVI_USERNAME: {{ config.spec.avi.username }}
-AVI_CONTROL_PLANE_HA_PROVIDER: "true"
-AVI_MANAGEMENT_CLUSTER_VIP_NETWORK_NAME: {{ config.spec.avi.dataNetwork.name  }}
-AVI_MANAGEMENT_CLUSTER_VIP_NETWORK_CIDR: {{ config.spec.avi.dataNetwork.cidr }}
-
-#! ---------------------------------------------------------------------
-#! Identity management configuration
-#! ---------------------------------------------------------------------
-
-IDENTITY_MANAGEMENT_TYPE: {{ "ldap" if config.spec.tkg.management.ldap else "none"  }}
-{% if config.spec.tkg.management.ldap %}
-LDAP_BIND_DN: {{ config.spec.tkg.management.ldap.bind.dn }}
-LDAP_BIND_PASSWORD: {{ config.spec.tkg.management.ldap.bind.password }}
-LDAP_GROUP_SEARCH_BASE_DN: {{ config.spec.tkg.management.ldap.groupSearch.baseDn }}
-LDAP_GROUP_SEARCH_FILTER: {{ config.spec.tkg.management.ldap.groupSearch.filter }}
-LDAP_GROUP_SEARCH_GROUP_ATTRIBUTE: {{ config.spec.tkg.management.ldap.groupSearch.group_attribute }}
-LDAP_GROUP_SEARCH_NAME_ATTRIBUTE: {{ config.spec.tkg.management.ldap.groupSearch.nameAttribute }}
-LDAP_GROUP_SEARCH_USER_ATTRIBUTE: {{ config.spec.tkg.management.ldap.groupSearch.userAttribute }}
-LDAP_HOST: {{ config.spec.tkg.management.ldap.host }}
-LDAP_ROOT_CA_DATA_B64: {{ config.spec.tkg.management.ldap.rootCaBase64 }}
-LDAP_USER_SEARCH_BASE_DN: {{ config.spec.tkg.management.ldap.userSearch.baseDn }}
-LDAP_USER_SEARCH_FILTER: {{ config.spec.tkg.management.ldap.userSearch.filter }}
-LDAP_USER_SEARCH_NAME_ATTRIBUTE: {{ config.spec.tkg.management.ldap.userSearch.nameAttribute }}
-LDAP_USER_SEARCH_USERNAME: {{ config.spec.tkg.management.ldap.userSearch.username }}
-LDAP_USER_SEARCH_ID_ATTRIBUTE: {{ config.spec.tkg.management.ldap.userSearch.idAttribute }}
-LDAP_USER_SEARCH_EMAIL_ATTRIBUTE: {{ config.spec.tkg.management.ldap.userSearch.emailAttribute }}
-{% endif %}
-
+    '{{ avi_label_key }}': '{{ avi_label_value }}'
+AVI_PASSWORD: <encoded:{{ config.tkgComponentSpec.aviComponents.aviPasswordBase64 }}>
+AVI_SERVICE_ENGINE_GROUP: tkgvsphere-tkgmgmt-group01
+AVI_USERNAME: admin
+CLUSTER_CIDR: {{ config.tkgComponentSpec.tkgMgmtComponents.tkgMgmtClusterCidr }}
+CLUSTER_NAME: {{ cluster_name }}
+CLUSTER_PLAN: {{ config.tkgComponentSpec.tkgMgmtComponents.tkgMgmtDeploymentType }}
+ENABLE_CEIP_PARTICIPATION: 'true'
+ENABLE_MHC: 'true'
+IDENTITY_MANAGEMENT_TYPE: none
 INFRASTRUCTURE_PROVIDER: vsphere
-OIDC_IDENTITY_PROVIDER_CLIENT_ID: ""
-OIDC_IDENTITY_PROVIDER_CLIENT_SECRET: ""
-OIDC_IDENTITY_PROVIDER_GROUPS_CLAIM: ""
-OIDC_IDENTITY_PROVIDER_ISSUER_URL: ""
-OIDC_IDENTITY_PROVIDER_NAME: ""
-OIDC_IDENTITY_PROVIDER_SCOPES: ""
-OIDC_IDENTITY_PROVIDER_USERNAME_CLAIM: ""
-
+SERVICE_CIDR: {{ config.tkgComponentSpec.tkgMgmtComponents.tkgMgmtServiceCidr }}
+TKG_HTTP_PROXY_ENABLED: false
+DEPLOY_TKG_ON_VSPHERE7: 'true'
+VSPHERE_DATACENTER: {{ data_center }}
+VSPHERE_DATASTORE: {{ datastore_path }}
+VSPHERE_FOLDER: {{ vsphere_folder_path }}
+VSPHERE_NETWORK: {{ config.tkgComponentSpec.tkgMgmtComponents.tkgMgmtNetworkName }}
+VSPHERE_PASSWORD: <encoded:{{ vcenter_passwd }}>
+VSPHERE_RESOURCE_POOL: {{ vsphere_rp }}
+VSPHERE_SERVER: {{ vcenter_ip }}
+VSPHERE_SSH_AUTHORIZED_KEY: {{ ssh_key }}
+VSPHERE_USERNAME: {{ vcenter_username }}
+VSPHERE_INSECURE: 'true'
+AVI_CONTROL_PLANE_HA_PROVIDER: 'true'
+ENABLE_AUDIT_LOGGING: 'true'
+OS_ARCH: amd64
+OS_NAME: {{ osName }}
+OS_VERSION: {{ osVersion }}
+AVI_MANAGEMENT_CLUSTER_VIP_NETWORK_NAME: {{ config.tkgComponentSpec.tkgClusterVipNetwork.tkgClusterVipNetworkName }}
+AVI_MANAGEMENT_CLUSTER_VIP_NETWORK_CIDR: {{ avi_cluster_vip_network_gateway_cidr }}
+{% if size == "custom" %}
+VSPHERE_CONTROL_PLANE_NUM_CPUS: {{control_plane_vcpu}}
+VSPHERE_CONTROL_PLANE_DISK_GIB: {{control_plane_disk_gb}}
+VSPHERE_CONTROL_PLANE_MEM_MIB: {{control_plane_mem_mb}}
+VSPHERE_WORKER_NUM_CPUS: {{control_plane_vcpu}}
+VSPHERE_WORKER_DISK_GIB: {{control_plane_disk_gb}}
+VSPHERE_WORKER_MEM_MIB: {{control_plane_mem_mb}}
+{% else %}
+WORKER_SIZE: {{ size_worker }}
+CONTROLPLANE_SIZE: {{ size_controlplane }}
+{% endif %}
 #! ---------------------------------------------------------------------
-#! Proxy configuration
+#! vSphere proxy env configs
 #! ---------------------------------------------------------------------
-{# TKG_HTTP_PROXY_ENABLED: {{ (config.spec.tkg.common.proxy is defined) | ternary('true', 'false') }} #}
-{% if config.spec.tkg.common.proxy %}
-TKG_HTTP_PROXY: {{ config.spec.tkg.common.proxy.http}}
-TKG_HTTPS_PROXY: {{ config.spec.tkg.common.proxy.https}}
-TKG_NO_PROXY: {{ config.spec.tkg.common.proxy.noProxy}}
+{% if config.envSpec.proxySpec.tkgMgmt.enableProxy == "true" %}
+TKG_HTTP_PROXY_ENABLED: 'true'
+TKG_HTTP_PROXY: {{ config.envSpec.proxySpec.tkgMgmt.httpProxy }}
+TKG_HTTPS_PROXY: {{ config.envSpec.proxySpec.tkgMgmt.httpsProxy }}
+TKG_NO_PROXY: {{ config.envSpec.proxySpec.tkgMgmt.noProxy }}
 {% endif %}
 
 #! ---------------------------------------------------------------------
-#! Common configuration
+#! vSphere airgapped env configs
 #! ---------------------------------------------------------------------
-
-# TKG_CUSTOM_IMAGE_REPOSITORY: ""
-# TKG_CUSTOM_IMAGE_REPOSITORY_CA_CERTIFICATE: ""
-
-#! ---------------------------------------------------------------------
-#! Node configuration 
-#! ---------------------------------------------------------------------
-
-{% if config.spec.tkg.common.node %}
-OS_NAME: {{ config.spec.tkg.common.node.osName}}
-OS_VERSION: {{ config.spec.tkg.common.node.osVersion}}
-OS_ARCH: "amd64"
+{% if config.envSpec.customRepositorySpec.tkgCustomImageRepository %}
+TKG_CUSTOM_IMAGE_REPOSITORY: {{ air_gapped_repo }}
+{% if config.envSpec.customRepositorySpec.tkgCustomImageRepositoryPublicCaCert.lower() == "false" %}
+TKG_CUSTOM_IMAGE_REPOSITORY_SKIP_TLS_VERIFY: 'False'
+TKG_CUSTOM_IMAGE_REPOSITORY_CA_CERTIFICATE: {{ repo_certificate }}
+{% else %}
+TKG_CUSTOM_IMAGE_REPOSITORY_SKIP_TLS_VERIFY: 'true'
 {% endif %}
-SIZE: {{ config.spec.tkg.management.cluster.size }}
-
-#! ---------------------------------------------------------------------
-#! vSphere configuration
-#! ---------------------------------------------------------------------
-
-{% if config.spec.vsphere %}
-VSPHERE_SERVER: {{ config.spec.vsphere.server }}
-VSPHERE_USERNAME: {{ config.spec.vsphere.username }}
-VSPHERE_PASSWORD:  {{ config.spec.vsphere.password }}
-VSPHERE_TLS_THUMBPRINT: {{ config.spec.vsphere.tlsThumbprint }}
 {% endif %}
-{% if config.spec.vmc %}
-VSPHERE_SERVER: {{ config.vmc.vc_mgmt_ip }}
-VSPHERE_USERNAME: {{ config.vmc.vc_cloud_user }}
-VSPHERE_PASSWORD:  {{ config.vmc.vc_cloud_password }}
-VSPHERE_TLS_THUMBPRINT: {{ config.vmc.vc_tls_thumbprint }}
-{% endif %}
-
-VSPHERE_DATACENTER: {{ config.spec.tkg.management.deployment.datacenter }}
-VSPHERE_DATASTORE: {{ config.spec.tkg.management.deployment.datastore }}
-VSPHERE_FOLDER: {{ config.spec.tkg.management.deployment.folder }}
-VSPHERE_NETWORK: {{ config.spec.tkg.management.deployment.network }}
-VSPHERE_RESOURCE_POOL: {{ config.spec.tkg.management.deployment.resourcePool }}
-
-VSPHERE_SSH_AUTHORIZED_KEY: {{ config.spec.tkg.management.sshKey }}
-#VSPHERE_CONTROL_PLANE_ENDPOINT: {{ config.spec.tkg.management.controlPlane.endpoint }}
-VSPHERE_CONTROL_PLANE_DISK_GIB: "{{ config.spec.tkg.management.controlPlane.diskGib }}"
-VSPHERE_CONTROL_PLANE_MEM_MIB: "{{ config.spec.tkg.management.controlPlane.memoryMib }}"
-VSPHERE_CONTROL_PLANE_NUM_CPUS: "{{ config.spec.tkg.management.controlPlane.cpus }}"
-VSPHERE_WORKER_DISK_GIB: "{{ config.spec.tkg.management.worker.diskGib }}"
-VSPHERE_WORKER_MEM_MIB: "{{ config.spec.tkg.management.worker.memoryMib }}"
-VSPHERE_WORKER_NUM_CPUS: "{{ config.spec.tkg.management.worker.cpus }}"
-DEPLOY_TKG_ON_VSPHERE7: true

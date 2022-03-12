@@ -25,6 +25,7 @@ from util.tanzu_utils import TanzuUtils
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 import subprocess
 import shutil
+import traceback
 from util.common_utils import createSubscribedLibrary, downloadAndPushKubernetesOvaMarketPlace, \
     getCloudStatus, seperateNetmaskAndIp, getSECloudStatus, getSeNewBody, getVrfAndNextRoutId, \
     addStaticRoute, getVipNetworkIpNetMask, getClusterStatusOnTanzu, runSsh
@@ -32,8 +33,8 @@ from util.replace_value import generateVsphereConfiguredSubnets, replaceValueSys
 from util.vcenter_operations import createResourcePool, create_folder
 from util.ShellHelper import runProcess, runShellCommandAndReturnOutputAsList
 
-logger = LoggerHelper.get_logger(Path(__file__).stem)
-
+# logger = LoggerHelper.get_logger(Path(__file__).stem)
+logger = LoggerHelper.get_logger('ra_mgmt_cluster_workflow')
 
 class RaMgmtClusterWorkflow:
     def __init__(self, run_config: RunConfig):
@@ -155,6 +156,7 @@ class RaMgmtClusterWorkflow:
                                 wpName, wipIpNetmask, vcenter_ip, vcenter_username, password,
                                 vsSpec):
         try:
+            logger.info('Getting cluster state if any previous clusters are  deployed..')
             if not getClusterStatusOnTanzu(management_cluster, "management"):
                 os.system("rm -rf kubeconfig.yaml")
                 self.templateMgmtDeployYaml(ip, data_center, data_store, cluster_name, wpName,
@@ -177,6 +179,7 @@ class RaMgmtClusterWorkflow:
             else:
                 return "SUCCESS", 200
         except Exception as e:
+            logger.info(traceback.format_exc())
             return None, str(e)
 
     @log("Creating TKGM management cluster")
@@ -475,7 +478,7 @@ class RaMgmtClusterWorkflow:
             details["subnet_mask"] = response_csrf.json()["configured_subnets"][0]["prefix"]["mask"]
             return "AlreadyConfigured", 200, details
         except Exception as e:
-            logger.info("Ip pools are not configured configuring it")
+            logger.info("Ip pools are not configured.")
 
         os.system("rm -rf managementNetworkDetails.json")
         with open("./managementNetworkDetails.json", "w") as outfile:
@@ -594,7 +597,7 @@ class RaMgmtClusterWorkflow:
             details["subnet_mask"] = response_csrf.json()["configured_subnets"][0]["prefix"]["mask"]
             return "AlreadyConfigured", 200, details
         except Exception as e:
-            logger.info("Ip pools are not configured configuring it")
+            logger.info("Ip pools are not configured.")
 
         os.system("rm -rf vipNetworkDetails.json")
         with open("./vipNetworkDetails.json", "w") as outfile:

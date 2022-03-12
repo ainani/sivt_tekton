@@ -12,7 +12,7 @@ from util.replace_value import replaceValueSysConfig, replaceValue
 from util.file_helper import FileHelper
 from util.ShellHelper import runShellCommandAndReturnOutput
 
-logger = LoggerHelper.get_logger(Path(__file__).stem)
+logger = LoggerHelper.get_logger('common_utils')
 logging.getLogger("paramiko").setLevel(logging.WARNING)
 
 def createSubscribedLibrary(vcenter_ip, vcenter_username, password, jsonspec):
