@@ -32,25 +32,10 @@ logger = LoggerHelper.get_logger(Path(__file__).stem)
 class RALBWorkflow:
     def __init__(self, run_config: RunConfig) -> None:
         self.run_config = run_config
-        if not self.run_config.spec.avi.cloud.name:
-            self.run_config.spec.avi.cloud.name = AlbPrefix.CLOUD_NAME
-        if not self.run_config.spec.avi.cloud.mgmtSEGroup:
-            self.run_config.spec.avi.cloud.mgmtSEGroup = AlbPrefix.MGMT_SE_GROUP
-        if not self.run_config.spec.avi.cloud.workloadSEGroupPrefix:
-            self.run_config.spec.avi.cloud.mgmtSEGroup = AlbPrefix.WORKLOAD_SE_GROUP
         self.version = None
-        with open(ControllerLocation.SPEC_FILE_PATH) as f:
+        jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
+        with open(jsonpath) as f:
             self.jsonspec = json.load(f)
-
-
-    @log("Updating status to resource")
-    def update_success_status(self):
-        state_file_path = os.path.join(self.run_config.root_dir, Paths.STATE_PATH)
-        state: State = FileHelper.load_state(state_file_path)
-        state.avi = Info(name=self.run_config.spec.avi.vmName, deployed=True, health=HealthEnum.UP,
-                         version=self.version)
-        FileHelper.dump_state(state, state_file_path)
-        Git.add_all_and_commit(os.path.dirname(state_file_path), "Successful NSX ALB deployment")
 
     @log("Setting up AVI Certificate")
     def aviCertManagement_vsphere(self):

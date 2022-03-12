@@ -27,7 +27,6 @@ class VmcConfig(BaseModel):
 
 class RunConfig(BaseModel):
     root_dir: str
-    spec: MasterSpec
     state: State
     desired_state: DesiredState
     support_matrix: dict

@@ -13,7 +13,7 @@ CLUSTER_PLAN = ["dev", "prod"]
 
 
 class Paths(str, Enum):
-    MASTER_SPEC_PATH = "config/deployment-config.yml"
+    MASTER_SPEC_PATH = "config/deployment-config.json"
     DESIRED_STATE_PATH = "desired-state/desired-state.yml"
     STATE_PATH = "deployment-state/state.yml"
     KUBECONFIG_REPO_PATH = "{root_dir}/kubeconfig-repo"

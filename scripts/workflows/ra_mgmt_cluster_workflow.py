@@ -38,12 +38,9 @@ logger = LoggerHelper.get_logger(Path(__file__).stem)
 class RaMgmtClusterWorkflow:
     def __init__(self, run_config: RunConfig):
         self.run_config = run_config
-        self.bootstrap: Bootstrap = self.run_config.spec.bootstrap
-        self.cluster_name = self.run_config.spec.tkg.management.cluster.name
-        self.tanzu_client = TkgCliClient()
         logger.info ("Current deployment state: %s", self.run_config.state)
-        self._pre_validate()
-        with open(Paths.JSON_SPEC_PATH) as f:
+        jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
+        with open(jsonpath) as f:
             self.jsonspec = json.load(f)
 
     @log("Preparing to deploy Management cluster")

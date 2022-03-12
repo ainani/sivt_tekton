@@ -29,24 +29,8 @@ from util.glue_parser import file_linker
 
 logger = LoggerHelper.get_logger("__main__")
 
-
-def load_vmc_config(run_config: RunConfig):
-    run_config.vmc.csp_access_token = CspClient(config=run_config).get_access_token()
-    vmc_client = VmcClient(config=run_config)
-    org = vmc_client.find_org_by_name(run_config.spec.vmc.orgName)
-    run_config.vmc.org_id = vmc_client.get_org_id(org)
-    sddc = vmc_client.find_sddc_by_name(run_config.vmc.org_id, run_config.spec.vmc.sddcName)
-    run_config.vmc.sddc_id = vmc_client.get_sddc_id(sddc)
-    run_config.vmc.nsx_reverse_proxy_url = vmc_client.get_nsx_reverse_proxy_url(sddc)
-    run_config.vmc.vc_mgmt_ip = vmc_client.get_vcenter_ip(sddc)
-    run_config.vmc.vc_cloud_user = vmc_client.get_vcenter_cloud_user(sddc)
-    run_config.vmc.vc_cloud_password = vmc_client.get_vcenter_cloud_password(sddc)
-    run_config.vmc.vc_tls_thumbprint = get_colon_formatted_thumbprint(get_thumbprint(run_config.vmc.vc_mgmt_ip))
-    return run_config
-
-
 def load_run_config(root_dir):
-    spec: MasterSpec = FileHelper.load_spec(os.path.join(root_dir, Paths.MASTER_SPEC_PATH))
+    # spec: MasterSpec = FileHelper.load_spec(os.path.join(root_dir, Paths.MASTER_SPEC_PATH))
     state_file_path = os.path.join(root_dir, Paths.STATE_PATH)
     if not os.path.exists(state_file_path):
         logger.error("state file missing")
@@ -54,7 +38,7 @@ def load_run_config(root_dir):
     state: State = FileHelper.load_state(state_file_path)
     desired_state: DesiredState = FileHelper.load_desired_state(os.path.join(root_dir, Paths.DESIRED_STATE_PATH))
     support_matrix = yaml.safe_load(FileHelper.read_resource(Paths.SUPPORT_MATRIX_FILE))
-    run_config = RunConfig(root_dir=root_dir, spec=spec, state=state, desired_state=desired_state,
+    run_config = RunConfig(root_dir=root_dir, state=state, desired_state=desired_state,
                            support_matrix=support_matrix, deployment_platform=DeploymentPlatform.VSPHERE, vmc=None)
     """if spec.vmc:
         run_config.deployment_platform = DeploymentPlatform.VMC
@@ -72,11 +56,8 @@ def cli(ctx, root_dir):
     ctx.ensure_object(dict)
     ctx.obj["ROOT_DIR"] = root_dir
 
-    # glue parser
-    json_spec_path = os.path.join(ctx.obj["ROOT_DIR"], Paths.JSON_SPEC_PATH)
-    ControllerLocation.SPEC_FILE_PATH = json_spec_path
     deployment_config_filepath = os.path.join(ctx.obj["ROOT_DIR"], Paths.MASTER_SPEC_PATH)
-    file_linker(json_spec_path, deployment_config_filepath)
+    # file_linker(json_spec_path, deployment_config_filepath)
     # prevalidation
     if not Path(deployment_config_filepath).is_file():
         logger.warn("Missing config in path: %s", deployment_config_filepath)
@@ -113,14 +94,6 @@ def mgmt(ctx):
 def mgmt_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
     MgmtClusterWorkflow(run_config).deploy_mgmt_clu()
-
-
-@mgmt.command(name="pre-config")
-@click.pass_context
-def mgmt_pre_config(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    # NsxtWorkflow(run_config).execute_workflow()
-    RALBWorkflow(run_config).alb_mgmt_config()
 
 
 @mgmt.command(name="upgrade")
