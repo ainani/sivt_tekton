@@ -8,7 +8,7 @@
       "vcenterDatacenter": "tanzu-dc01",
       "vcenterCluster": "VMware-Cloud",
       "vcenterDatastore": "iscsi-storage",
-      "contentLibraryName": "arcas",
+      "contentLibraryName": "TanzuAutomation-Lib",
       "aviOvaName": "controller-20.1.6-9132"
     },
     "envType": "",
