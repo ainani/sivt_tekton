@@ -30,7 +30,7 @@ from util.common_utils import createSubscribedLibrary, downloadAndPushKubernetes
     addStaticRoute, getVipNetworkIpNetMask, getClusterStatusOnTanzu, runSsh
 from util.replace_value import generateVsphereConfiguredSubnets, replaceValueSysConfig
 from util.vcenter_operations import createResourcePool, create_folder
-from util.ShellHelper import runProcess
+from util.ShellHelper import runProcess, runShellCommandAndReturnOutputAsList
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 
@@ -276,112 +276,21 @@ class RaMgmtClusterWorkflow:
                                                      data_network, get_wip[0], vcenter_ip,
                                                      vcenter_username, password, vsSpec)
         if deploy_status[0] is None:
-            current_app.logger.error("Failed to deploy management cluster " + deploy_status[1])
+            logger.error("Failed to deploy management cluster " + deploy_status[1])
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to deploy management cluster " + deploy_status[1],
                 "ERROR_CODE": 500
             }
-            return jsonify(d), 500
+            return json.dumps(d), 500
         command = ["tanzu", "plugin", "sync"]
         runShellCommandAndReturnOutputAsList(command)
-        tmc_required = str(request.get_json(force=True)['envSpec']["saasEndpoints"]['tmcDetails'][
-                               'tmcAvailability'])
-        if tmc_required.lower() == "true":
-            current_app.logger.info("TMC registration is enabled")
-        elif tmc_required.lower() == "false":
-            current_app.logger.info("Tmc registration is disabled")
-        else:
-            current_app.logger.error("Wrong tmc selection attribute provided " + tmc_required)
-            d = {
-                "responseType": "ERROR",
-                "msg": "Wrong tmc selection attribute provided " + tmc_required,
-                "ERROR_CODE": 500
-            }
-            return jsonify(d), 500
-        if not checkAirGappedIsEnabled(env):
-            if checkTmcEnabled(env):
-                if Tkg_version.TKG_VERSION == "1.5":
-                    current_app.logger.info(
-                        "TMC registration on management cluster is supported on tanzu 1.5")
-                    state = registerWithTmc(management_cluster, env)
-                    if state[0] is None:
-                        current_app.logger.error("Failed to register on tmc " + state[1])
-                        d = {
-                            "responseType": "ERROR",
-                            "msg": "Failed to register on tmc " + state[1],
-                            "ERROR_CODE": 500
-                        }
-                        return jsonify(d), 500
-        if checkAirGappedIsEnabled(env):
-            commands = ["tanzu", "management-cluster", "kubeconfig", "get", management_cluster,
-                        "--admin"]
-            kubeContextCommand = grabKubectlCommand(commands, RegexPattern.SWITCH_CONTEXT_KUBECTL)
-            if kubeContextCommand is None:
-                current_app.logger.error(
-                    "Failed to get switch to management cluster context command")
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to get switch to management cluster context command",
-                    "ERROR_CODE": 500
-                }
-                return jsonify(d), 500
-            lisOfSwitchContextCommand = str(kubeContextCommand).split(" ")
-            status = runShellCommandAndReturnOutputAsList(lisOfSwitchContextCommand)
-            if status[1] != 0:
-                current_app.logger.error(
-                    "Failed to switch to management cluster context " + str(status[0]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to switch to management cluster context " + str(status[0]),
-                    "ERROR_CODE": 500
-                }
-                return jsonify(d), 500
-            air_gapped_repo = str(
-                request.get_json(force=True)['envSpec']['customRepositorySpec'][
-                    'tkgCustomImageRepository'])
-            air_gapped_repo = air_gapped_repo.replace("https://", "").replace("http://", "")
-            bom = loadBomFile()
-            if bom is None:
-                current_app.logger.error("Faied to load bom")
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Faied to load bom",
-                    "ERROR_CODE": 500
-                }
-                return jsonify(d), 500
-            try:
-                tag = \
-                bom['components']['kube_rbac_proxy'][0]['images']['kubeRbacProxyControllerImage'][
-                    'tag']
-            except Exception as e:
-                current_app.logger.error("Faied to load bom key " + str(e))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Faied to load bom key " + str(e),
-                    "ERROR_CODE": 500
-                }
-                return jsonify(d), 500
-            kube = air_gapped_repo + "/kube-rbac-proxy:" + tag
-            spec = "{\"spec\": {\"template\": {\"spec\": {\"containers\": [{\"name\": \"kube-rbac-proxy\",\"image\": \"" + kube + "\"}]}}}}"
-            command = ["kubectl", "patch", "deployment", "ako-operator-controller-manager", "-n",
-                       "tkg-system-networking",
-                       "--patch", spec]
-            status = runShellCommandAndReturnOutputAsList(command)
-            if status[1] != 0:
-                current_app.logger.error("Failed to patch ako operator " + str(status[0]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to patch ako operator " + str(status[0]),
-                    "ERROR_CODE": 500
-                }
-                return jsonify(d), 500
         d = {
             "responseType": "SUCCESS",
             "msg": "Successfully configured management cluster ",
             "ERROR_CODE": 200
         }
-        return jsonify(d), 200
+        return json.dumps(d), 200
 
     @log("Wait for AVI Default Cloud to be in Ready State")
     def waitForCloudPlacementReady(self, ip, csrf2, name, aviVersion):
@@ -1182,7 +1091,7 @@ class RaMgmtClusterWorkflow:
             logger.info("MarketPlace refresh token is not provided, "
                         "skipping the download of kubernetes ova")
         avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']
-        aviClusterFqdn = self.jsonspec(force=True)['tkgComponentSpec']['aviComponents'][
+        aviClusterFqdn = self.jsonspec['tkgComponentSpec']['aviComponents'][
                 'aviClusterFqdn']
         if not avi_fqdn:
             controller_name = ControllerLocation.CONTROLLER_NAME_VSPHERE
