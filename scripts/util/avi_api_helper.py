@@ -212,9 +212,6 @@ def downloadAviControllerAndPushToContentLibrary(vcenter_ip, vcenter_username, p
         VC_AVI_OVA_NAME = jsonspec['envSpec']['vcenterDetails']["aviOvaName"]
         find_command = ["govc", "library.ls", "/" + VC_Content_Library_name + "/"]
         output = rcmd.runShellCommandAndReturnOutputAsList(find_command)
-        logger.info('OUTPUT: {}'.format(output))
-        logger.info('OUTPUT0: {}'.format(output[0]))
-        logger.info('OUTPUT1: {}'.format(output[1]))
         if str(output[0]).__contains__(VC_Content_Library_name):
             logger.info(VC_Content_Library_name + " is already present")
         else:

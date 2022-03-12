@@ -5,7 +5,7 @@
             "vcenterSsoUser": "administrator@vsphere.local",
             "vcenterSsoPasswordBase64": "Vk13YXJlMSE=",
             "vcenterDatacenter": "tanzu-dc01",
-            "vcenterCluster": "aVMware-Cloud",
+            "vcenterCluster": "VMware-Cloud",
             "vcenterDatastore": "iscsi-storage",
             "contentLibraryName": "TanzuAutomation-Lib",
             "aviOvaName": "avi-controller",
