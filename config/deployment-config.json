@@ -19,7 +19,7 @@
       "kubernetes-ova": "photon"
     },
     "marketplaceSpec": {
-            "refreshToken": "dHeDKFTvooSFKh2WGsXKy-XY0LKk8EJ_DeuquhZFUDO7BO9fzbFC5iKqEQYTFUpA"
+            "refreshToken": "bs-F9AhRbsQegoxAh-YZDeysDKoW_k7HyN4up3CAnl2n8qB3TzBmYexPKhbQVJbz"
         },
     "customRepositorySpec":{
       "tkgCustomImageRepository": "",

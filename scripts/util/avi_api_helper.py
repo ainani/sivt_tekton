@@ -159,22 +159,22 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
         else:
             download_url = presigned_url.json()["response"]["presignedurl"]
 
-        response_csfr = requests.request("GET", download_url, headers=headers, verify=False,
-                                         timeout=600, stream=True)
-        logger.info('ls: {}'.format(ls[0]))
-        if response_csfr.status_code != 200:
-            return None, response_csfr.text
+        curl_inspect_cmd = 'curl -I -X GET {} --output /tmp/resp.txt'.format(download_url)
+        rcmd.run_cmd_only(curl_inspect_cmd)
+        with open('/tmp/resp.txt', 'r') as f:
+            data_read = f.read()
+        if 'HTTP/1.1 200 OK' in data_read:
+            logger.info('Proceed to Download')
+            VC_AVI_OVA_NAME = jsonspec['envSpec']['vcenterDetails']["aviOvaName"]
+            ova_path = "/tmp/" + VC_AVI_OVA_NAME + ".ova"
+            curl_download_cmd = 'curl -X GET {d_url} --output {tmp_path}'.format(d_url=download_url,
+                                                                                 tmp_path=ova_path)
+            rcmd.run_cmd_only(curl_download_cmd)
         else:
-            command = "rm -rf {}".format(ls[0])
-            rcmd.run_cmd_only(command)
-            logger.info('Downloading the content')
-            with open(ls[0], 'wb') as f:
-                logger.info('file transfer in progress..')
-                f.write(response_csfr.content)
-        command = "mv {} /tmp/{}/.ova".format(ls[0], ControllerLocation.CONTROLLER_NAME)
-        rcmd.run_cmd_only(command)
-        logger.info(
-            "Avi ova downloaded  at location " + "/tmp/" + ControllerLocation.CONTROLLER_NAME + ".ova")
+            logger.info('Error in presigned url/key: {} '.format(data_read.split('\n')[0]))
+            return None, "Invalid key/url"
+        logger.info("Avi ova downloaded  at location: {}".format(ova_path))
+
     find_command = "govc library.ls"
     output = rcmd.run_cmd_output(find_command)
     if str(output[0]).__contains__(ControllerLocation.CONTROLLER_CONTENT_LIBRARY):
@@ -195,7 +195,7 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
     else:
         logger.info("Pushing Avi controller to content library")
         import_command = ["govc", "library.import", ControllerLocation.CONTROLLER_CONTENT_LIBRARY,
-                          "/tmp/" + ControllerLocation.CONTROLLER_NAME + ".ova"]
+                          ova_path]
         output = rcmd.runShellCommandAndReturnOutputAsList(import_command)
         if output[1] != 0:
             return None, "Failed to upload avi controller to content library"
