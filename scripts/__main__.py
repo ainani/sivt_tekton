@@ -21,7 +21,7 @@ from util.ssl_helper import get_thumbprint, get_colon_formatted_thumbprint
 from util.tanzu_utils import TanzuUtils
 from workflows.ra_alb_workflow import RALBWorkflow
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
-from workflows.mgmt_cluster_workflow import MgmtClusterWorkflow
+from workflows.ra_mgmt_cluster_workflow import RaMgmtClusterWorkflow
 from workflows.repave_workflow import RepaveWorkflow
 from workflows.shared_cluster_workflow import SharedClusterWorkflow
 from workflows.workload_cluster_workflow import WorkloadClusterWorkflow
@@ -93,14 +93,14 @@ def mgmt(ctx):
 @click.pass_context
 def mgmt_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    MgmtClusterWorkflow(run_config).deploy_mgmt_clu()
+    RaMgmtClusterWorkflow(run_config).create_mgmt_cluster()
 
 
 @mgmt.command(name="upgrade")
 @click.pass_context
 def mgmt_upgrade(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    MgmtClusterWorkflow(run_config).upgrade_workflow()
+    RaMgmtClusterWorkflow(run_config).upgrade_workflow()
 
 
 @cli.group()
