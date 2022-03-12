@@ -32,6 +32,7 @@ class Paths(str, Enum):
     VSPHERE_WORKLOAD_SERVICES_SPEC = f"vsphere_workload_cluster_deploy.yml"
     CERT_CONVERTOR = f"{TEMPLATES_ROOT_DIR}/pem_to_one_line_converter.sh"
     VSPHERE_ALB_DEPLOY_J2 = f"{TEMPLATES_ROOT_DIR}/deploy_vsphere_alb_controller_config.json.j2"
+    KUBE_OVA_CONFIG = f"{TEMPLATES_ROOT_DIR}/kubeova.json"
 
 
     # tmp local
@@ -142,6 +143,19 @@ class ControllerLocation:
     CONTROLLER_NAME_VSPHERE2 = "tkg-vsphere-avi-ctrl-02"
     CONTROLLER_NAME_VSPHERE3 = "tkg-vsphere-avi-ctrl-03"
 
+class KubernetesOva:
+    UBUNTU_KUBERNETES_FILE_NAME = "ubuntu-2004-kube-v1.21.2+vmware.1-tkg.1-7832907791984498322.ova"
+    PHOTON_KUBERNETES_FILE_NAME = "photon-3-kube-v1.21.2+vmware.1-tkg.2-12816990095845873721.ova"
+    PHOTON_KUBERNETES_TEMPLATE_FILE_NAME = "photon-3-kube-v1.21.2+vmware.1"
+    UBUNTU_KUBERNETES__TEMPLATE_FILE_NAME = "ubuntu-2004-kube-v1.21.2+vmware.1"
+    MARKETPLACE_KUBERNETES_SOLUTION_NAME = "tanzu-kubernetes-grid-1-1"
+    MARKETPLACE_UBUNTU_KUBERNETES_FILE_NAME = "arcas-ubuntu-kube"
+    MARKETPLACE_PHOTON_KUBERNETES_FILE_NAME = "arcas-photon-kube"
+    MARKETPLACE_PHOTON_GROUPNAME = "Photon-OVA"
+    MARKETPLACE_UBUTNU_GROUPNAME = "Ubuntu-OVA"
+    KUBERNETES_OVA_LATEST_VERSION = "v1.22.5"
+
+
 class GovcCommands(str, Enum):
     DEPLOY_OVA = "govc vm.deploy"
     FIND_VMS_BY_NAME = "govc find . -type m -name {vm_name} {options}"
@@ -155,9 +169,49 @@ class GovcCommands(str, Enum):
     DEPLOY_LIBRARY_OVA = "govc library.deploy {options} {location} {name}"
     GET_VM_IP = "govc vm.ip -dc={datacenter} {options} {name}"
 
+class VrfType:
+    GLOBAL = "global"
+    MANAGEMENT = "management"
+
+class ResourcePoolAndFolderName:
+    AVI_Components_FOLDER = "tkg-vmc-alb-components"
+    AVI_Components_FOLDER_VSPHERE = "tkg-vsphere-alb-components"
+    Template_Automation_Folder = "tkg-vmc-templates"
+    Template_Automation_Folder_VSPHERE = "tkg-vsphere-templates"
+    TKG_Mgmt_Components_Folder = "tkg-vmc-tkg-mgmt"
+    TKG_Mgmt_Components_Folder_VSPHERE = "tkg-vsphere-tkg-mgmt"
+    AVI_RP = "tkg-vmc-alb-components"
+    AVI_RP_VSPHERE = "tkg-vsphere-alb-components"
+    TKG_Mgmt_RP = "tkg-vmc-tkg-mgmt"
+    TKG_Mgmt_RP_VSPHERE = "tkg-vsphere-tkg-Mgmt"
+    SHARED_FOLDER_NAME = "tkg-vmc-shared-services"
+    SHARED_FOLDER_NAME_VSPHERE = "tkg-vsphere-shared-services"
+    SHARED_RESOURCE_POOL_NAME = "tkg-vmc-shared-services"
+    SHARED_RESOURCE_POOL_NAME_VCENTER = "tkg-vsphere-shared-services"
+    WORKLOAD_FOLDER = "tkg-vmc-workload"
+    WORKLOAD_FOLDER_VSPHERE = "tkg-vsphere-workload"
+    WORKLOAD_RESOURCE_POOL = "tkg-vmc-workload"
+    WORKLOAD_RESOURCE_POOL_VSPHERE = "tkg-vsphere-workload"
+
+class Cloud:
+    CLOUD_NAME = "tkgvmc-cloud01"
+    DEFAULT_CLOUD_NAME_VSPHERE = "Default-Cloud"
+    CLOUD_NAME_VSPHERE = "tkgvsphere-cloud01"
+    SE_GROUP_NAME = "tkgvmc-tkgmgmt-group01"
+    SE_GROUP_NAME_VSPHERE = "tkgvsphere-tkgmgmt-group01"
+    DEFAULT_SE_GROUP_NAME_VSPHERE = "Default-Group"
+    SE_WORKLOAD_GROUP_NAME = "tkgvmc-tkgworkload-group01"
+    SE_WORKLOAD_GROUP_NAME_VSPHERE = "tkgvsphere-tkgworkload-group01"
+    WIP_NETWORK_NAME = "tkgvmc-tkgmgmt-data-network01"
+    WIP_CLUSTER_NETWORK_NAME = "tkgvmc-cluster-data-network01"
+    WIP_WORKLOAD_NETWORK_NAME = "tkgworkload-group01-data-network"
+    IPAM_NAME = "tkgvmc-tkgmgmt-ipam01"
+    IPAM_NAME_VSPHERE = "tkgvsphere-tkgmgmt-ipam01"
+    mgmtVipNetwork = "tkgvmc-tkgmgmt-vip_network"
+
 class TKGCommands(str, Enum):
     VERSION = "tanzu version"
-    MGMT_DEPLOY = "tanzu management-cluster create --file {file_path} -v 9"
+    MGMT_DEPLOY = "tanzu management-cluster create -y --file {file_path} -v 9"
     CLUSTER_DEPLOY = "tanzu cluster create --file {file_path} {verbose}"
     LIST_CLUSTERS_JSON = "tanzu cluster list --output json"
     LIST_ALL_CLUSTERS_JSON = "tanzu cluster list --include-management-cluster --output json"

@@ -214,7 +214,8 @@ class RALBWorkflow:
                                          controller_ova_location=controller_location,
                                          deploy_options=options2,
                                          performOtherTask=False,
-                                         avi_version=avi_version)
+                                         avi_version=avi_version,
+                                         jsonspec=self.jsonspec)
             if not dep2:
                 logger.error(
                     "Failed to deploy and configure avi 2nd controller  " + str(
@@ -230,7 +231,8 @@ class RALBWorkflow:
                                          controller_ova_location=controller_location,
                                          deploy_options=options3,
                                          performOtherTask=False,
-                                         avi_version=avi_version)
+                                         avi_version=avi_version,
+                                         jsonspec=self.jsonspec)
             if not dep3:
                 logger.error("Failed to deploy and configure avi 2nd controller")
                 return None
