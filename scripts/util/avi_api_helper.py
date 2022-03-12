@@ -81,7 +81,7 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
         logger.info('Running find for existing library')
         output = rcmd.run_cmd_output(find_command)
         logger.info('Library found: {}'.format(output) )
-        if str(output[0]).__contains__(ControllerLocation.CONTROLLER_NAME):
+        if str(output).__contains__(ControllerLocation.CONTROLLER_NAME):
             logger.info("Avi controller is already present in content library")
             return "SUCCESS", 200
     except:
@@ -165,8 +165,7 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
             data_read = f.read()
         if 'HTTP/1.1 200 OK' in data_read:
             logger.info('Proceed to Download')
-            VC_AVI_OVA_NAME = jsonspec['envSpec']['vcenterDetails']["aviOvaName"]
-            ova_path = "/tmp/" + VC_AVI_OVA_NAME + ".ova"
+            ova_path = "/tmp/" + ControllerLocation.CONTENT_LIBRARY_OVA_NAME + ".ova"
             curl_download_cmd = 'curl -X GET {d_url} --output {tmp_path}'.format(d_url=download_url,
                                                                                  tmp_path=ova_path)
             rcmd.run_cmd_only(curl_download_cmd)
@@ -177,7 +176,7 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
 
     find_command = "govc library.ls"
     output = rcmd.run_cmd_output(find_command)
-    if str(output[0]).__contains__(ControllerLocation.CONTROLLER_CONTENT_LIBRARY):
+    if str(output).__contains__(ControllerLocation.CONTROLLER_CONTENT_LIBRARY):
         logger.info(ControllerLocation.CONTROLLER_CONTENT_LIBRARY + " is already present")
     else:
         find_command = "govc library.create -ds={ds} -dc={dc} {libraryname}".format(ds = data_store,
@@ -213,22 +212,25 @@ def downloadAviControllerAndPushToContentLibrary(vcenter_ip, vcenter_username, p
         VC_AVI_OVA_NAME = jsonspec['envSpec']['vcenterDetails']["aviOvaName"]
         find_command = ["govc", "library.ls", "/" + VC_Content_Library_name + "/"]
         output = rcmd.runShellCommandAndReturnOutputAsList(find_command)
+        logger.info('OUTPUT: {}'.format(output))
+        logger.info('OUTPUT0: {}'.format(output[0]))
+        logger.info('OUTPUT1: {}'.format(output[1]))
         if str(output[0]).__contains__(VC_Content_Library_name):
             logger.info(VC_Content_Library_name + " is already present")
         else:
             logger.info(VC_Content_Library_name + " is not present in the content library")
             res = pushAviToContenLibraryMarketPlace(jsonspec)
-            find_command = ["govc", "library.ls", "/" + VC_Content_Library_name + "/"]
-            output = rcmd.runShellCommandAndReturnOutputAsList(find_command)
-            if output[1] != 0:
-                return None, "Failed to find items in content library"
-            if str(output[0]).__contains__(VC_AVI_OVA_NAME):
-                logger.info(VC_AVI_OVA_NAME + " avi controller is already present in content library")
-            else:
-                logger.error(VC_AVI_OVA_NAME + " need to be present in content library for internet"
-                                                               "restricted env, please push avi "
-                                                               "controller to content library.")
-                return None, VC_AVI_OVA_NAME + " not present in the content library " + VC_Content_Library_name
+        find_command = ["govc", "library.ls", "/" + VC_Content_Library_name + "/"]
+        output = rcmd.runShellCommandAndReturnOutputAsList(find_command)
+        if output[1] != 0:
+            return None, "Failed to find items in content library"
+        if str(output[0]).__contains__(VC_AVI_OVA_NAME):
+            logger.info(VC_AVI_OVA_NAME + " avi controller is already present in content library")
+        else:
+            logger.error(VC_AVI_OVA_NAME + " need to be present in content library for internet"
+                                           "restricted env, please push avi "
+                                           "controller to content library.")
+            return None, VC_AVI_OVA_NAME + " not present in the content library " + VC_Content_Library_name
         return "SUCCESS", 200
     except Exception as e:
         return None, str(e)
