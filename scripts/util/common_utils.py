@@ -3,15 +3,23 @@ import traceback
 import json
 from util import cmd_runner
 from pathlib import Path
+import base64
 import logging
-from constants.constants import Paths, ControllerLocation, KubernetesOva, MarketPlaceUrl, VrfType
+from constants.constants import Paths, ControllerLocation, KubernetesOva, MarketPlaceUrl, VrfType, \
+    ClusterType, TmcUser, RegexPattern, SAS, AppName
 from util.logger_helper import LoggerHelper
 import requests
 from util.avi_api_helper import getProductSlugId
 from util.replace_value import replaceValueSysConfig, replaceValue
 from util.file_helper import FileHelper
-from util.ShellHelper import runShellCommandAndReturnOutput
+from util.ShellHelper import runShellCommandAndReturnOutput, runShellCommandAndReturnOutputAsList,\
+    runProcess, grabKubectlCommand, verifyPodsAreRunning, grabPipeOutput
 from util.cmd_helper import CmdHelper
+import time
+from jinja2 import Template
+import yaml
+from ruamel import yaml as ryaml
+from datetime import datetime
 
 logger = LoggerHelper.get_logger('common_utils')
 logging.getLogger("paramiko").setLevel(logging.WARNING)
@@ -521,10 +529,10 @@ def getSeNewBody(newCloudUrl, seGroupName, clusterUrl, dataStore):
 def getClusterStatusOnTanzu(management_cluster, typen):
     try:
         if typen == "management":
-            list = ["tanzu", "management-cluster", "get"]
+            listn = ["tanzu", "management-cluster", "get"]
         else:
-            list = ["tanzu", "cluster", "get"]
-        o = runShellCommandAndReturnOutput(list)
+            listn = ["tanzu", "cluster", "get"]
+        o = runShellCommandAndReturnOutput(listn)
         if o[1] == 0:
             try:
                 if o[0].__contains__(management_cluster) and o[0].__contains__("running"):
@@ -546,6 +554,889 @@ def runSsh(vc_user):
     with open('/root/.ssh/id_rsa.pub', 'r') as f:
         re = f.readline()
     return re
+
+def getNetworkFolder(netWorkName, vcenter_ip, vcenter_username, password):
+    os.putenv("GOVC_URL", "https://" + vcenter_ip + "/sdk")
+    os.putenv("GOVC_USERNAME", vcenter_username)
+    os.putenv("GOVC_PASSWORD", password)
+    os.putenv("GOVC_INSECURE", "true")
+    find_command = ["govc", "find", "-name", netWorkName]
+    count = 0
+    net = ""
+    while count < 120:
+        output = runShellCommandAndReturnOutputAsList(find_command)
+        if str(output[0]).__contains__(netWorkName) and str(output[0]).__contains__("/network"):
+            for o in output[0]:
+                if str(o).__contains__("/network"):
+                    net = o
+                    break
+            if net:
+                logger.info("Network is available " + str(net))
+                return net
+        time.sleep(5)
+        count = count + 1
+    return None
+
+def template14deployYaml(sharedClusterName, clusterPlan, datacenter, dataStorePath,
+                         folderPath, mgmt_network, vspherePassword, sharedClusterResourcePool,
+                         vsphereServer, sshKey, vsphereUseName, machineCount, size, typen, vsSpec,
+                         jsonspec):
+    deploy_yaml = FileHelper.read_resource(Paths.TKG_CLUSTER_14_SPEC_J2)
+    t = Template(deploy_yaml)
+    datacenter = "/" + datacenter
+    control_plane_vcpu = ""
+    control_plane_disk_gb = ""
+    control_plane_mem_gb = ""
+    control_plane_mem_mb = ""
+    osName = ""
+    try:
+        if typen == ClusterType.SHARED:
+            clustercidr = vsSpec.tkgComponentSpec.tkgMgmtComponents.tkgSharedserviceClusterCidr
+            servicecidr = vsSpec.tkgComponentSpec.tkgMgmtComponents.tkgSharedserviceServiceCidr
+            size_selection = vsSpec.tkgComponentSpec.tkgMgmtComponents.tkgSharedserviceSize
+            if str(size_selection).lower() == "custom":
+                control_plane_vcpu = jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceCpuSize']
+                control_plane_disk_gb = jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceStorageSize']
+                control_plane_mem_gb = jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceMemorySize']
+                control_plane_mem_mb = str(int(control_plane_mem_gb) * 1024)
+            try:
+                osName = str(jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceBaseOs'])
+                kubeVersion = str(jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceKubeVersion'])
+            except Exception as e:
+                raise Exception("Keyword " + str(e) + "  not found in input file")
+        elif type == ClusterType.WORKLOAD:
+            clustercidr = vsSpec.tkgWorkloadComponents.tkgWorkloadClusterCidr
+            servicecidr = vsSpec.tkgWorkloadComponents.tkgWorkloadServiceCidr
+            size_selection = vsSpec.tkgWorkloadComponents.tkgWorkloadSize
+            if str(size_selection).lower() == "custom":
+                control_plane_vcpu = jsonspec['tkgWorkloadComponents']['tkgWorkloadCpuSize']
+                control_plane_disk_gb = jsonspec['tkgWorkloadComponents']['tkgWorkloadStorageSize']
+                control_plane_mem_gb = jsonspec['tkgWorkloadComponents']['tkgWorkloadMemorySize']
+                control_plane_mem_mb = str(int(control_plane_mem_gb) * 1024)
+            try:
+                osName = str(jsonspec['tkgWorkloadComponents']['tkgWorkloadBaseOs'])
+                kubeVersion = str(
+                    jsonspec['tkgWorkloadComponents']['tkgWorkloadKubeVersion'])
+            except Exception as e:
+                raise Exception("Keyword " + str(e) + "  not found in input file")
+    except Exception:
+        logger.error("Error in yaml parsing for cluster creation")
+        logger.error(traceback.format_exc())
+
+    if osName == "photon":
+        osVersion = "3"
+    elif osName == "ubuntu":
+        osVersion = "20.04"
+    else:
+        raise Exception("Wrong os name provided")
+
+    air_gapped_repo = ""
+    repo_certificate = ""
+    FileHelper.write_to_file(
+        t.render(config=vsSpec, clustercidr=clustercidr, sharedClusterName=sharedClusterName,
+                 clusterPlan=clusterPlan, servicecidr=servicecidr, datacenter=datacenter,
+                 dataStorePath=dataStorePath, folderPath=folderPath, mgmt_network=mgmt_network,
+                 vspherePassword=vspherePassword,
+                 sharedClusterResourcePool=sharedClusterResourcePool,
+                 vsphereServer=vsphereServer, sshKey=sshKey, vsphereUseName=vsphereUseName,
+                 controlPlaneSize=size, machineCount=machineCount, workerSize=size, type=type,
+                 air_gapped_repo=air_gapped_repo, repo_certificate=repo_certificate, osName=osName,
+                 osVersion=osVersion, size=size_selection, control_plane_vcpu=control_plane_vcpu,
+                 control_plane_disk_gb=control_plane_disk_gb,
+                 control_plane_mem_mb=control_plane_mem_mb),
+        sharedClusterName + ".yaml")
+
+
+def deployCluster(sharedClusterName, clusterPlan, datacenter, dataStorePath,
+                  folderPath, mgmt_network, vspherePassword, sharedClusterResourcePool,
+                  vsphereServer, sshKey, vsphereUseName, machineCount, size, typen, vsSpec,
+                  jsonspec):
+    try:
+        if not getClusterStatusOnTanzu(sharedClusterName, "cluster"):
+            template14deployYaml(sharedClusterName, clusterPlan, datacenter, dataStorePath,
+                                 folderPath, mgmt_network, vspherePassword,
+                                 sharedClusterResourcePool, vsphereServer, sshKey, vsphereUseName,
+                                 machineCount, size, typen, vsSpec, jsonspec)
+            logger.info("Deploying " + sharedClusterName + "cluster")
+            os.putenv("DEPLOY_TKG_ON_VSPHERE7", "true")
+            listOfCmd = ["tanzu", "cluster", "create", "-f", sharedClusterName + ".yaml", "-v", "6"]
+            runProcess(listOfCmd)
+            return "SUCCESS", 200
+        else:
+            return "SUCCESS", 200
+    except Exception as e:
+        logger.error("Error Encountered: {}".format(traceback.format_exc()))
+        return None, str(e)
+
+def returnListOfTmcCluster(cluster):
+    list_ = ["tmc", "cluster", "list"]
+    s = runShellCommandAndReturnOutputAsList(list_)
+    li_ = []
+    for s_ in s[0]:
+        if str(s_).__contains__(cluster):
+            for l in s_.split(" "):
+                if l:
+                    li_.append(l)
+    return li_
+
+def generateTmcProxyYaml(name_of_proxy, httpProxy_, httpsProxy_, noProxyList_, httpUserName_, httpPassword_,
+                         httpsUserName_,
+                         httpsPassword_):
+    os.system("rm -rf tmc_proxy.yaml")
+    data = dict(
+        fullName=dict(
+            name=name_of_proxy,
+        ),
+        meta=dict(dict(annotations=dict(httpProxy=httpProxy_, httpsProxy=httpsProxy_,
+                                        noProxyList=noProxyList_, proxyDescription="tmc_proxy"))),
+        spec=dict(capability="PROXY_CONFIG", data=dict(
+            keyValue=dict(
+                data=dict(httpPassword=httpPassword_, httpUserName=httpUserName_, httpsPassword=httpsPassword_,
+                          httpsUserName=httpsUserName_)))),
+        type=dict(kind="Credential", package="vmware.tanzu.manage.v1alpha1.account.credential", version="v1alpha1")
+    )
+    with open('tmc_proxy.yaml', 'w') as outfile:
+        yaml1 = ryaml.YAML()
+        yaml1.indent(mapping=2, sequence=4, offset=2)
+        yaml1.dump(data, outfile)
+
+def checkClusterStateOnTmc(cluster, ifManagement):
+    try:
+        if ifManagement:
+            clist = ["tmc", "managementcluster", "get", cluster]
+        else:
+            li_ = returnListOfTmcCluster(cluster)
+            clist = ["tmc", "cluster", "get", li_[0], "-m", li_[1], "-p", li_[2]]
+        o = runShellCommandAndReturnOutput(clist)
+        if o[1] == 0:
+            l = yaml.safe_load(o[0])
+            try:
+                status = str(l["status"]["conditions"]["Agent-READY"]["status"])
+            except:
+                status = str(l["status"]["conditions"]["READY"]["status"])
+            try:
+                type = str(l["status"]["conditions"]["Agent-READY"]["type"])
+            except:
+                type = str(l["status"]["conditions"]["READY"]["type"])
+            health = str(l["status"]["health"])
+            if status == "TRUE":
+                logger.info("Management cluster status " + status)
+            else:
+                logger.error("Management cluster status " + status)
+                return "Failed", 500
+            if type == "READY":
+                logger.info("Management cluster type " + type)
+            else:
+                logger.error("Management cluster type " + type)
+                return "Failed", 500
+            if health == "HEALTHY":
+                logger.info("Management cluster health " + health)
+            else:
+                logger.error("Management cluster health " + health)
+                return "Failed", 500
+            return "SUCCESS", 200
+        else:
+            return None, o[0]
+    except Exception as e:
+        return None, str(e)
+
+def checkTmcRegister(cluster, ifManagement):
+    try:
+        if ifManagement:
+            list = ["tmc", "managementcluster", "list"]
+        else:
+            list = ["tmc", "cluster", "list"]
+        o = runShellCommandAndReturnOutput(list)
+        if o[0].__contains__(cluster):
+            logger.info("here ")
+            state = checkClusterStateOnTmc(cluster, ifManagement)
+            if state[0] == "SUCCESS":
+                return True
+            else:
+                return False
+        else:
+            return False
+    except:
+        return False
+
+def registerWithTmcOnSharedAndWorkload(jsonspec, clusterName, cls_type):
+    try:
+
+        if not checkTmcRegister(clusterName, False):
+            file = "kubeconfig_cluster.yaml"
+            os.system("rm -rf " + file)
+            os.putenv("TMC_API_TOKEN", jsonspec['envSpec']["saasEndpoints"]['tmcDetails']['tmcRefreshToken'])
+            user = TmcUser.USER_VSPHERE
+            listOfCmdTmcLogin = ["tmc", "login", "--no-configure", "-name", user]
+            runProcess(listOfCmdTmcLogin)
+            logger.info("Registering to tmc on cluster " + clusterName)
+            tmc_command = ["tanzu", "cluster", "kubeconfig", "get", clusterName, "--admin", "--export-file",
+                           file]
+            runProcess(tmc_command)
+            logger.info("Got kubeconfig successfully")
+            logger.info("Attaching cluster to tmc")
+            listOfCommandAttach = ["tmc", "cluster", "attach", "--name", clusterName, "--cluster-group", "default",
+                                       "-k", file, "--force"]
+            try:
+                runProcess(listOfCommandAttach)
+            except:
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Filed to attach " + clusterName + "  to tmc",
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+            d = {
+                "responseType": "SUCCESS",
+                "msg": clusterName + " cluster attached to tmc successfully",
+                "ERROR_CODE": 200
+            }
+            return json.dumps(d), 200
+        else:
+            d = {
+                "responseType": "SUCCESS",
+                "msg": clusterName + " Cluster is already attached to tmc",
+                "ERROR_CODE": 200
+            }
+            return json.dumps(d), 200
+    except Exception as e:
+        d = {
+            "responseType": "ERROR",
+            "msg": "Tmc registration failed on cluster " + clusterName + " " + str(e),
+            "ERROR_CODE": 200
+        }
+        return json.dumps(d), 200
+
+def checkToEnabled(to_enable):
+    try:
+        if str(to_enable).lower() == "true":
+            return True
+        else:
+            return False
+    except:
+        return False
+
+def getManagementCluster():
+    try:
+        command = ["tanzu", "cluster", "list", "--include-management-cluster"]
+        status = runShellCommandAndReturnOutput(command)
+        mcs = status[0].split("\n")
+        for mc in mcs:
+            if str(mc).__contains__("management") and str(mc).__contains__("running"):
+                return str(mc).split(" ")[2].strip()
+
+        return None
+    except Exception as e:
+        return None
+
+def switchToManagementContext(clusterName):
+    commands_shared = ["tanzu", "management-cluster", "kubeconfig", "get", clusterName, "--admin"]
+    kubeContextCommand_shared = grabKubectlCommand(commands_shared, RegexPattern.SWITCH_CONTEXT_KUBECTL)
+    if kubeContextCommand_shared is None:
+        logger.error("Failed get admin cluster context of cluster " + clusterName)
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed get admin cluster context of cluster " + clusterName,
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+    lisOfSwitchContextCommand_shared = str(kubeContextCommand_shared).split(" ")
+    status = runShellCommandAndReturnOutputAsList(lisOfSwitchContextCommand_shared)
+    if status[1] != 0:
+        logger.error("Failed to switch to" + clusterName + "cluster context " + str(status[0]))
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed to switch to " + clusterName + " cluster context " + str(status[0]),
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+
+    logger.info("Switched to " + clusterName + " context")
+    d = {
+        "responseType": "ERROR",
+        "msg": "Switched to " + clusterName + " context",
+        "ERROR_CODE": 200
+    }
+    return json.dumps(d), 200
+
+
+def installCertManagerAndContour(jsonspec, cluster_name, repo_address):
+    podRunninng = ["tanzu", "cluster", "list", "--include-management-cluster"]
+    command_status = runShellCommandAndReturnOutputAsList(podRunninng)
+    if not verifyPodsAreRunning(cluster_name, command_status[0], RegexPattern.running):
+        logger.error(cluster_name + " is not deployed")
+        d = {
+            "responseType": "ERROR",
+            "msg": cluster_name + " is not deployed",
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+    mgmt = getManagementCluster()
+    if mgmt is None:
+        logger.error("Failed to get management cluster")
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed to get management cluster",
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+    if str(mgmt).strip() == cluster_name.strip():
+        switch = switchToManagementContext(cluster_name.strip())
+        if switch[1] != 200:
+            logger.info(switch[0].json['msg'])
+            d = {
+                "responseType": "ERROR",
+                "msg": switch[0].json['msg'],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+    else:
+        commands_shared = ["tanzu", "cluster", "kubeconfig", "get", cluster_name, "--admin"]
+        kubeContextCommand_shared = grabKubectlCommand(commands_shared, RegexPattern.SWITCH_CONTEXT_KUBECTL)
+        if kubeContextCommand_shared is None:
+            logger.error("Failed to get switch to " + cluster_name + " cluster context command")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to get switch to " + cluster_name + " context command",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        lisOfSwitchContextCommand_shared = str(kubeContextCommand_shared).split(" ")
+        status = runShellCommandAndReturnOutputAsList(lisOfSwitchContextCommand_shared)
+        if status[1] != 0:
+            logger.error("Failed to get switch to shared cluster context " + str(status[0]))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to get switch to " + cluster_name + " context " + str(status[0]),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+    install = installExtentionFor14()
+    if install[1] != 200:
+        return install[0], install[1]
+    logger.info("Configured cert-manager and contour successfully")
+    d = {
+        "responseType": "SUCCESS",
+        "msg": "Configured cert-manager and contour extentions successfully",
+        "ERROR_CODE": 200
+    }
+    return json.dumps(d), 200
+
+def getVersionOfPackage(packageName):
+    list_h = []
+    cert_package_cmd = ["tanzu", "package", "available", "list", packageName, "-A"]
+    ss = runShellCommandAndReturnOutputAsList(cert_package_cmd)
+    release_dates = []
+    for s in ss[0]:
+        if not s.__contains__("Retrieving package versions for " + packageName + "..."):
+            for nn in s.split("\n"):
+                if nn:
+                    if not nn.split()[2].__contains__("RELEASED-AT"):
+                        release_date = datetime.fromisoformat(nn.split()[2]).date()
+                        release_dates.append(release_date)
+                        list_h.append(nn)
+    if len(list_h) == 0:
+        logger.error("Failed to run get version list is empty")
+        return None
+    version = None
+    for li in list_h:
+        if li.__contains__(str(max(release_dates))):
+            version = li.split(" ")[4]
+            break
+    if version is None or not version:
+        logger.error("Failed to get version string is empty")
+        return None
+    return version
+
+
+def waitForGrepProcessWithoutChangeDir(list1, list2, podName, status):
+    time.sleep(30)
+    count_cert = 0
+    running = False
+    try:
+        while count_cert < 60:
+            cert_state = grabPipeOutput(list1, list2)
+            if verifyPodsAreRunning(podName, cert_state[0], status):
+                running = True
+                break
+            time.sleep(30)
+            count_cert = count_cert + 1
+            logger.info("Waited for  " + str(count_cert * 30) + "s, retrying.")
+    except Exception as e:
+        logger.error(" Failed to verify pod running ")
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed to verify pod running",
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500, count_cert
+    if not running:
+        logger.error(podName + " is not running on waiting " + str(count_cert * 30) + "s")
+        d = {
+            "responseType": "ERROR",
+            "msg": podName + " is not running on waiting " + str(count_cert * 30) + "s",
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500, count_cert
+    d = {
+        "responseType": "ERROR",
+        "msg": "Successfully running " + podName + " ",
+        "ERROR_CODE": 200
+    }
+    return json.dumps(d), 200, count_cert
+
+def createContourDataValues():
+    data = dict(
+        infrastructure_provider='vsphere',
+        namespace='tanzu-system-ingress',
+        contour=dict(
+            configFileContents={},
+            useProxyProtocol=False,
+            replicas=2,
+            pspNames="vmware-system-restricted",
+            logLevel="info"
+        ),
+        envoy=dict(
+            service=dict(
+                type='LoadBalancer',
+                annotations={},
+                nodePorts=dict(http="null", https="null"),
+                externalTrafficPolicy='Cluster',
+                disableWait=False),
+            hostPorts=dict(enable=True, http=80, https=443),
+            hostNetwork=False,
+            terminationGracePeriodSeconds=300,
+            logLevel="info",
+            pspNames="null"
+        ),
+        certificates=dict(duration='8760h', renewBefore='360h')
+    )
+    with open('./contour-data-values.yaml', 'w') as outfile:
+        outfile.write("---\n")
+        yaml1 = ryaml.YAML()
+        yaml1.indent(mapping=2, sequence=4, offset=3)
+        yaml1.dump(data, outfile)
+
+def installExtentionFor14():
+    main_command = ["tanzu", "package", "installed", "list", "-A"]
+    service = 'all'
+    if service == "certmanager" or service == "all":
+        sub_command = ["grep", AppName.CERT_MANAGER]
+        command_cert = grabPipeOutput(main_command, sub_command)
+        if not verifyPodsAreRunning(AppName.CERT_MANAGER, command_cert[0], RegexPattern.RECONCILE_SUCCEEDED):
+            state = getVersionOfPackage("cert-manager.tanzu.vmware.com")
+            if state is None:
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to get Version of package cert-manager.tanzu.vmware.com",
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+            logger.info("Installing cert manager - " + state)
+            install_command = ["tanzu", "package", "install", AppName.CERT_MANAGER, "--package-name",
+                               "cert-manager.tanzu.vmware.com", "--namespace", "package-" + AppName.CERT_MANAGER,
+                               "--version", state,
+                               "--create-namespace"]
+            states = runShellCommandAndReturnOutputAsList(install_command)
+            if states[1] != 0:
+                logger.error(
+                    AppName.CERT_MANAGER + " installation command failed. Checking for reconciliation status..")
+            certManagerStatus = waitForGrepProcessWithoutChangeDir(main_command, sub_command, AppName.CERT_MANAGER,
+                                                                   RegexPattern.RECONCILE_SUCCEEDED)
+            if certManagerStatus[1] == 500:
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to bring certmanager " + str(certManagerStatus[0].json['msg']),
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+            logger.info("Configured Cert manager successfully")
+            if service != "all":
+                d = {
+                    "responseType": "SUCCESS",
+                    "msg": "Configured Cert manager successfully",
+                    "ERROR_CODE": 200
+                }
+                return json.dumps(d), 200
+        else:
+            logger.info("Cert manager is already running")
+            if service != "all":
+                d = {
+                    "responseType": "SUCCESS",
+                    "msg": "Cert manager is already running",
+                    "ERROR_CODE": 200
+                }
+                return json.dumps(d), 200
+    if service == "ingress" or service == "all":
+
+        sub_command = ["grep", AppName.CONTOUR]
+        command_cert = grabPipeOutput(main_command, sub_command)
+        if not verifyPodsAreRunning(AppName.CONTOUR, command_cert[0], RegexPattern.RECONCILE_SUCCEEDED):
+            createContourDataValues()
+            state = getVersionOfPackage("contour.tanzu.vmware.com")
+            if state is None:
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to get Version of package contour.tanzu.vmware.com",
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+            logger.info("Installing contour - " + state)
+            install_command = ["tanzu", "package", "install", AppName.CONTOUR, "--package-name",
+                               "contour.tanzu.vmware.com", "--version", state, "--values-file",
+                               "./contour-data-values.yaml", "--namespace", "package-tanzu-system-contour",
+                               "--create-namespace"]
+            states = runShellCommandAndReturnOutputAsList(install_command)
+            if states[1] != 0:
+                for r in states[0]:
+                    logger.error(r)
+                logger.info(
+                    AppName.CONTOUR + " install command failed. Checking for reconciliation status...")
+            certManagerStatus = waitForGrepProcessWithoutChangeDir(main_command, sub_command, AppName.CONTOUR,
+                                                                   RegexPattern.RECONCILE_SUCCEEDED)
+            if certManagerStatus[1] == 500:
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to bring contour " + str(certManagerStatus[0].json['msg']),
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+            if service != "all":
+                logger.info("Contour deployed and is up and running")
+                d = {
+                    "responseType": "SUCCESS",
+                    "msg": "Contour deployed and is up and running",
+                    "ERROR_CODE": 200
+                }
+                return json.dumps(d), 200
+        else:
+            logger.info("Contour is already up and running")
+            d = {
+                "responseType": "SUCCESS",
+                "msg": "Contour is already up and running",
+                "ERROR_CODE": 200
+            }
+            return json.dumps(d), 200
+    d = {
+        "responseType": "SUCCESS",
+        "msg": "Configured cert-manager and contour extentions successfully",
+        "ERROR_CODE": 200
+    }
+    return json.dumps(d), 200
+
+
+def getClusterID(vCenter, vCenter_user, VC_PASSWORD, cluster):
+    url = "https://" + vCenter + "/"
+    try:
+        sess = requests.post(url + "rest/com/vmware/cis/session", auth=(vCenter_user, VC_PASSWORD), verify=False)
+        if sess.status_code != 200:
+            d = {
+                "reponseType": "ERROR",
+                "msg": "Failed to fetch session ID for vCenter - " + vCenter,
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        else:
+            session_id = sess.json()['value']
+
+        clusterID_resp = requests.get(url + "api/vcenter/cluster?names=" + cluster, verify=False, headers={
+            "vmware-api-session-id": session_id
+        })
+        if clusterID_resp.status_code != 200:
+            logger.error(clusterID_resp.json())
+            d = {
+                "reponseType": "ERROR",
+                "msg": "Failed to fetch cluster ID for cluster - " + cluster,
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        return clusterID_resp.json()[0]['cluster'], 200
+
+    except Exception as e:
+        logger.error(e)
+        d = {
+            "reponseType": "ERROR",
+            "msg": "Failed to fetch cluster ID for cluster - " + cluster,
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+
+def switchToContext(clusterName):
+
+    commands_shared = ["tanzu", "cluster", "kubeconfig", "get", clusterName, "--admin"]
+    kubeContextCommand_shared = grabKubectlCommand(commands_shared, RegexPattern.SWITCH_CONTEXT_KUBECTL)
+    if kubeContextCommand_shared is None:
+        logger.error("Failed get admin cluster context of cluster " + clusterName)
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed get admin cluster context of cluster " + clusterName,
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+    lisOfSwitchContextCommand_shared = str(kubeContextCommand_shared).split(" ")
+    status = runShellCommandAndReturnOutputAsList(lisOfSwitchContextCommand_shared)
+    if status[1] != 0:
+        logger.error("Failed to switch to" + clusterName + "cluster context " + str(status[0]))
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed to switch to " + clusterName + " cluster context " + str(status[0]),
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+
+    logger.info("Switched to " + clusterName + " context")
+    d = {
+        "responseType": "ERROR",
+        "msg": "Switched to " + clusterName + " context",
+        "ERROR_CODE": 200
+    }
+    return json.dumps(d), 200
+
+def isSasRegistred(clusterName, management, provisoner, pr, sasType):
+    try:
+        sas = ""
+        if sasType == SAS.TO:
+            sas = SAS.TO
+            command = ["tmc", "cluster", "integration", "get", "tanzu-observability-saas", "--cluster-name",
+                       clusterName,
+                       "-m",
+                       management, "-p", provisoner]
+        elif sasType == SAS.TSM:
+            sas = SAS.TSM
+            command = ["tmc", "cluster", "integration", "get", "tanzu-service-mesh", "--cluster-name", clusterName,
+                       "-m", management, "-p", provisoner]
+        o = runShellCommandAndReturnOutput(command)
+        if str(o[0]).__contains__("NotFound"):
+            logger.info("Tanzu " + sas + " is not integrated")
+            return False
+        else:
+            if pr:
+                logger.error(o[0])
+                return False
+        l = yaml.safe_load(o[0])
+        integration = str(l["status"]["integrationWorkload"])
+        if integration != "OK":
+            logger.info("integrationWorkload status " + integration)
+            return False
+        else:
+            logger.info("integrationWorkload status " + integration)
+        tmcAdapter = str(l["status"]["tmcAdapter"])
+        if tmcAdapter != "OK":
+            logger.info("tmcAdapter status " + tmcAdapter)
+            return False
+        else:
+            logger.info("tmcAdapter status " + tmcAdapter)
+        return True
+    except Exception as e:
+        if pr:
+            logger.error(str(e))
+        return False
+
+def checkTmcEnabled(tmc_state):
+
+    if tmc_state.lower() == "true":
+        return True
+    else:
+        return False
+
+def generateToJsonFile(management_cluster, provisioner_name, cluster_name, toUrl, toSecrets):
+    fileName = "to_json.json"
+    toJson = {
+        "full_name": {
+            "provisionerName": provisioner_name,
+            "clusterName": cluster_name,
+            "managementClusterName": management_cluster,
+            "name": "tanzu-observability-saas"
+        },
+        "spec": {
+            "configurations": {
+                "url": toUrl
+            },
+            "secrets": {
+                "token": toSecrets
+            }
+        }
+    }
+    os.system("rm -rf " + fileName)
+    with open(fileName, 'w') as f:
+        json.dump(toJson, f)
+
+def generateTSMJsonFile(management_cluster, provisioner_name, cluster_name, exact, partial):
+    fileName = "tsm_json.json"
+    tsmJson = {
+        "full_name": {
+            "provisionerName": provisioner_name,
+            "managementClusterName": management_cluster,
+            "clusterName": cluster_name,
+            "name": "tanzu-service-mesh"
+        },
+        "spec": {
+            "configurations": {
+                "enableNamespaceExclusions": True,
+                "namespaceExclusions": [
+                    {
+                        "match": exact,
+                        "type": "EXACT"
+                    },
+                    {
+                        "match": partial,
+                        "type": "START_WITH"
+                    }
+                ]
+            }
+        }
+    }
+    os.system("rm -rf " + fileName)
+    with open(fileName, 'w') as f:
+        json.dump(tsmJson, f)
+
+def waitForProcessWithStatus(list1, podName, status):
+    count_cert = 0
+    running = False
+    while count_cert < 60:
+        cert_state = runShellCommandAndReturnOutputAsList(list1)
+        time.sleep(30)
+        if verifyPodsAreRunning(podName, cert_state[0], status):
+            running = True
+            break
+        count_cert = count_cert + 1
+        logger.info("Waited for  " + str(count_cert * 30) + "s, retrying.")
+    if not running:
+        logger.error(podName + " is not running on waiting " + str(count_cert * 30) + "s")
+        d = {
+            "responseType": "ERROR",
+            "msg": podName + " is not running on waiting " + str(count_cert * 30) + "s",
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500, count_cert
+    logger.info("Successfully running " + podName)
+    d = {
+        "responseType": "SUCCESS",
+        "msg": "Successfully running" + podName,
+        "ERROR_CODE": 200
+    }
+    return json.dumps(d), 200, count_cert
+
+def integrateSas(cluster_name, jsonspec, sasType):
+    vcenter_ip = jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
+    vcenter_username = jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
+    str_enc = str(jsonspec['envSpec']['vcenterDetails']["vcenterSsoPasswordBase64"])
+    base64_bytes = str_enc.encode('ascii')
+    enc_bytes = base64.b64decode(base64_bytes)
+    password = enc_bytes.decode('ascii').rstrip("\n")
+    cluster = jsonspec["envSpec"]["vcenterDetails"]["vcenterCluster"]
+    command = ["tmc", "managementcluster", "list"]
+    output = runShellCommandAndReturnOutputAsList(command)
+    if output[1] != 0:
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed to fetch management cluster list",
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+    logger.info(output[0])
+    if cluster_name in output[0]:
+        d = {
+            "responseType": "ERROR",
+            "msg": "Tanzu " + sasType + " registration is not supported on management cluster",
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+    context = switchToContext(cluster_name)
+    if context[1] != 200:
+        return context[0], context[1]
+    li_ = returnListOfTmcCluster(cluster_name)
+    if not isSasRegistred(cluster_name, li_[1], li_[2], False, sasType):
+        logger.info("Registering to tanzu " + sasType)
+        tmc_state = jsonspec['envSpec']["saasEndpoints"]['tmcDetails']['tmcAvailability']
+        if not checkTmcEnabled(tmc_state):
+            d = {
+                "responseType": "ERROR",
+                "msg": "Tmc is not enabled, tmc must be enabled to register tanzu " + sasType,
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+        if sasType == SAS.TO:
+            fileName = "to_json.json"
+            toUrl = jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"]["tanzuObservabilityUrl"]
+            toToken = jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"]["tanzuObservabilityRefreshToken"]
+            generateToJsonFile(li_[1], li_[2], cluster_name, toUrl, toToken)
+        elif sasType == SAS.TSM:
+            fileName = "tsm_json.json"
+            exact = jsonspec['tkgWorkloadComponents']["namespaceExclusions"]["exactName"]
+            partial = jsonspec['tkgWorkloadComponents']["namespaceExclusions"]["startsWith"]
+            generateTSMJsonFile(li_[1], li_[2], cluster_name, exact, partial)
+        command_create = ["tmc", "cluster", "integration", "create", "-f", fileName]
+        state = runShellCommandAndReturnOutput(command_create)
+        if sasType == SAS.TO:
+            command_kube = ["kubectl", "get", "pods", "-n", "tanzu-observability-saas"]
+            pods = ["wavefront"]
+        elif sasType == SAS.TSM:
+            command_kube = ["kubectl", "get", "pods", "-n", "vmware-system-tsm"]
+            pods = ["allspark", "installer-job", "k8s-cluster-manager", "tsm-agent-operator"]
+        for pod in pods:
+            st = waitForProcessWithStatus(command_kube, pod, RegexPattern.RUNNING)
+            if st[1] != 200:
+                return st[0].json, st[1]
+        count = 0
+        registered = False
+        while count < 180:
+            if isSasRegistred(cluster_name, li_[1], li_[2], False, sasType):
+                registered = True
+                break
+            time.sleep(10)
+            count = count + 1
+            logger.info("waited for " + str(count*10) + "s for registration to complete... retrying")
+        if not registered:
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to register tanzu " + sasType + " to " + cluster_name,
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        d = {
+            "responseType": "SUCCESS",
+            "msg": "Tanzu " + sasType + " is integrated successfully to cluster " + cluster_name,
+            "ERROR_CODE": 200
+        }
+        return json.dumps(d), 200
+    else:
+        d = {
+            "responseType": "SUCCESS",
+            "msg": "Tanzu " + sasType + " is already registered to " + cluster_name,
+            "ERROR_CODE": 200
+        }
+        return json.dumps(d), 200
+
+def registerTanzuObservability(cluster_name, to_enable, size, jsonspec):
+    try:
+
+        if checkToEnabled(to_enable):
+            if size.lower() == "medium" or size.lower() == "small":
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Tanzu Observability integration is not supported on cluster size small or medium",
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+            st = integrateSas(cluster_name, jsonspec, SAS.TO)
+            return st[0].json, st[1]
+        else:
+            d = {
+                "responseType": "SUCCESS",
+                "msg": "Taznu observability is disabled",
+                "ERROR_CODE": 200
+            }
+            return json.dumps(d), 200
+    except Exception as e:
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed to register tanzu Observability " + str(e),
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
 
 def getVipNetworkIpNetMask(ip, csrf2, name, aviVersion):
     headers = {

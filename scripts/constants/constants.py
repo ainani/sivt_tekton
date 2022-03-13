@@ -33,6 +33,7 @@ class Paths(str, Enum):
     CERT_CONVERTOR = f"{TEMPLATES_ROOT_DIR}/pem_to_one_line_converter.sh"
     VSPHERE_ALB_DEPLOY_J2 = f"{TEMPLATES_ROOT_DIR}/deploy_vsphere_alb_controller_config.json.j2"
     KUBE_OVA_CONFIG = f"{TEMPLATES_ROOT_DIR}/kubeova.json"
+    TKG_CLUSTER_14_SPEC_J2 = f"{TEMPLATES_ROOT_DIR}/deploy_cluster_1.4.yaml.j2"
 
 
     # tmp local
@@ -269,6 +270,23 @@ class TanzuToolsCommands(dict, Enum):
     YQ = {"version": "yq --version", "prefix": "yq version ", "matrix-key": "yq"}
     JQ = {"version": "jq --version", "prefix": "jq-", "matrix-key": "jq"}
 
+class Sizing:
+    medium = {
+        "CPU": "2",
+        "MEMORY": "8192",
+        "DISK": "40"
+    }
+    large = {
+        "CPU": "4",
+        "MEMORY": "16384",
+        "DISK": "40"
+    }
+    extraLarge = {
+        "CPU": "8",
+        "MEMORY": "32768",
+        "DISK": "80"
+    }
+
 
 class PrepareEnvCommands(str, Enum):
     DOCKER_RUN_CMD = """
@@ -410,6 +428,11 @@ class KubectlCommands(str, Enum):
     GET_SECRET_DETAILS = "kubectl get secret {name} -n {namespace} {options}"
     UPDATE_SECRET = "kubectl create secret generic {name} --from-file={config_file} -n {namespace} -o yaml --dry-run | kubectl replace -f-"
 
+class ClusterType:
+    WORKLOAD = "workload"
+    MANAGEMENT = "management"
+    SHARED = "shared"
+
 class TmcCommands(str, Enum):
     LOGIN = "export TMC_API_TOKEN={token} && tmc login --no-configure --name arcas"
     GET_KUBECONFIG = "tanzu cluster kubeconfig get {cluster_name} --admin --export-file {file}"
@@ -516,6 +539,17 @@ class Task(str, Enum):
     UPGRADE_PROMETHEUS = "UPGRADE_PROMETHEUS"
     UPGRADE_GRAFANA = "UPGRADE_GRAFANA"
 
+class TmcUser:
+    USER = "tkgvmc-automation"
+    USER_VSPHERE = "tkgvsphere-automation"
+
+class SAS:
+    TO = "TO"
+    TSM = "tsm"
+
+class Repo:
+    PUBLIC_REPO = "projects.registry.vmware.com/tkg/"
+    NAME = "custom-image-repository-01"
 
 class ComponentPrefix(str, Enum):
     ALB_MGMT_NW = "tkg-avi-mgmt"
@@ -548,6 +582,9 @@ class VmcNsxtGateways(str, Enum):
     CGW = "cgw"
     MGW = "mgw"
 
+class PLAN:
+    DEV_PLAN = "dev"
+    PROD_PLAN = "prod"
 
 class NsxtServicePaths(str, Enum):
     HTTPS = "/infra/services/HTTPS"
@@ -645,3 +682,26 @@ class AviSize:
         "memory": "51200"
 
     }
+
+class RegexPattern:
+    SWITCH_CONTEXT_KUBECTL = "(kubectl\s*([^\n\r]*[^']))"
+    running = 'running'
+    RUNNING = 'Running'
+    RECONCILE_SUCCEEDED = 'Reconcile succeeded'
+    RECONCILE_FAILED = 'Reconcile failed'
+    IP_ADDRESS = "\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
+    URL_REGEX_PORT = "(?:http.*://)?(?P<host>[^:/ ]+).?(?P<port>[0-9]*).*"
+
+class AkoType:
+    KEY = 'type'
+    VALUE = 'management'
+    type_ako_set = "workload-set01"
+
+class AppName:
+    AKO = "ako"
+    HARBOR = "harbor"
+    FLUENT_BIT = "fluent-bit"
+    PROMETHUS = "prometheus"
+    GRAFANA = "grafana"
+    CERT_MANAGER = "cert-manager"
+    CONTOUR = "contour"
