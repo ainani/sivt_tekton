@@ -78,7 +78,7 @@
         "aviComponents": {
             "aviPasswordBase64": "Vk13YXJlMSE=",
             "aviBackupPassphraseBase64": "Vk13YXJlMSE=",
-            "enableAviHa": "true",
+            "enableAviHa": "false",
             "aviController01Ip": "192.168.110.41",
             "aviController01Fqdn": "avi-controller1.tanzu.lab",
             "aviController02Ip": "192.168.110.42",

@@ -153,7 +153,7 @@ class KubernetesOva:
     MARKETPLACE_PHOTON_KUBERNETES_FILE_NAME = "arcas-photon-kube"
     MARKETPLACE_PHOTON_GROUPNAME = "Photon-OVA"
     MARKETPLACE_UBUTNU_GROUPNAME = "Ubuntu-OVA"
-    KUBERNETES_OVA_LATEST_VERSION = "v1.22.5"
+    KUBERNETES_OVA_LATEST_VERSION = "v1.21.2"
 
 
 class GovcCommands(str, Enum):

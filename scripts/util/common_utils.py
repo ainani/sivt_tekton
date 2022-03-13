@@ -11,6 +11,7 @@ from util.avi_api_helper import getProductSlugId
 from util.replace_value import replaceValueSysConfig, replaceValue
 from util.file_helper import FileHelper
 from util.ShellHelper import runShellCommandAndReturnOutput
+from util.cmd_helper import CmdHelper
 
 logger = LoggerHelper.get_logger('common_utils')
 logging.getLogger("paramiko").setLevel(logging.WARNING)
@@ -136,7 +137,7 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS):
 
 
 def downloadAndPushToVCMarketPlace(file, datacenter, datastore, networkName, clusterName, refresToken, ovaVersion,
-                                   ovaOS):
+                                   ovaOS, jsonspec):
     my_file = Path("/tmp/" + file + ".ova")
     rcmd = cmd_runner.RunCmd()
     if not my_file.exists():
@@ -153,6 +154,14 @@ def downloadAndPushToVCMarketPlace(file, datacenter, datastore, networkName, clu
     replaceValueSysConfig(kube_config_file, "Name", "name", file)
     replaceValue(kube_config_file, "NetworkMapping", "Network", networkName)
     logger.info("Pushing " + file + " to vcenter and making as template")
+    vcenter_ip = jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
+    vcenter_username = jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
+    enc_password = jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
+    password = CmdHelper.decode_base64(enc_password)
+    os.putenv("GOVC_URL", "https://" + vcenter_ip + "/sdk")
+    os.putenv("GOVC_USERNAME", vcenter_username)
+    os.putenv("GOVC_PASSWORD", password)
+    os.putenv("GOVC_INSECURE", "true")
     command_template = ["govc", "import.ova", "-options", kube_config_file, "-dc="+datacenter,
                         "-ds=" + datastore, "-pool=" + clusterName + "/Resources",
                         "/tmp/" + file + ".ova"]
@@ -184,7 +193,7 @@ def downloadAndPushKubernetesOvaMarketPlace(jsonspec, version, baseOS):
             return "SUCCESS", "ALREADY_PRESENT"
         download = downloadAndPushToVCMarketPlace(file, vCenter_datacenter, data_store, networkName,
                                                           vCenter_cluster, refToken,
-                                                          version, baseOS)
+                                                          version, baseOS, jsonspec)
         if download[0] is None:
             return None, download[1]
         return "SUCCESS", "DEPLOYED"
