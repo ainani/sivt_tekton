@@ -26,7 +26,7 @@ from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
 from util.vcenter_operations import checkforIpAddress, getSi
 
-logger = LoggerHelper.get_logger('alb_workflow')
+logger = LoggerHelper.get_logger(name='alb_workflow')
 
 
 class RALBWorkflow:

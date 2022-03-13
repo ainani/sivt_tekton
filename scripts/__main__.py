@@ -25,9 +25,8 @@ from workflows.ra_mgmt_cluster_workflow import RaMgmtClusterWorkflow
 from workflows.repave_workflow import RepaveWorkflow
 from workflows.shared_cluster_workflow import SharedClusterWorkflow
 from workflows.workload_cluster_workflow import WorkloadClusterWorkflow
-from util.glue_parser import file_linker
 
-logger = LoggerHelper.get_logger("__main__")
+logger = LoggerHelper.get_logger(name="__main__")
 
 def load_run_config(root_dir):
     # spec: MasterSpec = FileHelper.load_spec(os.path.join(root_dir, Paths.MASTER_SPEC_PATH))

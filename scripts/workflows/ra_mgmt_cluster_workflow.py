@@ -6,6 +6,7 @@ import time
 from jinja2 import Template
 import requests
 from tqdm import tqdm
+import base64
 from constants.constants import Constants, Paths, TKGCommands, ComponentPrefix, AkoType, \
     ControllerLocation, KubernetesOva, Cloud, VrfType, ResourcePoolAndFolderName
 from lib.tkg_cli_client import TkgCliClient
@@ -34,7 +35,7 @@ from util.vcenter_operations import createResourcePool, create_folder
 from util.ShellHelper import runProcess, runShellCommandAndReturnOutputAsList
 
 # logger = LoggerHelper.get_logger(Path(__file__).stem)
-logger = LoggerHelper.get_logger('ra_mgmt_cluster_workflow')
+logger = LoggerHelper.get_logger(name='ra_mgmt_cluster_workflow')
 
 class RaMgmtClusterWorkflow:
     def __init__(self, run_config: RunConfig):
@@ -82,7 +83,15 @@ class RaMgmtClusterWorkflow:
         datastore_path = "/" + datacenter + "/datastore/" + data_store
         vsphere_folder_path = "/" + datacenter + "/vm/" + \
                               ResourcePoolAndFolderName.TKG_Mgmt_Components_Folder_VSPHERE
-        vcenter_passwd = password
+        str_enc = str(password)
+        _base64_bytes = str_enc.encode('ascii')
+        _enc_bytes = base64.b64encode(_base64_bytes)
+        vcenter_passwd = _enc_bytes.decode('ascii')
+        logger.info('VC PASS...: {}'.format(vcenter_passwd))
+        # _base64_bytes = str_enc.encode('ascii')
+        # _enc_bytes = base64.b64encode(_base64_bytes)
+        # vcenter_passwd = _enc_bytes.decode('ascii')
+        # vcenter_passwd = password
         management_cluster = vsSpec.tkgComponentSpec.tkgMgmtComponents.tkgMgmtClusterName
         parent_resourcePool = vsSpec.envSpec.vcenterDetails.resourcePoolName
         if parent_resourcePool:

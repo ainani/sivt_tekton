@@ -624,10 +624,10 @@ class WebHandle(object):
         return int(100.0 * self.offset / self.st_size)
 
 
-def createResourcePool(vcenterHostName, vceneterUser, vcenterPassword, clusterName, name, parentResourcePool):
+def createResourcePool(vcenterHostName, vcenterUser, vcenterPassword, clusterName, name, parentResourcePool):
     si = None
     try:
-        si = connect.SmartConnectNoSSL(host=vcenterHostName, user=vceneterUser, pwd=vcenterPassword)
+        si = connect.SmartConnectNoSSL(host=vcenterHostName, user=vcenterUser, pwd=vcenterPassword)
         content = si.RetrieveContent()
         cluster = get_obj(content, [vim.ClusterComputeResource], clusterName)
 
