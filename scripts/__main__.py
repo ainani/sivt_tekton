@@ -4,27 +4,19 @@ from pathlib import Path
 import click
 import yaml
 
-from constants.constants import Paths, Task, ControllerLocation
-from lib.csp_client import CspClient
-from lib.vmc_client import VmcClient
+from constants.constants import Paths
 from model.desired_state import DesiredState
-from model.run_config import RunConfig, DeploymentPlatform, VmcConfig
-from model.spec import MasterSpec
+from model.run_config import RunConfig, DeploymentPlatform
 from model.status import State, get_fresh_state
-from util.cmd_helper import CmdHelper
 from util.env_validation import EnvValidator
 from util.file_helper import FileHelper
 from util.git_helper import Git
 from util.logger_helper import LoggerHelper
-from util.ssh_helper import SshHelper
-from util.ssl_helper import get_thumbprint, get_colon_formatted_thumbprint
 from util.tanzu_utils import TanzuUtils
 from workflows.ra_alb_workflow import RALBWorkflow
-from workflows.cluster_common_workflow import ClusterCommonWorkflow
 from workflows.ra_mgmt_cluster_workflow import RaMgmtClusterWorkflow
-from workflows.repave_workflow import RepaveWorkflow
 from workflows.ra_shared_cluster_workflow import RaSharedClusterWorkflow
-from workflows.workload_cluster_workflow import WorkloadClusterWorkflow
+from workflows.ra_workload_cluster_workflow import RaWorkloadClusterWorkflow
 
 logger = LoggerHelper.get_logger(name="__main__")
 
@@ -39,12 +31,7 @@ def load_run_config(root_dir):
     support_matrix = yaml.safe_load(FileHelper.read_resource(Paths.SUPPORT_MATRIX_FILE))
     run_config = RunConfig(root_dir=root_dir, state=state, desired_state=desired_state,
                            support_matrix=support_matrix, deployment_platform=DeploymentPlatform.VSPHERE, vmc=None)
-    """if spec.vmc:
-        run_config.deployment_platform = DeploymentPlatform.VMC
-        run_config.vmc = VmcConfig(csp_access_token="", org_id="", sddc_id="", nsx_reverse_proxy_url="", vc_mgmt_ip="",
-                                   vc_cloud_user="", vc_cloud_password="", vc_tls_thumbprint="")
-        run_config = load_vmc_config(run_config)
-    """
+
     return run_config
 
 
@@ -73,14 +60,6 @@ def avi(ctx):
 def avi_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
     RALBWorkflow(run_config=run_config).avi_controller_setup()
-
-
-# @avi.command(name="validate")
-# @click.pass_context
-# def avi_validate(ctx):
-#     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-#     ALBWorkflow(run_config).avi_controller_validate()
-
 
 @cli.group()
 @click.pass_context
@@ -115,13 +94,6 @@ def ss_cluster_deploy(ctx):
     RaSharedClusterWorkflow(run_config).deploy()
 
 
-@shared_services.command(name="repave")
-@click.pass_context
-def ss_repave_env(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    RepaveWorkflow(run_config).repave_ss_cluster()
-
-
 @cli.group()
 @click.pass_context
 def workload_clusters(ctx):
@@ -132,54 +104,14 @@ def workload_clusters(ctx):
 @click.pass_context
 def wl_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    WorkloadClusterWorkflow(run_config).execute_workflow(Task.DEPLOY_CLUSTER)
+    RaWorkloadClusterWorkflow(run_config).deploy()
 
-
-@workload_clusters.command(name="deploy-cert-mgr")
-@click.pass_context
-def wl_deploy_cert_mgr(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    WorkloadClusterWorkflow(run_config).execute_workflow(Task.DEPLOY_CERT_MANAGER)
-
-
-@workload_clusters.command(name="deploy-contour")
-@click.pass_context
-def wl_deploy_contour(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    WorkloadClusterWorkflow(run_config).execute_workflow(Task.DEPLOY_CONTOUR)
-
-
-@workload_clusters.command(name="deploy-grafana")
-@click.pass_context
-def wl_deploy_grafana(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    WorkloadClusterWorkflow(run_config).execute_workflow(Task.DEPLOY_GRAFANA)
-
-
-@workload_clusters.command(name="deploy-prometheus")
-@click.pass_context
-def wl_deploy_prometheus(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    WorkloadClusterWorkflow(run_config).execute_workflow(Task.DEPLOY_PROMETHEUS)
-
-
-@workload_clusters.command(name="attach-cluster-to-tmc")
-@click.pass_context
-def wl_attach_cluster_to_tmc(ctx):
-    WorkloadClusterWorkflow(ctx.obj["ROOT_DIR"]).execute_workflow(Task.ATTACH_CLUSTER_TO_TMC)
 
 @workload_clusters.command(name="upgrade")
 @click.pass_context
 def wl_upgrade(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
     WorkloadClusterWorkflow(run_config).upgrade_workflow()
-
-
-@workload_clusters.command(name="repave")
-@click.pass_context
-def wl_repave_env(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    RepaveWorkflow(run_config).repave_wl_cluster()
 
 
 @cli.command(name="pull-kubeconfig")
@@ -217,7 +149,8 @@ def validate_spec(ctx):
         # Git.add_all_and_commit(os.path.dirname(state_file_path), "Update valid state file")
 
     state: State = FileHelper.load_state(state_file_path)
-    desired_state: DesiredState = FileHelper.load_desired_state(os.path.join(root_dir, Paths.DESIRED_STATE_PATH))
+    desired_state: DesiredState = FileHelper.load_desired_state(os.path.join(root_dir,
+                                                                             Paths.DESIRED_STATE_PATH))
 
     # logger.debug("spec: \n%s", FileHelper.yaml_from_model(spec))
     logger.debug("***state*** \n%s", FileHelper.yaml_from_model(state))
@@ -265,18 +198,6 @@ def cleanup(ctx):
         Git.add_all_and_commit(os.path.join(root_dir, Paths.KUBECONFIG_REPO), "cleanup kubeconfigs")
     except Exception as e:
         logger.error(e)
-
-
-@cli.command(name="check-health")
-@click.pass_context
-def check_health(ctx):
-    root_dir = ctx.obj["ROOT_DIR"]
-    spec = FileHelper.load_spec(os.path.join(root_dir, Paths.MASTER_SPEC_PATH))
-    with SshHelper(
-            spec.bootstrap.server, spec.bootstrap.username, CmdHelper.decode_password(spec.bootstrap.password),
-            spec.onDocker
-    ) as ssh:
-        ClusterCommonWorkflow(ssh).check_health(root_dir, spec)
 
 
 if __name__ == "__main__":

@@ -14,13 +14,7 @@ from util.avi_api_helper import AviApiSpec, ra_avi_download, isAviHaEnabled, \
     deployAndConfigureAvi, form_avi_ha_cluster, manage_avi_certificates
 from util.cmd_helper import CmdHelper, timer
 from util.file_helper import FileHelper
-from util.git_helper import Git
-from util.govc_helper import deploy_avi_controller_ova, get_alb_ip_address, export_govc_env_vars, \
-    template_avi_se_govc_config, import_ova, change_vm_network, connect_networks, \
-    change_vms_power_state, wait_for_vm_to_get_ip, find_vm_by_name, update_vm_cpu_memory, get_vm_power_state, \
-    get_vm_mac_addresses
 from util.logger_helper import LoggerHelper, log
-from util.marketplace_helper import fetch_avi_ova
 from jinja2 import Template
 from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
