@@ -270,6 +270,12 @@ class TanzuToolsCommands(dict, Enum):
     YQ = {"version": "yq --version", "prefix": "yq version ", "matrix-key": "yq"}
     JQ = {"version": "jq --version", "prefix": "jq-", "matrix-key": "jq"}
 
+class Versions:
+    tkg = "v1.20.5+vmware.2-tkg.1"
+    ako = "v1.3.2_vmware.1"
+    vcenter = "7.0.2.00000"
+    VCENTER_UPDATE_THREE = "7.0.3"
+
 class Sizing:
     medium = {
         "CPU": "2",
@@ -635,11 +641,6 @@ class AlbLicenseTier(str, Enum):
 class AlbVrfContext(str, Enum):
     GLOBAL = "global"
     MANAGEMENT = "management"
-
-
-class AkoType:
-    KEY = "type"
-    VALUE = "management"
 
 class AlbEndpoint:
     CRUD_SSL_CERT = "https://{ip}/api/sslkeyandcertificate"

@@ -6,18 +6,12 @@ from util import cmd_runner
 import base64
 import requests
 import urllib3
-from avi.sdk.avi_api import ApiSession, AviCredentials
-from requests import HTTPError
-from tqdm import tqdm
 from util.ShellHelper import runProcess
 from constants.api_payloads import AlbPayload
-from constants.constants import Paths, AlbCloudType, AlbLicenseTier, ControllerLocation, MarketPlaceUrl,\
-    AviSize, CertName, Env
+from constants.constants import ControllerLocation, MarketPlaceUrl, AviSize, CertName
 from constants.alb_api_constants import AlbPayload, AlbEndpoint
-from model.run_config import RunConfig
-from model.spec import NetworkSegment
 from util.cmd_helper import CmdHelper
-from util.logger_helper import LoggerHelper, log
+from util.logger_helper import LoggerHelper
 from util.govc_client import GovcClient
 from util.replace_value import replaceValueSysConfig, replaceCertConfig
 
@@ -80,7 +74,7 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
         find_command = "govc library.ls /{}/".format(ControllerLocation.CONTROLLER_CONTENT_LIBRARY)
         logger.info('Running find for existing library')
         output = rcmd.run_cmd_output(find_command)
-        logger.info('Library found: {}'.format(output) )
+        logger.info('Library found: {}'.format(output))
         if str(output).__contains__(ControllerLocation.CONTROLLER_NAME):
             logger.info("Avi controller is already present in content library")
             return "SUCCESS", 200
@@ -126,7 +120,8 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
             return None, "Failed to find product on Marketplace " + str(_solutionName[1])
         solutionName = _solutionName[0]
         product = requests.get(MarketPlaceUrl.API_URL + "/products/" +
-                               solutionName + "?isSlug=" + slug + "&ownorg=false", headers=headers, verify=False)
+                               solutionName + "?isSlug=" + slug + "&ownorg=false", headers=headers,
+                               verify=False)
         if product.status_code != 200:
             return None, "Failed to Obtain Product ID"
         else:
@@ -179,9 +174,9 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
     if str(output).__contains__(ControllerLocation.CONTROLLER_CONTENT_LIBRARY):
         logger.info(ControllerLocation.CONTROLLER_CONTENT_LIBRARY + " is already present")
     else:
-        find_command = "govc library.create -ds={ds} -dc={dc} {libraryname}".format(ds = data_store,
+        find_command = "govc library.create -ds={ds} -dc={dc} {libraryname}".format(ds=data_store,
                                                                                     dc=data_center,
-                                                                                  libraryname=ControllerLocation.CONTROLLER_CONTENT_LIBRARY)
+                                                                                    libraryname=ControllerLocation.CONTROLLER_CONTENT_LIBRARY)
         output = rcmd.run_cmd_output(find_command)
         if 'error' in output:
             return None, "Failed to create content library"
@@ -331,6 +326,8 @@ def obtain_first_csrf(ip):
     for key, value in cookiesString.items():
         cookies_string += key + "=" + value + "; "
     return cookiesString['csrftoken'], cookies_string
+
+
 
 def obtain_second_csrf(ip, avienc_pass):
     url = "https://" + str(ip) + "/login"

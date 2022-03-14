@@ -20,6 +20,7 @@ from jinja2 import Template
 import yaml
 from ruamel import yaml as ryaml
 from datetime import datetime
+from util.vcenter_operations import createResourcePool, create_folder
 
 logger = LoggerHelper.get_logger('common_utils')
 logging.getLogger("paramiko").setLevel(logging.WARNING)
@@ -208,6 +209,78 @@ def downloadAndPushKubernetesOvaMarketPlace(jsonspec, version, baseOS):
 
     except Exception as e:
         return None, str(e)
+
+def validateFolderAndResourcesAvailable(folder, resources, vcenter_ip, vcenter_username, password, parent_resourcepool):
+    os.putenv("GOVC_URL", "https://" + vcenter_ip + "/sdk")
+    os.putenv("GOVC_USERNAME", vcenter_username)
+    os.putenv("GOVC_PASSWORD", password)
+    os.putenv("GOVC_INSECURE", "true")
+    find_command = ["govc", "find", "-name", folder]
+    count = 0
+    while count < 120:
+        output = runShellCommandAndReturnOutputAsList(find_command)
+        if parent_resourcepool:
+            if str(output[0]).__contains__("/Resources/" + parent_resourcepool + "/" + resources) and str(
+                    output[0]).__contains__("/vm/" + folder):
+                logger.info("Folder and resources are available")
+                return True
+        else:
+            if str(output[0]).__contains__("/Resources/" + resources) and str(output[0]).__contains__("/vm/" + folder):
+                logger.info("Folder and resources are available")
+                return True
+        time.sleep(5)
+        count = count + 1
+    return False
+
+def createResourceFolderAndWait(vcenter_ip, vcenter_username, password,
+                                cluster_name, data_center, resourcePoolName, folderName,
+                                parentResourcePool):
+    try:
+        isCreated4 = createResourcePool(vcenter_ip, vcenter_username, password,
+                                        cluster_name,
+                                        resourcePoolName, parentResourcePool)
+        if isCreated4 is not None:
+            logger.info("Created resource pool " + resourcePoolName)
+    except Exception as e:
+        logger.error("Failed to create resource pool " + str(e))
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed to create resource pool " + str(e),
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+
+    try:
+        isCreated1 = create_folder(vcenter_ip, vcenter_username, password,
+                                   data_center,
+                                   folderName)
+        if isCreated1 is not None:
+            logger.info("Created  folder " + folderName)
+
+    except Exception as e:
+        logger.error("Failed to create folder " + str(e))
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed to create folder " + str(e),
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+    find = validateFolderAndResourcesAvailable(folderName, resourcePoolName, vcenter_ip,
+                                               vcenter_username, password, parentResourcePool)
+    if not find:
+        logger.error("Failed to find folder and resources")
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed to find folder and resources",
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+    d = {
+        "responseType": "ERROR",
+        "msg": "Created resources and  folder",
+        "ERROR_CODE": 200
+    }
+    return json.dumps(d), 200
 
 def getCloudStatus(ip, csrf2, aviVersion, cloudName):
     headers = {
@@ -1409,6 +1482,26 @@ def integrateSas(cluster_name, jsonspec, sasType):
             "ERROR_CODE": 200
         }
         return json.dumps(d), 200
+
+
+def registerTSM(cluster_name, jsonspec, size):
+    try:
+        if size.lower() == "medium" or size.lower() == "small":
+            d = {
+                "responseType": "ERROR",
+                "msg": "Tanzu service mesh integration is not supported on cluster size small or medium",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        st = integrateSas(cluster_name, jsonspec, SAS.TSM)
+        return st[0], st[1]
+    except Exception as e:
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed to register Tanzu Service Mesh " + str(e),
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
 
 def registerTanzuObservability(cluster_name, to_enable, size, jsonspec):
     try:

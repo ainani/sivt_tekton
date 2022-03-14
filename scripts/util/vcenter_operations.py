@@ -505,7 +505,7 @@ class OvfHandler(object):
         url = device_url.url.replace('*', host)
         headers = {'Content-length': get_tarfile_size(ovffile)}
         if hasattr(ssl, '_create_unverified_context'):
-            ssl_context = ssl._create_unverified_context()
+            ssl_context = ssl.create_unverified_context()
         else:
             ssl_context = None
         req = Request(url, ovffile, headers)

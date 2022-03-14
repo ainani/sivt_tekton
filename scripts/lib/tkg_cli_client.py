@@ -4,9 +4,7 @@ from pathlib import Path
 from constants.constants import TKGCommands, Constants, KubectlCommands
 from retry import retry
 from util.logger_helper import LoggerHelper, log, log_debug
-from util.ssh_helper import SshHelper
 from util.cmd_runner import RunCmd
-import subprocess
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 

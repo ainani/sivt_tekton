@@ -1,4 +1,3 @@
-import os
 import traceback
 import logging
 from pathlib import Path
@@ -39,7 +38,7 @@ class RunCmd:
             return cmd_out
         except Exception:
             logger.error(f"Error: {traceback.format_exc()}")
-            return None
+            return (None)
 
     def local_file_copy(self, srcfile, destfile, follow_symlinks=False):
         logger.debug(f"Copying file {srcfile} to {destfile}")
