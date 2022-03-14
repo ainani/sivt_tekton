@@ -33,7 +33,7 @@ from util.shared_config import deployExtentions
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 
 
-class SharedClusterWorkflow:
+class RaSharedClusterWorkflow:
     def __init__(self, run_config: RunConfig):
         self.run_config = run_config
         self.extensions_root = TKG_EXTENSIONS_ROOT[self.run_config.desired_state.version.tkg]
@@ -487,20 +487,23 @@ class SharedClusterWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        deploy_extention = deployExtentions(jsonspec=self.jsonspec)
-        if deploy_extention[1] != 200:
-            logger.error(str(deploy_extention[0].json['msg']))
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to deploy extention " + str(deploy_extention[0].json['msg']),
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
+        if str(self.jsonspec["tanzuExtensions"]["enableExtensions"]).lower() == "true":
+            deploy_extention = deployExtentions(self.jsonspec, self.run_config)
+            if deploy_extention[1] != 200:
+                logger.error(str(deploy_extention[0].json['msg']))
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to deploy extention " + str(deploy_extention[0].json['msg']),
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+            else:
+                logger.info("Completed extension installation...")
+        logger.info("Shared cluster configured Successfully")
         d = {
             "responseType": "SUCCESS",
             "msg": "Shared cluster configured Successfully",
             "ERROR_CODE": 200
         }
-        logger.info("Shared cluster configured Successfully")
         return json.dumps(d), 200
 

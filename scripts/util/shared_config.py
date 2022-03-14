@@ -1,4 +1,4 @@
-from constants.constants import ControllerLocation, Repo, AppName, RegexPattern
+from constants.constants import ControllerLocation, Repo, AppName, RegexPattern, Constants, Paths
 from pathlib import Path
 import base64
 from util.common_utils import installCertManagerAndContour, getVersionOfPackage, waitForGrepProcessWithoutChangeDir
@@ -9,6 +9,10 @@ from util.ShellHelper import grabPipeOutput, verifyPodsAreRunning, \
     runShellCommandAndReturnOutputAsList, runShellCommandAndReturnOutput
 import time
 import os
+from workflows.cluster_common_workflow import ClusterCommonWorkflow
+from util.cmd_runner import RunCmd
+from util.file_helper import FileHelper
+from util.cmd_helper import CmdHelper
 
 logger = LoggerHelper.get_logger('common_utils')
 logging.getLogger("paramiko").setLevel(logging.WARNING)
@@ -55,152 +59,61 @@ def certChanging(harborCertPath, harborCertKeyPath, harborPassword, host):
     }
     return json.dumps(d), 200
 
+def _update_harbor_data_values(remote_file, jsonspec, runconfig):
+    rcmd = RunCmd()
+    local_file = Paths.LOCAL_HARBOR_DATA_VALUES.format(root_dir=runconfig.root_dir)
+    logger.info(f"Fetching and saving data values yml to {local_file}")
+    rcmd.local_file_copy(remote_file, local_file)
+    harbor_host = jsonspec['harborSpec']['harborFqdn']
+    harbor_pass_enc = jsonspec['harborSpec']['harborPasswordBase64']
+    sp_pass = CmdHelper.decode_base64(harbor_pass_enc)
+    harbor_pass = ''.join(sp_pass)
 
-def installHarbor14(service, repo_address, harborCertPath, harborCertKeyPath, harborPassword, host):
-    main_command = ["tanzu", "package", "installed", "list", "-A"]
-    sub_command = ["grep", AppName.HARBOR]
-    out = grabPipeOutput(main_command, sub_command)
-    if not verifyPodsAreRunning(AppName.HARBOR, out[0], RegexPattern.RECONCILE_SUCCEEDED):
-        timer = 0
-        logger.info("Validating contour and certmanger is running")
-        command = ["tanzu", "package", "installed", "list", "-A"]
-        status = runShellCommandAndReturnOutputAsList(command)
-        verify_contour = False
-        verify_cert_manager = False
-        while timer < 600:
-            if verify_contour or verifyPodsAreRunning(AppName.CONTOUR, status[0], RegexPattern.RECONCILE_SUCCEEDED):
-                logger.info("Contour is running")
-                verify_contour = True
-            if verify_cert_manager or verifyPodsAreRunning(AppName.CERT_MANAGER, status[0], RegexPattern.RECONCILE_SUCCEEDED):
-                verify_cert_manager = True
-                logger.info("Cert Manager is running")
+    logger.info(f"Updating admin password in local copy of harbor-data-values.yaml")
+    # Replacing string with pattern matching instead of loading yaml because comments
+    # in yaml file will be lost during boxing/unboxing of yaml data
+    replacement_list = [(Constants.HARBOR_ADMIN_PASSWORD_TOKEN,
+                         Constants.HARBOR_ADMIN_PASSWORD_SUB.format(password=harbor_pass)),
+                        (Constants.HARBOR_HOSTNAME_TOKEN,
+                         Constants.HARBOR_HOSTNAME_SUB.format(hostname=harbor_host))]
+    logger.debug(f"Replacement spec: {replacement_list}")
+    FileHelper.replace_pattern(src=local_file, target=local_file, pattern_replacement_list=replacement_list)
+    logger.info(f"Updating harbor-data-values.yaml on bootstrap VM")
+    rcmd.local_file_copy(local_file, remote_file)
 
-            if verify_contour and verify_cert_manager:
-                break
-            else:
-                timer = timer + 30
-                time.sleep(30)
-                status = runShellCommandAndReturnOutputAsList(command)
-                logger.info("Waited for " + str(timer) + "s, retrying for contour and cert manager to be running")
-        if not verify_contour:
-            logger.error("Contour is not running")
-            d = {
-                "responseType": "ERROR",
-                "msg": "Contour is not running ",
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        if not verify_cert_manager:
-            logger.error("Cert manager is not running")
-            d = {
-                "responseType": "ERROR",
-                "msg": "Cert manager is not running ",
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        state = getVersionOfPackage("harbor.tanzu.vmware.com")
-        if state is None:
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to get Version of package contour.tanzu.vmware.com",
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        logger.info("Deploying harbor")
-        logger.info("Harbor version " + state)
-        get_url_command = ["kubectl", "-n", "tanzu-package-repo-global", "get", "packages",
-                           "harbor.tanzu.vmware.com." + state, "-o",
-                           "jsonpath='{.spec.template.spec.fetch[0].imgpkgBundle.image}'"]
-        logger.info("Getting harbor url")
-        status = runShellCommandAndReturnOutputAsList(get_url_command)
-        if status[1] != 0:
-            logger.error("Failed to get harbor image url " + str(status[0]))
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to get harbor image url " + str(status[0]),
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        logger.info("Got harbor url " + str(status[0][0]).replace("'", ""))
-        pull = ["imgpkg", "pull", "-b", str(status[0][0]).replace("'", ""), "-o", "/tmp/harbor-package"]
-        status = runShellCommandAndReturnOutputAsList(pull)
-        if status[1] != 0:
-            logger.error("Failed to pull harbor packages " + str(status[0]))
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to get harbor image url " + str(status[0]),
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        os.system("rm -rf ./harbor-data-values.yaml")
-        os.system("cp /tmp/harbor-package/config/values.yaml ./harbor-data-values.yaml")
-        command_harbor_genrate_psswd = ["sh", "/tmp/harbor-package/config/scripts/generate-passwords.sh",
-                                        "harbor-data-values.yaml"]
-        state_harbor_genrate_psswd = runShellCommandAndReturnOutputAsList(command_harbor_genrate_psswd)
-        if state_harbor_genrate_psswd[1] == 500:
-            logger.error("Failed to generate password " + str(state_harbor_genrate_psswd[0]))
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to generate password " + str(state_harbor_genrate_psswd[0]),
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        cer = certChanging(harborCertPath, harborCertKeyPath, harborPassword, host)
-        if cer[1] != 200:
-            logger.error(cer[0].json['msg'])
-            d = {
-                "responseType": "ERROR",
-                "msg": cer[0].json['msg'],
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        os.system("chmod +x common/injectValue.sh")
-        command = ["sh", "./common/injectValue.sh", "harbor-data-values.yaml", "remove"]
-        runShellCommandAndReturnOutputAsList(command)
-        command = ["tanzu", "package", "install", "harbor", "--package-name", "harbor.tanzu.vmware.com", "--version",
-                   state, "--values-file", "./harbor-data-values.yaml", "--namespace", "package-tanzu-system-registry",
-                   "--create-namespace"]
-        runShellCommandAndReturnOutputAsList(command)
-        os.system("chmod +x ./common/create_secrets.sh")
-        apply = ["sh", "./common/create_secrets.sh"]
-        apply_state = runShellCommandAndReturnOutput(apply)
-        if apply_state[1] != 0:
-            logger.error("Failed to create secrets " + str(apply_state[0]))
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to create secrets " + str(apply_state[0]),
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        logger.info(apply_state[0])
-
-        state = waitForGrepProcessWithoutChangeDir(main_command, sub_command, AppName.HARBOR,
-                                                   RegexPattern.RECONCILE_SUCCEEDED)
-        if state[1] != 200:
-            logger.error(state[0].json['msg'])
-            d = {
-                "responseType": "ERROR",
-                "msg": state[0].json['msg'],
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        logger.info("Deployed harbor successfully")
+def _install_harbor_package(jsonspec, cluster_name, runconfig):
+    common_workflow = ClusterCommonWorkflow()
+    version = common_workflow.get_available_package_version(cluster_name=cluster_name,
+                                                            package=Constants.HARBOR_PACKAGE,
+                                                            name=Constants.HARBOR_DISPLAY_NAME)
+    logger.info("Generating Harbor configuration template")
+    common_workflow.generate_spec_template(name=Constants.HARBOR_APP, package=Constants.HARBOR_PACKAGE,
+                                                        version=version, template_path=Paths.REMOTE_HARBOR_DATA_VALUES,
+                                                        on_docker=False)
+    logger.info("Updating data values based on inputs")
+    _update_harbor_data_values(Paths.REMOTE_HARBOR_DATA_VALUES, jsonspec, runconfig)
+    logger.info("Removing comments from harbor-data-values.yaml")
+    rcmd = RunCmd()
+    rcmd.run_cmd_only(f"yq -i eval '... comments=\"\"' {Paths.REMOTE_HARBOR_DATA_VALUES}")
+    common_workflow.install_package(cluster_name=cluster_name, package=Constants.HARBOR_PACKAGE,
+                                    namespace="Tekton",
+                                    name=Constants.HARBOR_APP, version=version,
+                                    values=Paths.REMOTE_HARBOR_DATA_VALUES)
+    podRunninng = ["tanzu", "cluster", "list"]
+    command_status = rcmd.runShellCommandAndReturnOutputAsList(podRunninng)
+    if command_status[1] != 0:
+        logger.error(
+            "Failed to check pods are running " + str(command_status[0]))
         d = {
-            "responseType": "SUCCESS",
-            "msg": "Deployed harbor successfully",
-            "ERROR_CODE": 200
+            "responseType": "ERROR",
+            "msg": "Failed to check pods are running " + str(command_status[0]),
+            "ERROR_CODE": 500
         }
-        return json.dumps(d), 200
-    else:
-        logger.info("Harbor is already deployed and running")
-        d = {
-            "responseType": "SUCCESS",
-            "msg": "Harbor is already deployed and running",
-            "ERROR_CODE": 200
-        }
-        return json.dumps(d), 200
+        return json.dumps(d), 500
+    logger.info('Harbor installation complete')
+    return "SUCCESS", 200
 
-def deployExtentions(jsonspec):
+def deployExtentions(jsonspec, runconfig):
 
     aviVersion = ControllerLocation.VSPHERE_AVI_VERSION
     shared_cluster_name = jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceClusterName']
@@ -221,6 +134,7 @@ def deployExtentions(jsonspec):
     if not repo_address.endswith("/"):
         repo_address = repo_address + "/"
     repo_address = repo_address.replace("https://", "").replace("http://", "")
+    logger.info('Setting up Cert and Contour...')
     cert_ext_status = installCertManagerAndContour(jsonspec, shared_cluster_name, repo_address)
     if cert_ext_status[1] != 200:
         logger.error(cert_ext_status[0].json['msg'])
@@ -231,16 +145,15 @@ def deployExtentions(jsonspec):
         }
         return json.dumps(d), 500
 
-    if not isHarborEnabled:
-        service = "disable"
-    if service == "registry" or service == "all":
-        logger.info("Validate harbor is running")
-        state = installHarbor14(service, repo_address, harborCertPath, harborCertKeyPath, harborPassword, host)
-        if state[1] != 200:
-            logger.error(state[0].json['msg'])
+    service = "all"
+    if isHarborEnabled:
+        logger.info('Setting up Harbor...')
+        harbor_status = _install_harbor_package(jsonspec, shared_cluster_name, runconfig)
+        if harbor_status[1] != 200:
+            logger.error("Error setting up Harbor registry...")
             d = {
                 "responseType": "ERROR",
-                "msg": state[0].json['msg'],
+                "msg": cert_ext_status[0].json['msg'],
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500

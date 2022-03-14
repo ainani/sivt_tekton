@@ -23,7 +23,7 @@ from workflows.ra_alb_workflow import RALBWorkflow
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 from workflows.ra_mgmt_cluster_workflow import RaMgmtClusterWorkflow
 from workflows.repave_workflow import RepaveWorkflow
-from workflows.shared_cluster_workflow import SharedClusterWorkflow
+from workflows.ra_shared_cluster_workflow import RaSharedClusterWorkflow
 from workflows.workload_cluster_workflow import WorkloadClusterWorkflow
 
 logger = LoggerHelper.get_logger(name="__main__")
@@ -112,67 +112,7 @@ def shared_services(ctx):
 @click.pass_context
 def ss_cluster_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    SharedClusterWorkflow(run_config).execute_workflow(Task.DEPLOY_CLUSTER)
-
-
-@shared_services.command(name="deploy-cert-mgr")
-@click.pass_context
-def ss_deploy_cert_mgr(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    SharedClusterWorkflow(run_config).execute_workflow(Task.DEPLOY_CERT_MANAGER)
-
-
-@shared_services.command(name="deploy-contour")
-@click.pass_context
-def ss_deploy_contour(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    SharedClusterWorkflow(run_config).execute_workflow(Task.DEPLOY_CONTOUR)
-
-
-@shared_services.command(name="deploy-external-dns")
-@click.pass_context
-def ss_deploy_external_dns(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    SharedClusterWorkflow(run_config).execute_workflow(Task.DEPLOY_EXTERNAL_DNS)
-
-
-@shared_services.command(name="deploy-harbor")
-@click.pass_context
-def ss_deploy_harbor(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    SharedClusterWorkflow(run_config).execute_workflow(Task.DEPLOY_HARBOR)
-
-@shared_services.command(name="attach-cluster-to-tmc")
-@click.pass_context
-def ss_attach_cluster_to_tmc(ctx):
-    SharedClusterWorkflow(ctx.obj["ROOT_DIR"]).execute_workflow(Task.ATTACH_CLUSTER_TO_TMC)
-
-@shared_services.command(name="upgrade-cluster")
-@click.pass_context
-def ss_cluster_upgrade(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    SharedClusterWorkflow(run_config).upgrade_workflow(Task.UPGRADE_CLUSTER)
-
-
-@shared_services.command(name="upgrade-contour")
-@click.pass_context
-def ss_upgrade_contour(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    SharedClusterWorkflow(run_config).upgrade_workflow(Task.UPGRADE_CONTOUR)
-
-
-@shared_services.command(name="upgrade-external-dns")
-@click.pass_context
-def ss_upgrade_external_dns(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    SharedClusterWorkflow(run_config).upgrade_workflow(Task.UPGRADE_EXTERNAL_DNS)
-
-
-@shared_services.command(name="upgrade-harbor")
-@click.pass_context
-def ss_upgrade_harbor(ctx):
-    run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    SharedClusterWorkflow(run_config).upgrade_workflow(Task.UPGRADE_HARBOR)
+    RaSharedClusterWorkflow(run_config).deploy()
 
 
 @shared_services.command(name="repave")
