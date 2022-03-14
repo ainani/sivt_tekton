@@ -14,4 +14,21 @@ spec:
       workspaces:
         - name: task-shared-data
           workspace: pipeline-shared-data
+    - name: start-shared-upgrade
+        taskRef:
+          name: dind-shared-upgrade
+        workspaces:
+          - name: task-shared-data
+            workspace: pipeline-shared-data
+        runAfter:
+          - start-mgmt-upgrade
+    - name: dind-workload-upgrade
+        taskRef:
+          name: dind-workload-upgrade
+        workspaces:
+          - name: task-shared-data
+            workspace: pipeline-shared-data
+        runAfter:
+          -  start-shared-upgrade
+
 

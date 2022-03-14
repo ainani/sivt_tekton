@@ -30,7 +30,7 @@ class RunCmd:
         except FileNotFoundError:
             logger.error(f"Error: {traceback.format_exc()}\n Error executing: {cmd}")
 
-    def run_cmd_output(self, cmd: str) -> tuple:
+    def run_cmd_output(self, cmd: str):
 
         logger.debug(f"Running cmd: {cmd.strip()}")
         try:
@@ -38,7 +38,7 @@ class RunCmd:
             return cmd_out
         except Exception:
             logger.error(f"Error: {traceback.format_exc()}")
-            return (None)
+            return None
 
     def local_file_copy(self, srcfile, destfile, follow_symlinks=False):
         logger.debug(f"Copying file {srcfile} to {destfile}")

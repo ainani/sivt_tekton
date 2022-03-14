@@ -15,16 +15,12 @@ class TkgCliClient:
 
     @log("Getting list of Tanzu clusters")
     def get_clusters(self):
-        # output = subprocess.run([TKGCommands.LIST_CLUSTERS_JSON], capture_output=True, text=True).stdout
-        # exit_code, output = self.ssh.run_cmd_output(TKGCommands.LIST_CLUSTERS_JSON)
         output = self.runcmd.run_cmd_output(TKGCommands.LIST_CLUSTERS_JSON)
         return json.loads(output)
 
     @log("Getting list of Tanzu clusters(including management cluster)")
     def get_all_clusters(self):
-        # output = subprocess.run([TKGCommands.LIST_ALL_CLUSTERS_JSON], capture_output=True, text=True).stdout
         output = self.runcmd.run_cmd_output(TKGCommands.LIST_ALL_CLUSTERS_JSON)
-        # exit_code, output = self.ssh.run_cmd_output(TKGCommands.LIST_ALL_CLUSTERS_JSON)
         return json.loads(output)
 
     @log_debug
