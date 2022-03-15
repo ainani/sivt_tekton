@@ -440,7 +440,17 @@ def disable_welcome_screen(ip, second_csrf, avi_version):
         "x-avi-version": avi_version,
         "x-csrftoken": second_csrf[0]
     }
-    body = AlbPayload.WELCOME_SCREEN_UPDATE.format(tenant_vrf=json.dumps(env == env))
+    body = {
+            "replace": {
+                "welcome_workflow_complete": "true",
+                "global_tenant_config": {
+                    "tenant_vrf": False,
+                    "se_in_provider_context": False,
+                    "tenant_access_to_provider_se": True,
+                },
+            }
+        }
+    # body = AlbPayload.WELCOME_SCREEN_UPDATE.format(tenant_vrf=json.dumps(env == env))
     response_csrf = requests.request("PATCH", url, headers=headers, data=body, verify=False)
     if response_csrf.status_code != 200:
         return None
