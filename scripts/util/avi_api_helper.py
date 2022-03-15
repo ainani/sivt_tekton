@@ -451,7 +451,7 @@ def disable_welcome_screen(ip, second_csrf, avi_version):
             }
         }
     # body = AlbPayload.WELCOME_SCREEN_UPDATE.format(tenant_vrf=json.dumps(env == env))
-    response_csrf = requests.request("PATCH", url, headers=headers, data=body, verify=False)
+    response_csrf = requests.request("PATCH", url, headers=headers, data=json.dumps(body), verify=False)
     if response_csrf.status_code != 200:
         return None
     else:

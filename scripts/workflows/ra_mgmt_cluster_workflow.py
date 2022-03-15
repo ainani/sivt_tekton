@@ -87,11 +87,6 @@ class RaMgmtClusterWorkflow:
         _base64_bytes = str_enc.encode('ascii')
         _enc_bytes = base64.b64encode(_base64_bytes)
         vcenter_passwd = _enc_bytes.decode('ascii')
-        logger.info('VC PASS...: {}'.format(vcenter_passwd))
-        # _base64_bytes = str_enc.encode('ascii')
-        # _enc_bytes = base64.b64encode(_base64_bytes)
-        # vcenter_passwd = _enc_bytes.decode('ascii')
-        # vcenter_passwd = password
         management_cluster = vsSpec.tkgComponentSpec.tkgMgmtComponents.tkgMgmtClusterName
         parent_resourcePool = vsSpec.envSpec.vcenterDetails.resourcePoolName
         if parent_resourcePool:
