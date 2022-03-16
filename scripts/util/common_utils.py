@@ -196,10 +196,10 @@ def downloadAndPushKubernetesOvaMarketPlace(jsonspec, version, baseOS, upgrade=F
                 return None, "Invalid ova type " + baseOS
         else:
             if baseOS == "photon":
-                file = UpgradeVersions.PHOTON_KUBERNETES_FILE_NAME + "-" + version
+                file = UpgradeVersions.PHOTON_KUBERNETES_FILE_NAME
                 template = UpgradeVersions.PHOTON_KUBERNETES_TEMPLATE_FILE_NAME
             elif baseOS == "ubuntu":
-                file = UpgradeVersions.UBUNTU_KUBERNETES_FILE_NAME + "-" + version
+                file = UpgradeVersions.UBUNTU_KUBERNETES_FILE_NAME
                 template = UpgradeVersions.UBUNTU_KUBERNETES__TEMPLATE_FILE_NAME
             else:
                 return None, "Invalid ova type " + baseOS

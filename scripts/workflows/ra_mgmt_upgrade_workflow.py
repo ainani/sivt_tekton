@@ -43,8 +43,9 @@ class RaMgmtUpgradeWorkflow:
                     "msg": down_status[1],
                     "ERROR_CODE": 500
                 }
-                logger.error("Unable to locate required template...")
-                raise Exception(d["msg"])
+                logger.error("Error: {}".format(json.dumps(d)))
+                msg = "Failed to download template..."
+                raise Exception(msg)
             else:
 
                 # execute upgrade
