@@ -3,9 +3,9 @@ from util.cmd_helper import CmdHelper as CLI
 
 class Git:
     @staticmethod
-    def add_all_and_commit(dir, msg):
+    def add_all_and_commit(ndir, msg):
         commit_command = f"""
-        pushd {dir}
+        pushd {ndir}
         if [ "$(git rev-parse --is-inside-work-tree 2>/dev/null)" != "true" ]; then
             echo "GIT NOT INITIALIZED"
             git init

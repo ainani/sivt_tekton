@@ -35,10 +35,8 @@ class Paths(str, Enum):
     KUBE_OVA_CONFIG = f"{TEMPLATES_ROOT_DIR}/kubeova.json"
     TKG_CLUSTER_14_SPEC_J2 = f"{TEMPLATES_ROOT_DIR}/deploy_cluster_1.4.yaml.j2"
 
-
     # tmp local
     TMP_DIR = ".tmp"
-
     GOVC_AVI_DEPLOY_CONFIG = f"{TMP_DIR}/deploy_avi_govc_config.json"
     GOVC_OVA_DEPLOY_CONFIG = f"{TMP_DIR}/deploy_ova_govc_config.json"
     GOVC_AVI_SE_DEPLOY_CONFIG = f"{TMP_DIR}/deploy_avi_se_govc_config.json"
@@ -53,14 +51,14 @@ class Paths(str, Enum):
     LOCAL_TMC_BINARY_PATH = "{root_dir}/tmc-cli/tmc"
     REMOTE_TMC_BINARY_PATH = "{root_dir}/tmc"
 
-    ## kubeconfig
+    # kubeconfig
     KUBECONFIG_REPO = "kubeconfig-repo"
     REPO_KUBE_CONFIG = f"{KUBECONFIG_REPO}/.kube/config"
     REPO_KUBE_TKG_CONFIG = f"{KUBECONFIG_REPO}/.kube-tkg/config"
     REPO_TANZU_CONFIG = f"{KUBECONFIG_REPO}/.tanzu/config.yaml"
     REPO_TANZU_CONFIG_NEW = f"{KUBECONFIG_REPO}/.config/tanzu/config.yaml"
 
-    ## pipeline resources
+    # pipeline resources
     ALB_OVA_PATH = "alb-controller-ova/controller-20.1.6-9132.ova"  # ova_path # todo fix ova path
     ALB_SE_OVA_PATH = "alb-se-ova/se.ova"
 
@@ -73,7 +71,7 @@ class Paths(str, Enum):
     TKG_SHARED_SERVICES_CONFIG_PATH = f"{CONFIG_ROOT_DIR}/shared_services_cluster_config.yml"  # shared services cluster
     TKG_WORKLOAD_CLUSTER_CONFIG_PATH = f"{CONFIG_ROOT_DIR}/workload_cluster_config.yml"
 
-    ## kube_config paths
+    # kube_config paths
     REMOTE_KUBE_CONFIG = "/root/.kube/config"
     REMOTE_KUBE_TKG_CONFIG = "/root/.kube-tkg/config"
     REMOTE_TANZU_CONFIG = "/root/.tanzu/config.yaml"

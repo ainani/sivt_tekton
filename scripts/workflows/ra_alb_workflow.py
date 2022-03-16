@@ -215,7 +215,7 @@ class RALBWorkflow:
             if not dep3:
                 logger.error("Failed to deploy and configure avi 2nd controller")
                 return None
-            res, status = form_avi_ha_cluster(ip, self.jsonspec, None, avi_version)
+            res, status = form_avi_ha_cluster(ip, self.jsonspec, avi_version)
             if res is None:
                 logger.error("Failed to form avi ha cluster ")
                 return None

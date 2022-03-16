@@ -48,6 +48,7 @@ def createSubscribedLibrary(vcenter_ip, vcenter_username, password, jsonspec):
                 return None, "Failed to create content library"
             logger.info("Content library created successfully")
     except Exception as e:
+        logger.info("Error: {}".format(e))
         return None, "Failed"
     return "SUCCESS", "LIBRARY"
 
@@ -56,6 +57,7 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS):
     rcmd = cmd_runner.RunCmd()
     filename = filename + ".ova"
     solutionName = KubernetesOva.MARKETPLACE_KUBERNETES_SOLUTION_NAME
+    logger.debug(("Solution Name: {}".format(solutionName)))
     if baseOS == "photon":
         ova_groupname = KubernetesOva.MARKETPLACE_PHOTON_GROUPNAME
     else:
@@ -83,11 +85,7 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS):
     }
 
     objectid = None
-    #if str(MarketPlaceUrl.API_URL).__contains__("stg"):
-        #slug = "false"
-    #else:
     slug = "true"
-
     _solutionName = getProductSlugId(MarketPlaceUrl.TANZU_PRODUCT, headers)
     if _solutionName[0] is None:
         return None, "Failed to find product on Marketplace " + str(_solutionName[1])
@@ -659,7 +657,7 @@ def template14deployYaml(cluster_name, clusterPlan, datacenter, dataStorePath,
     datacenter = "/" + datacenter
     control_plane_vcpu = ""
     control_plane_disk_gb = ""
-    control_plane_mem_gb = ""
+    # control_plane_mem_gb = ""
     control_plane_mem_mb = ""
     osName = ""
     try:
@@ -675,6 +673,7 @@ def template14deployYaml(cluster_name, clusterPlan, datacenter, dataStorePath,
             try:
                 osName = str(jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceBaseOs'])
                 kubeVersion = str(jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceKubeVersion'])
+                logger.debug("Targetted Kube Version: {}".format(kubeVersion))
             except Exception as e:
                 raise Exception("Keyword " + str(e) + "  not found in input file")
         elif typen == ClusterType.WORKLOAD:
@@ -787,19 +786,19 @@ def checkClusterStateOnTmc(cluster, ifManagement):
             except:
                 status = str(l["status"]["conditions"]["READY"]["status"])
             try:
-                type = str(l["status"]["conditions"]["Agent-READY"]["type"])
+                typen = str(l["status"]["conditions"]["Agent-READY"]["type"])
             except:
-                type = str(l["status"]["conditions"]["READY"]["type"])
+                typen = str(l["status"]["conditions"]["READY"]["type"])
             health = str(l["status"]["health"])
             if status == "TRUE":
                 logger.info("Management cluster status " + status)
             else:
                 logger.error("Management cluster status " + status)
                 return "Failed", 500
-            if type == "READY":
-                logger.info("Management cluster type " + type)
+            if typen == "READY":
+                logger.info("Management cluster type " + typen)
             else:
-                logger.error("Management cluster type " + type)
+                logger.error("Management cluster type " + typen)
                 return "Failed", 500
             if health == "HEALTHY":
                 logger.info("Management cluster health " + health)
@@ -815,10 +814,10 @@ def checkClusterStateOnTmc(cluster, ifManagement):
 def checkTmcRegister(cluster, ifManagement):
     try:
         if ifManagement:
-            list = ["tmc", "managementcluster", "list"]
+            nlist = ["tmc", "managementcluster", "list"]
         else:
-            list = ["tmc", "cluster", "list"]
-        o = runShellCommandAndReturnOutput(list)
+            nlist = ["tmc", "cluster", "list"]
+        o = runShellCommandAndReturnOutput(nlist)
         if o[0].__contains__(cluster):
             logger.info("here ")
             state = checkClusterStateOnTmc(cluster, ifManagement)

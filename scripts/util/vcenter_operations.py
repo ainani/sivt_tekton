@@ -407,16 +407,16 @@ def get_largest_free_ds(datacenter):
     return largest
 
 
-def get_tarfile_size(tarfile):
+def get_tarfile_size(ctarfile):
     """
     Determine the size of a file inside the tarball.
     If the object has a size attribute, use that. Otherwise seek to the end
     and report that.
     """
-    if hasattr(tarfile, 'size'):
-        return tarfile.size
-    size = tarfile.seek(0, 2)
-    tarfile.seek(0, 0)
+    if hasattr(ctarfile, 'size'):
+        return ctarfile.size
+    size = ctarfile.seek(0, 2)
+    ctarfile.seek(0, 0)
     return size
 
 

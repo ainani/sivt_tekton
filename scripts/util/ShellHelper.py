@@ -72,10 +72,10 @@ def runShellCommandAndReturnOutputAsList(fin):
     return output.decode("utf-8").rstrip("\n\r").replace("\x1b[0m", "").replace("\x1b[1m", "").split("\n"), returnCode
 
 
-def runShellCommandAndReturnOutputAsListWithChangedDir(fin, dir):
+def runShellCommandAndReturnOutputAsListWithChangedDir(fin, ndir):
     try:
         proc = subprocess.Popen(
-            fin, cwd=dir,
+            fin, cwd=ndir,
             stderr=subprocess.STDOUT,
             stdout=subprocess.PIPE
         )
@@ -90,10 +90,10 @@ def runShellCommandAndReturnOutputAsListWithChangedDir(fin, dir):
     return output.decode("utf-8").rstrip("\n\r").replace("\x1b[0m", "").replace("\x1b[1m", "").split("\n"), returnCode
 
 
-def grabPipeOutputChagedDir(listMainCommand, listOfPipeCommand, dir):
+def grabPipeOutputChagedDir(listMainCommand, listOfPipeCommand, ndir):
     try:
-        ps = subprocess.Popen(listMainCommand, cwd=dir, stdout=subprocess.PIPE)
-        output = subprocess.check_output(listOfPipeCommand, cwd=dir, stdin=ps.stdout)
+        ps = subprocess.Popen(listMainCommand, cwd=ndir, stdout=subprocess.PIPE)
+        output = subprocess.check_output(listOfPipeCommand, cwd=ndir, stdin=ps.stdout)
         ps.wait()
         if output.decode("utf-8").lower().__contains__("error"):
             returnCode = 1

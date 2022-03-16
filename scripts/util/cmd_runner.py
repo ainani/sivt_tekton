@@ -45,7 +45,7 @@ class RunCmd:
         try:
             shutil.copyfile(srcfile, destfile, follow_symlinks=follow_symlinks)
         except FileNotFoundError:
-            logger.error (f"Error: {traceback.format_exc ()}")
+            logger.error(f"Error: {traceback.format_exc ()}")
 
     def runShellCommandAndReturnOutputAsList(self, fin):
         try:

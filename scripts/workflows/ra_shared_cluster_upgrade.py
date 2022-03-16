@@ -23,7 +23,7 @@ class RaSharedUpgradeWorkflow:
             mgmt_cluster = self.jsonspec['tkgMgmtComponents']['tkgMgmtClusterName']
             cluster = self.jsonspec['tkgMgmtComponents']['tkgSharedserviceClusterName']
             self.tanzu_client.login(cluster_name=mgmt_cluster)
-            if self.tanzu_client.management_cluster_upgrade(cluster_name=cluster) is None:
+            if self.tanzu_client.tanzu_cluster_upgrade(cluster_name=cluster) is None:
                 logger.error("Failed to upgrade shared cluster")
 
             if not self.tanzu_client.retriable_check_cluster_exists(cluster_name=cluster):

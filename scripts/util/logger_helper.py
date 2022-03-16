@@ -80,13 +80,13 @@ class LoggerHelper:
         fh.setFormatter(log_formatter)
         logger.addHandler(fh)
 
-        ## Add shell logger
+        # Add shell logger
         if output_shell:
             ch = logging.StreamHandler()
             ch.setFormatter(log_formatter)
             logger.addHandler(ch)
 
-        ## coloured logs
+        # coloured logs
         if colored_logger:
             for level, color in zip(("info", "warn", "error", "debug"), (GREEN, ORANGE, RED, LBLUE)):
                 setattr(logger, level, add_color(getattr(logger, level), color))

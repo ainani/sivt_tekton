@@ -109,10 +109,6 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
         logger.info("Avi ova is already downloaded")
     else:
         logger.info("Downloading avi controller from MarketPlace")
-        solutionName = ControllerLocation.MARKETPLACE_AVI_SOLUTION_NAME
-        # if str(MarketPlaceUrl.API_URL).__contains__("stg"):
-        #    slug = "false"
-        # else:
         slug = "true"
         _solutionName = getProductSlugId(MarketPlaceUrl.AVI_PRODUCT, headers)
         logger.info('Solution name from marketplace: {}'.format(_solutionName))
@@ -212,6 +208,7 @@ def downloadAviControllerAndPushToContentLibrary(vcenter_ip, vcenter_username, p
         else:
             logger.info(VC_Content_Library_name + " is not present in the content library")
             res = pushAviToContenLibraryMarketPlace(jsonspec)
+            logger.info("State of AVI Content library: {}".format(res))
         find_command = ["govc", "library.ls", "/" + VC_Content_Library_name + "/"]
         output = rcmd.runShellCommandAndReturnOutputAsList(find_command)
         if output[1] != 0:
@@ -254,6 +251,7 @@ def ra_avi_download(jsonspec):
         logger.info('Check if library is already present')
         VC_Content_Library_name = jsonspec['envSpec']['vcenterDetails']["contentLibraryName"]
         VC_AVI_OVA_NAME = jsonspec['envSpec']['vcenterDetails']["aviOvaName"]
+        logger.debug("VC OVA targetted: {}".format(VC_AVI_OVA_NAME))
         find_command = ["govc", "library.ls", "/" + VC_Content_Library_name + "/"]
         output = rcmd.runShellCommandAndReturnOutputAsList(find_command)
         if str(output[0]).__contains__(VC_Content_Library_name):
@@ -326,8 +324,6 @@ def obtain_first_csrf(ip):
     for key, value in cookiesString.items():
         cookies_string += key + "=" + value + "; "
     return cookiesString['csrftoken'], cookies_string
-
-
 
 def obtain_second_csrf(ip, avienc_pass):
     url = "https://" + str(ip) + "/login"
@@ -431,7 +427,6 @@ def get_system_configuration_and_set_values(ip, second_csrf, avi_version, jsonsp
 
 def disable_welcome_screen(ip, second_csrf, avi_version):
     url = AlbEndpoint.CRUD_SYSTEM_CONFIG.format(ip=ip)
-    env = "vsphere"
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
@@ -450,7 +445,6 @@ def disable_welcome_screen(ip, second_csrf, avi_version):
                 },
             }
         }
-    # body = AlbPayload.WELCOME_SCREEN_UPDATE.format(tenant_vrf=json.dumps(env == env))
     response_csrf = requests.request("PATCH", url, headers=headers, data=json.dumps(body), verify=False)
     if response_csrf.status_code != 200:
         return None
@@ -537,7 +531,7 @@ def get_avi_cluster_info(ip, csrf2, aviVersion):
     except Exception as e:
         return None, str(e)
 
-def form_avi_ha_cluster(ip, jsonspec, govc_client, aviVersion):
+def form_avi_ha_cluster(ip, jsonspec, aviVersion):
     avienc_pass = jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64']
     csrf2 = obtain_second_csrf(ip, avienc_pass)
     if csrf2 is None:
@@ -554,6 +548,7 @@ def form_avi_ha_cluster(ip, jsonspec, govc_client, aviVersion):
 
     try:
         data_center = jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
+        logger.debug("Targetted Datacenter: {}".format(data_center))
         info, status = get_avi_cluster_info(ip, csrf2, aviVersion)
         if info is None:
             logger.error("Failed to get status of cluster: {}".format(str(status)))
@@ -626,8 +621,9 @@ def form_avi_ha_cluster(ip, jsonspec, govc_client, aviVersion):
                         node_statuses[2]["state"]))
                     logger.info(
                         "***********************************************************************************")
-                    if node_statuses[0]["state"] == "CLUSTER_ACTIVE" and node_statuses[1][
-                        "state"] == "CLUSTER_ACTIVE" and node_statuses[2]["state"] == "CLUSTER_ACTIVE":
+                    if node_statuses[0]["state"] == "CLUSTER_ACTIVE" and \
+                            node_statuses[1]["state"] == "CLUSTER_ACTIVE"\
+                            and node_statuses[2]["state"] == "CLUSTER_ACTIVE":
                         all_up = True
                         break
             except:
@@ -878,6 +874,7 @@ def manage_avi_certificates(ip, avi_version, jsonspec, avi_fqdn, cert_name):
         run_cert_cmd = ".{conv_script} {avi_cert} {cert_fn}".format(conv_script=converter_file_path,
                                                                     avi_cert=avi_cert,
                                                                     cert_fn=cert_file_name)
+        logger.debug("State of cert converter: {}".format(run_cert_cmd))
         cer = Path(cert_file_name).read_text().strip("\n")
         avi_controller_cert = cer
         key_cmd = ".{conv_script} {avi_key} {key_nm}".format(conv_script=converter_file_path,
@@ -1025,6 +1022,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
                 "msg": "Failed to get First csrf",
                 "ERROR_CODE": 500
             }
+            logger.debug("Fetched resp detail for csrf: {}".format(json.dumps(d['msg'])))
             return None
         if csrf == "SUCCESS":
             logger.info("Password of appliance already changed")
@@ -1037,6 +1035,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
                     "msg": "Failed to set the avi admin password",
                     "ERROR_CODE": 500
                 }
+                logger.debug("Error: {}".format(json.dumps(d['msg'])))
                 return None
         avienc_pass = jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64']
         csrf2 = obtain_second_csrf(ip, avienc_pass)
@@ -1047,6 +1046,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
                 "msg": "Failed to get csrf from new set password",
                 "ERROR_CODE": 500
             }
+            logger.debug("Error: {}".format(json.dumps(d['msg'])))
             return None
         else:
             logger.info("Obtained csrf with new credential successfully")
@@ -1057,6 +1057,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
                 "msg": "Failed to set the system configuration",
                 "ERROR_CODE": 500
             }
+            logger.debug("Error: {}".format(json.dumps(d['msg'])))
             return None
         else:
             logger.info("Got system configuration successfully")
@@ -1067,6 +1068,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
                 "msg": "Set Dns Ntp smtp failed.",
                 "ERROR_CODE": 500
             }
+            logger.debug("Error: {}".format(json.dumps(d['msg'])))
             return None
         else:
             logger.info("Set DNs Ntp Smtp successfully")
@@ -1077,6 +1079,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
                 "msg": "Failed to disable welcome screen",
                 "ERROR_CODE": 500
             }
+            logger.debug("Error: {}".format(json.dumps(d['msg'])))
             return None
         else:
             logger.info("Disable welcome screen successfully")
@@ -1088,6 +1091,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
                 "msg": "Failed to login and obtain avi version " + deployed_avi_version[1],
                 "ERROR_CODE": 500
             }
+            logger.debug("Error: {}".format(json.dumps(d['msg'])))
             return None
         avi_version = deployed_avi_version[0]
         backup_url = get_backup_configuration(ip, csrf2, avi_version)
@@ -1098,6 +1102,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
                 "msg": "Failed to get backup configuration " + backup_url[1],
                 "ERROR_CODE": 500
             }
+            logger.debug("Error: {}".format(json.dumps(d['msg'])))
             return None
         else:
             logger.info("Got backup configuration successfully")
@@ -1111,10 +1116,12 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
                 "msg": "Failed to set backup pass phrase " + str(setBackup[1]),
                 "ERROR_CODE": 500
             }
+            logger.debug("Error: {}".format(json.dumps(d['msg'])))
             return None
     d = {
         "responseType": "SUCCESS",
         "msg": "Configured avi",
         "ERROR_CODE": 200
     }
+    logger.debug("State: {}".format(json.dumps(d['msg'])))
     return True

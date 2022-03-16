@@ -4,9 +4,9 @@ import signal
 import time
 from functools import wraps
 
-#Source: http://stackoverflow.com/questions/2281850/timeout-function-if-it-takes-too-long-to-finish
+# Source: http://stackoverflow.com/questions/2281850/timeout-function-if-it-takes-too-long-to-finish
 
-class TimeoutError(Exception):
+class CTimeoutError(Exception):
     pass
 
 def timeout(seconds=10, error_message=os.strerror(errno.ETIME)):
