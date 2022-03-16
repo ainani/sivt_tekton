@@ -196,11 +196,11 @@ def downloadAndPushKubernetesOvaMarketPlace(jsonspec, version, baseOS, upgrade=F
                 return None, "Invalid ova type " + baseOS
         else:
             if baseOS == "photon":
-                file = UpgradeVersions.PHOTON_KUBERNETES_TEMPLATE_FILE_NAME + "-" + version
-                template = file
+                file = UpgradeVersions.PHOTON_KUBERNETES_FILE_NAME + "-" + version
+                template = UpgradeVersions.PHOTON_KUBERNETES_TEMPLATE_FILE_NAME
             elif baseOS == "ubuntu":
-                file = UpgradeVersions.UBUNTU_KUBERNETES__TEMPLATE_FILE_NAME + "-" + version
-                template = file
+                file = UpgradeVersions.UBUNTU_KUBERNETES_FILE_NAME + "-" + version
+                template = UpgradeVersions.UBUNTU_KUBERNETES__TEMPLATE_FILE_NAME
             else:
                 return None, "Invalid ova type " + baseOS
         govc_command = ["govc", "ls", "/" + vCenter_datacenter + "/vm"]
@@ -208,10 +208,18 @@ def downloadAndPushKubernetesOvaMarketPlace(jsonspec, version, baseOS, upgrade=F
         if str(output[0]).__contains__(template):
             logger.info(template + " is already present in vcenter")
             return "SUCCESS", "ALREADY_PRESENT"
+        logger.info("Template is not present. proceeding to download from marketplace...")
+        if not refToken:
+            logger.error("MarketPlace refresh token is not provided,"
+                         "and unable to locate required template. Please place the required "
+                         "template or provide marketplace token Existing...")
+            return None, "No required template available"
+
         download = downloadAndPushToVCMarketPlace(file, vCenter_datacenter, data_store, networkName,
                                                           vCenter_cluster, refToken,
                                                           version, baseOS, jsonspec)
         if download[0] is None:
+
             return None, download[1]
         return "SUCCESS", "DEPLOYED"
 

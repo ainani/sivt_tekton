@@ -156,7 +156,7 @@ class KubernetesOva:
 
 class UpgradeVersions:
     UBUNTU_KUBERNETES_FILE_NAME = "ubuntu-2004-kube-v1.21.2+vmware.1-tkg.2-14542111852555356776.ova"
-    PHOTON_KUBERNETES_FILE_NAME = "photon-3-kube-v1.21.2+vmware.1-tkg.3-6345993713475494409"
+    PHOTON_KUBERNETES_FILE_NAME = "photon-3-kube-v1.21.2+vmware.1-tkg.3-6345993713475494409.ova"
     PHOTON_KUBERNETES_TEMPLATE_FILE_NAME = "photon-3-kube-v1.21.2+vmware.1"
     UBUNTU_KUBERNETES__TEMPLATE_FILE_NAME = "ubuntu-2004-kube-v1.21.2+vmware.1"
     KUBERNETES_OVA_LATEST_VERSION = "v1.21.2"

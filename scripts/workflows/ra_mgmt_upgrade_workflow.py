@@ -26,6 +26,8 @@ class RaMgmtUpgradeWorkflow:
             # if template is not present and marketplace token is provided, proceed to download
             # from market place and place it as template and proceed to upgrade execution
             # if neither template nor marketplace token is provided, bail out with failure
+
+            logger.info(("Checking if required template is already present"))
             kubernetes_ova_os = \
                 self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"][
                     "tkgMgmtBaseOs"]
@@ -41,9 +43,7 @@ class RaMgmtUpgradeWorkflow:
                     "msg": down_status[1],
                     "ERROR_CODE": 500
                 }
-                logger.info("MarketPlace refresh token is not provided,"
-                            "and unable to locate required template. Please place the required "
-                            "template or provide marketplace token Existing...")
+                logger.error("Unable to locate required template...")
                 raise Exception(d["msg"])
             else:
 
