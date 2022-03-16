@@ -473,7 +473,7 @@ class RaSharedClusterWorkflow:
         d = {
             "responseType": "SUCCESS",
             "msg": "Successfully deployed  cluster " + shared_cluster_name,
-            "ERROR_CODE": 200
+            "SUCCESS_CODE": 200
         }
         return json.dumps(d), 200
 
