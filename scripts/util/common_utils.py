@@ -52,6 +52,94 @@ def createSubscribedLibrary(vcenter_ip, vcenter_username, password, jsonspec):
         return None, "Failed"
     return "SUCCESS", "LIBRARY"
 
+def download_upgrade_binaries(binary, refreshToken):
+
+    # TODO: redudant download method. replace to single one with filename and targetted binary
+    rcmd = cmd_runner.RunCmd()
+    filename = binary
+    solutionName = KubernetesOva.MARKETPLACE_KUBERNETES_SOLUTION_NAME
+    logger.debug(("Solution Name: {}".format(solutionName)))
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "refreshToken": refreshToken
+    }
+    json_object = json.dumps(payload, indent=4)
+    sess = requests.request("POST", MarketPlaceUrl.URL + "/api/v1/user/login", headers=headers,
+                            data=json_object, verify=False)
+    if sess.status_code != 200:
+        return None, "Failed to login and obtain csp-auth-token"
+    else:
+        token = sess.json()["access_token"]
+
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "csp-auth-token": token
+    }
+
+    objectid = None
+    slug = "true"
+    _solutionName = getProductSlugId(MarketPlaceUrl.TANZU_PRODUCT, headers)
+    if _solutionName[0] is None:
+        return None, "Failed to find product on Marketplace " + str(_solutionName[1])
+    solutionName = _solutionName[0]
+    product = requests.get(
+        MarketPlaceUrl.API_URL + "/products/" + solutionName + "?isSlug=" + slug + "&ownorg=false",
+        headers=headers,
+        verify=False)
+
+    if product.status_code != 200:
+        return None, "Failed to Obtain Product ID"
+    else:
+        product_id = product.json()['response']['data']['productid']
+        for metalist in product.json()['response']['data']['metafilesList']:
+            binary_targetted = metalist["metafileobjectsList"][0]['filename']
+            if binary in binary_targetted:
+                objectid = metalist["metafileobjectsList"][0]['fileid']
+                binaryName = metalist["metafileobjectsList"][0]['filename']
+                app_version = metalist['appversion']
+                metafileid = metalist['metafileid']
+
+    if (objectid or binaryName or app_version or metafileid) is None:
+        return None, "Failed to find the file details in Marketplace"
+
+    logger.info("Downloading binary " + binaryName)
+
+    payload = {
+        "eulaAccepted": "true",
+        "appVersion": app_version,
+        "metafileid": metafileid,
+        "metafileobjectid": objectid
+    }
+
+    json_object = json.dumps(payload, indent=4).replace('\"true\"', 'true')
+    presigned_url = requests.request("POST",
+                                     MarketPlaceUrl.URL + "/api/v1/products/" + product_id + "/download",
+                                     headers=headers, data=json_object, verify=False)
+    if presigned_url.status_code != 200:
+        return None, "Failed to obtain pre-signed URL"
+    else:
+        download_url = presigned_url.json()["response"]["presignedurl"]
+
+    curl_inspect_cmd = 'curl -I -X GET {} --output /tmp/resp.txt'.format(download_url)
+    rcmd.run_cmd_only(curl_inspect_cmd)
+    with open('/tmp/resp.txt', 'r') as f:
+        data_read = f.read()
+    if 'HTTP/1.1 200 OK' in data_read:
+        logger.info('Proceed to Download')
+        binary_path = "/tmp/" + filename
+        curl_download_cmd = 'curl -X GET {d_url} --output {tmp_path}'.format(d_url=download_url,
+                                                                             tmp_path=binary_path)
+        rcmd.run_cmd_only(curl_download_cmd)
+    else:
+        logger.info('Error in presigned url/key: {} '.format(data_read.split('\n')[0]))
+        return None, "Invalid key/url"
+
+    return filename, "Kubernetes OVA download successful"
+
 def getOvaMarketPlace(filename, refreshToken, version, baseOS):
 
     rcmd = cmd_runner.RunCmd()

@@ -121,6 +121,11 @@ class MarketPlaceUrl:
     TANZU_PRODUCT = "Tanzu Kubernetes Grid"
     AVI_PRODUCT = "NSX Advanced Load Balancer"
 
+class UpgradeBinaries:
+    binary_list = ['tanzu-cli-bundle-linux-amd64-tar.tar',
+                   'kubectl-linux-v1-21-2-vmware-1-gz.gz',
+                   'yq_linux_amd64-tar-gz.gz']
+
 class ControllerLocation:
     CONTROLLER_CONTENT_LIBRARY = "TanzuAutomation-Lib"
     CONTENT_LIBRARY_OVA_NAME = "avi-controller"

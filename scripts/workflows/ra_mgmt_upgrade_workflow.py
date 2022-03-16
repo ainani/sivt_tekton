@@ -1,26 +1,50 @@
 import os
 import json
-from constants.constants import Paths, UpgradeVersions
+from constants.constants import Paths, UpgradeVersions, UpgradeBinaries, TKGCommands
 from lib.tkg_cli_client import TkgCliClient
 from model.run_config import RunConfig
 from util.logger_helper import LoggerHelper
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 import traceback
-from util.common_utils import downloadAndPushKubernetesOvaMarketPlace
+from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, download_upgrade_binaries
+from util.cmd_runner import RunCmd
 
 logger = LoggerHelper.get_logger(name='ra_mgmt_upgrade_workflow')
 
 class RaMgmtUpgradeWorkflow:
     def __init__(self, run_config: RunConfig):
         self.run_config = run_config
-        logger.info ("Current deployment state: %s", self.run_config.state)
+        logger.info("Current deployment state: %s", self.run_config.state)
         jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
         self.tanzu_client = TkgCliClient()
         with open(jsonpath) as f:
             self.jsonspec = json.load(f)
+        self.rcmd = RunCmd()
 
     def upgrade_workflow(self):
         try:
+
+            # Precheck the binaries of yq, tanzu, kubectl are of right versions
+            # Download them, if they are matching the intended upgrade version
+
+            version_raw = self.rcmd.run_cmd_output(TKGCommands.VERSION)
+            version = [line for line in version_raw.split("\n") if "version" in line][0]
+            if not any(k in version for k in self.run_config.support_matrix["matrix"].keys()):
+                raise EnvironmentError(f"Tanzu cli version unsupported. \n{version}")
+
+            if self.run_config.desired_state.version.tkg not in version:
+                raise ValueError(
+                    f"Desired state version({self.run_config.desired_state.version.tkg}) and "
+                    f"tanzu cli version  does not match"
+                )
+            # Proceed to download the binaries.
+            refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
+
+            for binary in UpgradeBinaries.binary_list:
+                logger.info("Downloading and replacing binary: {}".format(binary))
+                download_status = download_upgrade_binaries(binary, refToken)
+                logger.info("Download status: {}".format(download_status))
+
             # Precheck if template is present else download it if marketplace token is provided
             # if template is already present skip to execution of upgrade
             # if template is not present and marketplace token is provided, proceed to download
