@@ -752,7 +752,7 @@ class RaWorkloadClusterWorkflow:
                 }
                 return json.dumps(d), 500
         else:
-            logger.info(status[0])
+            logger.info("Status: {}".format(status[0]))
 
         podRunninng_ako_main = ["kubectl", "get", "pods", "-A"]
         podRunninng_ako_grep = ["grep", AppName.AKO]
