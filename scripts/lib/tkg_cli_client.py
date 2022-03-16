@@ -129,7 +129,7 @@ class TkgCliClient:
         mgmt_cluster_upgrade_cmd = TKGCommands.MGMT_CLUSTER_UPGRADE.format(options=cmd_option)
         logger.info("Upgrade CMD: {} ".format(mgmt_cluster_upgrade_cmd))
         upgrade_output = self.runcmd.run_cmd_output(mgmt_cluster_upgrade_cmd)
-        logger.info('Upgrade output: {}'.format(upgrade_output))
+        logger.debug('Upgrade output: {}'.format(upgrade_output))
         return upgrade_output
 
     def tanzu_cluster_upgrade(self, cluster_name, timeout="60m0s", verbose=True):
@@ -139,5 +139,6 @@ class TkgCliClient:
         cluster_upgrade_cmd = TKGCommands.CLUSTER_UPGRADE.format(cluster_name=cluster_name,
                                                                  options=cmd_option)
         logger.info("Cluster Upgrade Cmd: {}".format(cluster_upgrade_cmd))
-        cluster_upgrade_output =  self.runcmd.run_cmd_output(cluster_upgrade_cmd)
-        logger.info("Cluster upgrade output: {}".format(cluster_upgrade_output))
+        cluster_upgrade_output = self.runcmd.run_cmd_output(cluster_upgrade_cmd)
+        logger.debug("Cluster upgrade output: {}".format(cluster_upgrade_output))
+        return cluster_upgrade_output

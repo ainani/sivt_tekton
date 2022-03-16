@@ -6,7 +6,7 @@ from pathlib import Path
 import base64
 import logging
 from constants.constants import Paths, ControllerLocation, KubernetesOva, MarketPlaceUrl, VrfType, \
-    ClusterType, TmcUser, RegexPattern, SAS, AppName
+    ClusterType, TmcUser, RegexPattern, SAS, AppName, UpgradeVersions
 from util.logger_helper import LoggerHelper
 import requests
 from util.avi_api_helper import getProductSlugId
@@ -177,7 +177,7 @@ def downloadAndPushToVCMarketPlace(file, datacenter, datastore, networkName, clu
         return None, "Failed export kubernetes ova to vCenter"
     return "SUCCESS", "DEPLOYED"
 
-def downloadAndPushKubernetesOvaMarketPlace(jsonspec, version, baseOS):
+def downloadAndPushKubernetesOvaMarketPlace(jsonspec, version, baseOS, upgrade=False):
     try:
         rcmd = cmd_runner.RunCmd()
         networkName = str(jsonspec["tkgComponentSpec"]["tkgMgmtComponents"]["tkgMgmtNetworkName"])
@@ -185,14 +185,24 @@ def downloadAndPushKubernetesOvaMarketPlace(jsonspec, version, baseOS):
         vCenter_datacenter = jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
         vCenter_cluster = jsonspec['envSpec']['vcenterDetails']['vcenterCluster']
         refToken = jsonspec['envSpec']['marketplaceSpec']['refreshToken']
-        if baseOS == "photon":
-            file = KubernetesOva.MARKETPLACE_PHOTON_KUBERNETES_FILE_NAME + "-" + version
-            template = KubernetesOva.MARKETPLACE_PHOTON_KUBERNETES_FILE_NAME + "-" + version
-        elif baseOS == "ubuntu":
-            file = KubernetesOva.MARKETPLACE_UBUNTU_KUBERNETES_FILE_NAME + "-" + version
-            template = KubernetesOva.MARKETPLACE_UBUNTU_KUBERNETES_FILE_NAME + "-" + version
+        if not upgrade:
+            if baseOS == "photon":
+                file = KubernetesOva.MARKETPLACE_PHOTON_KUBERNETES_FILE_NAME + "-" + version
+                template = KubernetesOva.MARKETPLACE_PHOTON_KUBERNETES_FILE_NAME + "-" + version
+            elif baseOS == "ubuntu":
+                file = KubernetesOva.MARKETPLACE_UBUNTU_KUBERNETES_FILE_NAME + "-" + version
+                template = KubernetesOva.MARKETPLACE_UBUNTU_KUBERNETES_FILE_NAME + "-" + version
+            else:
+                return None, "Invalid ova type " + baseOS
         else:
-            return None, "Invalid ova type " + baseOS
+            if baseOS == "photon":
+                file = UpgradeVersions.PHOTON_KUBERNETES_TEMPLATE_FILE_NAME + "-" + version
+                template = file
+            elif baseOS == "ubuntu":
+                file = UpgradeVersions.UBUNTU_KUBERNETES__TEMPLATE_FILE_NAME + "-" + version
+                template = file
+            else:
+                return None, "Invalid ova type " + baseOS
         govc_command = ["govc", "ls", "/" + vCenter_datacenter + "/vm"]
         output = rcmd.runShellCommandAndReturnOutputAsList(govc_command)
         if str(output[0]).__contains__(template):
