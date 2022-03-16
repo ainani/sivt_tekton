@@ -20,7 +20,7 @@ class RaSharedUpgradeWorkflow:
 
     def upgrade_workflow(self):
         try:
-            mgmt_cluster = self.jsonspec['tkgMgmtComponents']['tkgMgmtClusterName']
+            mgmt_cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtClusterName']
             cluster = self.jsonspec['tkgMgmtComponents']['tkgSharedserviceClusterName']
             self.tanzu_client.login(cluster_name=mgmt_cluster)
             if self.tanzu_client.tanzu_cluster_upgrade(cluster_name=cluster) is None:
