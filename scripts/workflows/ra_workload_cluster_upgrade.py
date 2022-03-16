@@ -24,13 +24,14 @@ class RaWorkloadUpgradeWorkflow:
             cluster = self.jsonspec['tkgWorkloadComponents']['tkgSharedserviceClusterName']
             self.tanzu_client.login(cluster_name=mgmt_cluster)
             if self.tanzu_client.tanzu_cluster_upgrade(cluster_name=cluster) is None:
-                logger.error("Failed to upgrade shared cluster")
+                msg = "Failed to upgrade {} cluster".format(cluster)
+                logger.error("Error: {}".format(msg))
+                raise Exception(msg)
 
             if not self.tanzu_client.retriable_check_cluster_exists(cluster_name=cluster):
                 msg = f"Cluster: {cluster} not in running state"
                 logger.error(msg)
                 raise Exception(msg)
-
             logger.info("Checking for services status...")
             cluster_status = self.tanzu_client.get_all_clusters()
             workload_health = ClusterCommonWorkflow.check_cluster_health(cluster_status, cluster)

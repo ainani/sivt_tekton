@@ -23,7 +23,9 @@ class RaMgmtUpgradeWorkflow:
             cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtClusterName']
             self.tanzu_client.login(cluster_name=cluster)
             if self.tanzu_client.management_cluster_upgrade(cluster_name=cluster) is None:
-                logger.error("Failed to upgrade Management cluster")
+                msg= "Failed to upgrade Management cluster"
+                logger.error("Error: {}".format(msg))
+                raise Exception(msg)
 
             if not self.tanzu_client.retriable_check_cluster_exists(cluster_name=cluster):
                 msg = f"Cluster: {cluster} not in running state"
