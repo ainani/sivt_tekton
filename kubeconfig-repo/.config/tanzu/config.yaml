@@ -6,18 +6,13 @@ clientOptions:
         bucketName: tanzu-cli-tkg
         name: core
     unstableVersionSelector: none
-current: mgmt-clu
+current: tekton-mgmt-cluster
 kind: ClientConfig
 metadata:
   creationTimestamp: null
 servers:
 - managementClusterOpts:
-    context: tkg-mgmt-admin@tkg-mgmt
+    context: tekton-mgmt-cluster-admin@tekton-mgmt-cluster
     path: /root/.kube-tkg/config
-  name: tkg-mgmt
-  type: managementcluster
-- managementClusterOpts:
-    context: mgmt-clu-admin@mgmt-clu
-    path: /root/.kube-tkg/config
-  name: mgmt-clu
+  name: tekton-mgmt-cluster
   type: managementcluster
