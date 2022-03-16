@@ -40,7 +40,7 @@ class NetworkSegment(BaseModel):
     staticIpEnd: Optional[str] = None
 
     @validator("gatewayCidr")
-    def cidr_validator(self, v: str):
+    def cidr_validator(cls, v: str):
         if not iptools.ipv4.validate_cidr(v):
             raise ValueError(f"Invalid IP address[{v}]. Provide a valid IP in CIDR format.")
         return v
@@ -81,7 +81,7 @@ class DataNetwork(BaseModel):
     staticRange: str
 
     @validator("cidr")
-    def cidr_validator(self, v: str):
+    def cidr_validator(cls, v: str):
         ipaddress.ip_network(v)
         return v
 
@@ -150,13 +150,13 @@ class Cluster(BaseModel):
     size: str
 
     @validator("plan")
-    def node_count_validator(self, plan: str):
+    def node_count_validator(cls, plan: str):
         if plan not in CLUSTER_PLAN:
             raise ValueError(f"Invalid plan specified[{plan}]. Available options: {CLUSTER_PLAN}")
         return plan
 
     @validator("size")
-    def node_size_validator(self, size: str):
+    def node_size_validator(cls, size: str):
         if size not in CLUSTER_NODE_SIZES:
             raise ValueError(f"Invalid size specified[{size}]. Available options: {CLUSTER_NODE_SIZES}")
         return size
@@ -171,13 +171,13 @@ class NodeConfig(BaseModel):
     repave: Optional[bool] = False
 
     @validator("count")
-    def node_count_validator(self, v: str):
+    def node_count_validator(cls, v: str):
         if v < str(1):
             raise ValueError("node count should be greater than 1")
         return v
 
     @validator("endpoint")
-    def validate_endpoint(self, endpoint: str):
+    def validate_endpoint(cls, endpoint: str):
         if endpoint is not None:
             try:
                 ipaddress.ip_address(endpoint)
@@ -199,7 +199,7 @@ class Mgmt(BaseModel):
     ldap: Optional[LDAP] = None
 
     @root_validator(pre=True)
-    def check_object(self, v):
+    def check_object(cls, v):
         cluster_name = v.get("cluster").get("name")
         if v.get("worker").get("endpoint") is not None:
             logger.warn("Invalid 'endpoint' key for worker configuration")
@@ -229,7 +229,7 @@ class HarborSpec(BaseModel):
     storage: Optional[HarborStorageSpec] = None
 
     @validator("adminPassword")
-    def pass_length(self, v: str):
+    def pass_length(cls, v: str):
         if len(v) < 16:
             raise ValueError("length of harbor password should be greater than 16")
         return v
@@ -258,7 +258,7 @@ class SharedServices(BaseModel):
     extensionsSpec: Optional[SharedExtensions] = None
 
     @root_validator(pre=True)
-    def check_object(self, v):
+    def check_object(cls, v):
         worker = v.get("worker")
         cluster_name = v.get("cluster").get("name")
         control_plane = v.get("controlPlane")
@@ -301,7 +301,7 @@ class WorkloadCluster(BaseModel):
     extensionsSpec: Optional[WorkloadExtensions] = None
 
     @root_validator(pre=True)
-    def check_object(self, v):
+    def check_object(cls, v):
         worker = v.get("worker")
         cluster_name = v.get("cluster").get("name")
         control_plane = v.get("controlPlane")
@@ -368,7 +368,7 @@ class Vsphere(BaseModel):
     tlsThumbprint: str
 
     @root_validator(pre=True)
-    def check_object(self, v):
+    def check_object(cls, v):
         if re.match("^([A-Z0-9][A-Z0-9][:])*[A-Z0-9][A-Z0-9]$", v.get("tlsThumbprint")) is None:
             raise ValueError(
                 f"""

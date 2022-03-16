@@ -20,7 +20,7 @@ class RaMgmtUpgradeWorkflow:
 
     def upgrade_workflow(self):
         try:
-            cluster = self.jsonspec['tkgMgmtComponents']['tkgMgmtClusterName']
+            cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtClusterName']
             self.tanzu_client.login(cluster_name=cluster)
             if self.tanzu_client.management_cluster_upgrade(cluster_name=cluster) is None:
                 logger.error("Failed to upgrade Management cluster")

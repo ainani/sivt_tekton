@@ -20,7 +20,7 @@ from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, getCloudS
     getVrfAndNextRoutId, addStaticRoute, getVipNetworkIpNetMask, getSECloudStatus, \
     createResourceFolderAndWait, getNetworkFolder, deployCluster, verifyPodsAreRunning,\
     registerWithTmcOnSharedAndWorkload, registerTanzuObservability, registerTSM,\
-    installCertManagerAndContour
+    installCertManagerAndContour, runSsh
 from util.avi_api_helper import isAviHaEnabled, obtain_second_csrf
 from workflows.ra_mgmt_cluster_workflow import RaMgmtClusterWorkflow
 from util.ShellHelper import grabKubectlCommand, runShellCommandAndReturnOutputAsList, \
@@ -503,6 +503,7 @@ class RaWorkloadClusterWorkflow:
 
         avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']
         ha_field = self.jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
+        ssh_key = runSsh(vcenter_username)
         if isAviHaEnabled(ha_field):
             ip = self.jsonspec['tkgComponentSpec']['aviComponents']['aviClusterFqdn']
         else:
@@ -628,15 +629,15 @@ class RaWorkloadClusterWorkflow:
         _base64_bytes = vsphere_password.encode('ascii')
         _enc_bytes = base64.b64encode(_base64_bytes)
         vsphere_password = _enc_bytes.decode('ascii')
-        dhcp = self.clusterops.enableDhcpForManagementNetwork(ip, csrf2, workload_network, aviVersion)
-        if dhcp[0] is None:
-            logger.error("Failed to enable dhcp " + str(dhcp[1]))
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to enable dhcp " + str(dhcp[1]),
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
+        # dhcp = self.clusterops.enableDhcpForManagementNetwork(ip, csrf2, workload_network, aviVersion)
+        # if dhcp[0] is None:
+        #     logger.error("Failed to enable dhcp " + str(dhcp[1]))
+        #     d = {
+        #         "responseType": "ERROR",
+        #         "msg": "Failed to enable dhcp " + str(dhcp[1]),
+        #         "ERROR_CODE": 500
+        #     }
+        #     return json.dumps(d), 500
         datacenter_path = "/" + data_center
         datastore_path = datacenter_path + "/datastore/" + data_store
         workload_folder_path = datacenter_path + "/vm/" +\
