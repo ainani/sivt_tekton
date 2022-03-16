@@ -3,7 +3,6 @@ from pathlib import Path
 import traceback
 import json
 import base64
-from jinja2 import Template
 import time
 from constants.constants import TKG_EXTENSIONS_ROOT, Constants, Paths, Task, ControllerLocation, \
     Cloud, VrfType, RegexPattern, AkoType, AppName, Versions, ResourcePoolAndFolderName, PLAN, \
@@ -11,15 +10,11 @@ from constants.constants import TKG_EXTENSIONS_ROOT, Constants, Paths, Task, Con
 from lib.kubectl_client import KubectlClient
 from lib.tkg_cli_client import TkgCliClient
 from model.run_config import RunConfig
-from model.spec import GrafanaSpec, WorkloadCluster
-from model.status import (ExtensionState, HealthEnum, WorkloadClusterInfo, WorkloadExtensionState)
 from util.cmd_helper import CmdHelper
 from util.file_helper import FileHelper
 from util.git_helper import Git
 from util.logger_helper import LoggerHelper, log, log_debug
-from util.ssh_helper import SshHelper
 from util.cmd_runner import RunCmd
-from util.tanzu_utils import TanzuUtils
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, getCloudStatus, \
     getVrfAndNextRoutId, addStaticRoute, getVipNetworkIpNetMask, getSECloudStatus, \
@@ -32,7 +27,6 @@ from util.ShellHelper import grabKubectlCommand, runShellCommandAndReturnOutputA
     grabPipeOutput
 import ruamel
 import requests
-from tqdm import tqdm
 from model.vsphereSpec import VsphereMasterSpec
 
 
@@ -163,10 +157,8 @@ class RaWorkloadClusterWorkflow:
         data_center = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
         data_store = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
         refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
-        kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgWorkloadComponents"][
-            "tkgWorkloadBaseOs"]
-        kubernetes_ova_version = self.jsonspec["tkgComponentSpec"]["tkgWorkloadComponents"][
-            "tkgSharedserviceKubeVersion"]
+        kubernetes_ova_os = self.jsonspec["tkgWorkloadComponents"]["tkgWorkloadBaseOs"]
+        kubernetes_ova_version = self.jsonspec["tkgWorkloadComponents"]["tkgWorkloadKubeVersion"]
         if refToken:
             logger.info("Kubernetes OVA configs for workload cluster")
             down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec,
@@ -506,8 +498,8 @@ class RaWorkloadClusterWorkflow:
         data_store = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
         parent_resourcepool = self.jsonspec['envSpec']['vcenterDetails']['resourcePoolName']
         refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
-        kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgWorkloadComponents"]["tkgWorkloadBaseOs"]
-        kubernetes_ova_version = self.jsonspec["tkgComponentSpec"]["tkgWorkloadComponents"]["tkgSharedserviceKubeVersion"]
+        kubernetes_ova_os = self.jsonspec["tkgWorkloadComponents"]["tkgWorkloadBaseOs"]
+        kubernetes_ova_version = self.jsonspec["tkgWorkloadComponents"]["tkgWorkloadKubeVersion"]
 
         avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']
         ha_field = self.jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
@@ -568,7 +560,7 @@ class RaWorkloadClusterWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        tmc_required = str(json.dumps['envSpec']["saasEndpoints"]['tmcDetails']['tmcAvailability'])
+        tmc_required = str(self.jsonspec['envSpec']['saasEndpoints']['tmcDetails']['tmcAvailability'])
         tmc_flag = False
         if tmc_required.lower() == "true":
             tmc_flag = True

@@ -650,7 +650,7 @@ def getNetworkFolder(netWorkName, vcenter_ip, vcenter_username, password):
         count = count + 1
     return None
 
-def template14deployYaml(sharedClusterName, clusterPlan, datacenter, dataStorePath,
+def template14deployYaml(cluster_name, clusterPlan, datacenter, dataStorePath,
                          folderPath, mgmt_network, vspherePassword, sharedClusterResourcePool,
                          vsphereServer, sshKey, vsphereUseName, machineCount, size, typen, vsSpec,
                          jsonspec):
@@ -677,7 +677,7 @@ def template14deployYaml(sharedClusterName, clusterPlan, datacenter, dataStorePa
                 kubeVersion = str(jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceKubeVersion'])
             except Exception as e:
                 raise Exception("Keyword " + str(e) + "  not found in input file")
-        elif type == ClusterType.WORKLOAD:
+        elif typen == ClusterType.WORKLOAD:
             clustercidr = vsSpec.tkgWorkloadComponents.tkgWorkloadClusterCidr
             servicecidr = vsSpec.tkgWorkloadComponents.tkgWorkloadServiceCidr
             size_selection = vsSpec.tkgWorkloadComponents.tkgWorkloadSize
@@ -706,7 +706,7 @@ def template14deployYaml(sharedClusterName, clusterPlan, datacenter, dataStorePa
     air_gapped_repo = ""
     repo_certificate = ""
     FileHelper.write_to_file(
-        t.render(config=vsSpec, clustercidr=clustercidr, sharedClusterName=sharedClusterName,
+        t.render(config=vsSpec, clustercidr=clustercidr, sharedClusterName=cluster_name,
                  clusterPlan=clusterPlan, servicecidr=servicecidr, datacenter=datacenter,
                  dataStorePath=dataStorePath, folderPath=folderPath, mgmt_network=mgmt_network,
                  vspherePassword=vspherePassword,
@@ -716,23 +716,22 @@ def template14deployYaml(sharedClusterName, clusterPlan, datacenter, dataStorePa
                  air_gapped_repo=air_gapped_repo, repo_certificate=repo_certificate, osName=osName,
                  osVersion=osVersion, size=size_selection, control_plane_vcpu=control_plane_vcpu,
                  control_plane_disk_gb=control_plane_disk_gb,
-                 control_plane_mem_mb=control_plane_mem_mb),
-        sharedClusterName + ".yaml")
+                 control_plane_mem_mb=control_plane_mem_mb), cluster_name + ".yaml")
 
 
-def deployCluster(sharedClusterName, clusterPlan, datacenter, dataStorePath,
+def deployCluster(cluster_name, clusterPlan, datacenter, dataStorePath,
                   folderPath, mgmt_network, vspherePassword, sharedClusterResourcePool,
                   vsphereServer, sshKey, vsphereUseName, machineCount, size, typen, vsSpec,
                   jsonspec):
     try:
-        if not getClusterStatusOnTanzu(sharedClusterName, "cluster"):
-            template14deployYaml(sharedClusterName, clusterPlan, datacenter, dataStorePath,
+        if not getClusterStatusOnTanzu(cluster_name, "cluster"):
+            template14deployYaml(cluster_name, clusterPlan, datacenter, dataStorePath,
                                  folderPath, mgmt_network, vspherePassword,
                                  sharedClusterResourcePool, vsphereServer, sshKey, vsphereUseName,
                                  machineCount, size, typen, vsSpec, jsonspec)
-            logger.info("Deploying " + sharedClusterName + "cluster")
+            logger.info("Deploying " + cluster_name + "cluster")
             os.putenv("DEPLOY_TKG_ON_VSPHERE7", "true")
-            listOfCmd = ["tanzu", "cluster", "create", "-f", sharedClusterName + ".yaml", "-v", "6"]
+            listOfCmd = ["tanzu", "cluster", "create", "-f", cluster_name + ".yaml", "-v", "6"]
             runProcess(listOfCmd)
             return "SUCCESS", 200
         else:
