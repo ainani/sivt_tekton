@@ -19,6 +19,7 @@ from jinja2 import Template
 from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
 from util.vcenter_operations import checkforIpAddress, getSi
+from util.common_utils import checkenv
 
 logger = LoggerHelper.get_logger(name='alb_workflow')
 
@@ -30,6 +31,12 @@ class RALBWorkflow:
         jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
         with open(jsonpath) as f:
             self.jsonspec = json.load(f)
+
+        check_env_output = checkenv(self.jsonspec)
+        if check_env_output is None:
+            msg = "Failed to connect to VC. Possible connection to VC is not available or " \
+                  "incorrect spec provided."
+            raise Exception(msg)
 
     @log("Setting up AVI Certificate")
     def aviCertManagement_vsphere(self):
@@ -72,6 +79,7 @@ class RALBWorkflow:
 
     @log("Setting up AVI Controller")
     def avi_controller_setup(self):
+
         if self.run_config.state.avi.deployed:
             logger.debug("NSX-ALB is deployed")
             return

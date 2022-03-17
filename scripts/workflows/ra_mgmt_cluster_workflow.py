@@ -29,7 +29,7 @@ import shutil
 import traceback
 from util.common_utils import createSubscribedLibrary, downloadAndPushKubernetesOvaMarketPlace, \
     getCloudStatus, seperateNetmaskAndIp, getSECloudStatus, getSeNewBody, getVrfAndNextRoutId, \
-    addStaticRoute, getVipNetworkIpNetMask, getClusterStatusOnTanzu, runSsh
+    addStaticRoute, getVipNetworkIpNetMask, getClusterStatusOnTanzu, runSsh, checkenv
 from util.replace_value import generateVsphereConfiguredSubnets, replaceValueSysConfig
 from util.vcenter_operations import createResourcePool, create_folder
 from util.ShellHelper import runProcess, runShellCommandAndReturnOutputAsList
@@ -45,6 +45,11 @@ class RaMgmtClusterWorkflow:
         with open(jsonpath) as f:
             self.jsonspec = json.load(f)
 
+        check_env_output = checkenv(self.jsonspec)
+        if check_env_output is None:
+            msg = "Failed to connect to VC. Possible connection to VC is not available or " \
+                  "incorrect spec provided."
+            raise Exception(msg)
     @log("Preparing to deploy Management cluster")
     def create_mgmt_cluster(self):
         config_cloud = self.configCloud()

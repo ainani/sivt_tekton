@@ -20,7 +20,7 @@ from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, getCloudS
     getVrfAndNextRoutId, addStaticRoute, getVipNetworkIpNetMask, getSECloudStatus, \
     createResourceFolderAndWait, getNetworkFolder, deployCluster, verifyPodsAreRunning,\
     registerWithTmcOnSharedAndWorkload, registerTanzuObservability, registerTSM,\
-    installCertManagerAndContour, runSsh
+    installCertManagerAndContour, runSsh, checkenv
 from util.avi_api_helper import isAviHaEnabled, obtain_second_csrf
 from workflows.ra_mgmt_cluster_workflow import RaMgmtClusterWorkflow
 from util.ShellHelper import grabKubectlCommand, runShellCommandAndReturnOutputAsList, \
@@ -53,6 +53,12 @@ class RaWorkloadClusterWorkflow:
         with open(jsonpath) as f:
             self.jsonspec = json.load(f)
         self.clusterops = RaMgmtClusterWorkflow(self.run_config)
+
+        check_env_output = checkenv(self.jsonspec)
+        if check_env_output is None:
+            msg = "Failed to connect to VC. Possible connection to VC is not available or " \
+                  "incorrect spec provided."
+            raise Exception(msg)
 
     def createAkoFile(self, ip, wipCidr, tkgMgmtDataPg):
 

@@ -15,15 +15,36 @@ from util.file_helper import FileHelper
 from util.ShellHelper import runShellCommandAndReturnOutput, runShellCommandAndReturnOutputAsList,\
     runProcess, grabKubectlCommand, verifyPodsAreRunning, grabPipeOutput
 from util.cmd_helper import CmdHelper
+from util.cmd_runner import RunCmd
 import time
 from jinja2 import Template
 import yaml
 from ruamel import yaml as ryaml
 from datetime import datetime
 from util.vcenter_operations import createResourcePool, create_folder
+import subprocess
 
 logger = LoggerHelper.get_logger('common_utils')
 logging.getLogger("paramiko").setLevel(logging.WARNING)
+
+def checkenv(jsonspec):
+    vcpass_base64 = jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
+    password = CmdHelper.decode_base64(vcpass_base64)
+    vcenter_username = jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
+    vcenter_ip = jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
+    os.putenv("GOVC_URL", "https://" + vcenter_ip + "/sdk")
+    os.putenv("GOVC_USERNAME", vcenter_username)
+    os.putenv("GOVC_PASSWORD", password)
+    os.putenv("GOVC_INSECURE", "true")
+    rcmd = RunCmd()
+    cmd = 'govc ls'
+    try:
+        check_connection = rcmd.run_cmd_output(cmd)
+        logger.info("OUTPUT: {}".format(check_connection))
+
+    except subprocess.CalledProcessError:
+        return None
+
 
 def createSubscribedLibrary(vcenter_ip, vcenter_username, password, jsonspec):
     try:

@@ -6,7 +6,7 @@ from model.run_config import RunConfig
 from util.logger_helper import LoggerHelper
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 import traceback
-from util.common_utils import downloadAndPushKubernetesOvaMarketPlace
+from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, checkenv
 
 logger = LoggerHelper.get_logger(name='ra_shared_upgrade_workflow')
 
@@ -18,6 +18,12 @@ class RaWorkloadUpgradeWorkflow:
         self.tanzu_client = TkgCliClient()
         with open(jsonpath) as f:
             self.jsonspec = json.load(f)
+
+        check_env_output = checkenv(self.jsonspec)
+        if check_env_output is None:
+            msg = "Failed to connect to VC. Possible connection to VC is not available or " \
+                  "incorrect spec provided."
+            raise Exception(msg)
 
     def upgrade_workflow(self):
         try:

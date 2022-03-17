@@ -23,7 +23,7 @@ from util.ssh_helper import SshHelper
 from util.tanzu_utils import TanzuUtils
 from util.cmd_runner import RunCmd
 from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, runSsh, getNetworkFolder, \
-    deployCluster, registerWithTmcOnSharedAndWorkload, registerTanzuObservability
+    deployCluster, registerWithTmcOnSharedAndWorkload, registerTanzuObservability, checkenv
 from util.vcenter_operations import createResourcePool, create_folder
 from util.ShellHelper import runShellCommandAndReturnOutputAsList, verifyPodsAreRunning,\
     grabKubectlCommand, grabPipeOutput
@@ -51,6 +51,12 @@ class RaSharedClusterWorkflow:
         with open(jsonpath) as f:
             self.jsonspec = json.load(f)
         self.rcmd = RunCmd()
+
+        check_env_output = checkenv(self.jsonspec)
+        if check_env_output is None:
+            msg = "Failed to connect to VC. Possible connection to VC is not available or " \
+                  "incorrect spec provided."
+            raise Exception(msg)
 
     def _template_deploy_yaml(self):
         deploy_yaml = FileHelper.read_resource(Paths.VSPHERE_SHARED_SERVICES_SPEC_J2)

@@ -16,7 +16,6 @@ from util.tanzu_utils import TanzuUtils
 from workflows.ra_alb_workflow import RALBWorkflow
 from workflows.ra_mgmt_cluster_workflow import RaMgmtClusterWorkflow
 from workflows.ra_shared_cluster_workflow import RaSharedClusterWorkflow
-from workflows.ra_workload_cluster_workflow import RaWorkloadClusterWorkflow
 from workflows.ra_mgmt_upgrade_workflow import RaMgmtUpgradeWorkflow
 from workflows.ra_shared_cluster_upgrade import RaSharedUpgradeWorkflow
 from workflows.ra_workload_cluster_workflow import RaWorkloadClusterWorkflow

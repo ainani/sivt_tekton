@@ -6,7 +6,8 @@ from model.run_config import RunConfig
 from util.logger_helper import LoggerHelper
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 import traceback
-from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, download_upgrade_binaries
+from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, download_upgrade_binaries, \
+    checkenv
 from util.cmd_runner import RunCmd
 
 logger = LoggerHelper.get_logger(name='ra_mgmt_upgrade_workflow')
@@ -20,6 +21,12 @@ class RaMgmtUpgradeWorkflow:
         with open(jsonpath) as f:
             self.jsonspec = json.load(f)
         self.rcmd = RunCmd()
+
+        check_env_output = checkenv(self.jsonspec)
+        if check_env_output is None:
+            msg = "Failed to connect to VC. Possible connection to VC is not available or " \
+                  "incorrect spec provided."
+            raise Exception(msg)
 
     def upgrade_workflow(self):
         try:
