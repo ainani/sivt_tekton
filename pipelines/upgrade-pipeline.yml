@@ -5,30 +5,69 @@ metadata:
 spec:
   description: >-
     The Pipline to run uprade of mgmt, shared, workload cluster
+
   workspaces:
     - name: pipeline-shared-data
+
+  params:
+    - name: imagename
+      description: "The image location"
+    - name: giturl
+      description: The full http git path
+    - name: branch
+      description: the branch to clone from. By default, it is set to master.
+      default: alpha
+
   tasks:
+    - name: start-prep-workspace
+      taskRef:
+        name: git-pvtclone
+      workspaces:
+        - name: task-shared-data
+          workspace: pipeline-shared-data
+      params:
+        - name: imagename
+          value: "$(params.imagename)"
+        - name: giturl
+          value: "$(params.giturl)"
+        - name: branch
+          value: "$(params.branch)"
+
     - name: start-mgmt-upgrade
       taskRef:
         name: dind-mgmt-upgrade
       workspaces:
         - name: task-shared-data
           workspace: pipeline-shared-data
+      params:
+        - name: imagename
+          value: "$(params.imagename)"
+      runAfter:
+          - start-prep-workspace
+
     - name: start-shared-upgrade
-        taskRef:
+      taskRef:
           name: dind-shared-upgrade
-        workspaces:
+      workspaces:
           - name: task-shared-data
             workspace: pipeline-shared-data
-        runAfter:
+      params:
+        - name: imagename
+          value: $(params.imagename)
+      runAfter:
           - start-mgmt-upgrade
+
     - name: dind-workload-upgrade
-        taskRef:
+      taskRef:
           name: dind-workload-upgrade
-        workspaces:
+      workspaces:
           - name: task-shared-data
             workspace: pipeline-shared-data
-        runAfter:
+      params:
+        - name: imagename
+          value: $(params.imagename)
+
+      runAfter:
           -  start-shared-upgrade
 
 

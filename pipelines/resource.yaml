@@ -1,9 +1,0 @@
-apiVersion: tekton.dev/v1alpha1
-kind: PipelineResource
-metadata:
-  name: git-repo
-spec:
-  type: git  
-  params:
-    - name: url
-      value: https://gitlab.eng.vmware.com/smuthukumar/arcas-tekton-cicd

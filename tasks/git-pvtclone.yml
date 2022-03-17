@@ -5,13 +5,21 @@ metadata:
 spec:
   workspaces:
     - name: task-shared-data
+  params:
+    - name: imagename
+      description: the operand image
+    - name: giturl
+      description: the git path
+    - name: branch
+      description: the branch to clone from
+      default: alpha
+
   steps:
     - name: step-gitclone
-      image: 10.202.233.205:80/library/serviceimage:v2
-      #image: alpine
+      image: $(params.imagename)
       script: |
         cd /workspace/task-shared-data/
-        git clone https://gitlab.eng.vmware.com/smuthukumar/arcas-tekton-cicd.git -b e2e_sas
+        git clone $(params.giturl) -b $(params.branch)
         cp -rf arcas-tekton-cicd/config .
         cp -rf arcas-tekton-cicd/deployment-state .
         cp -rf arcas-tekton-cicd/desired-state .
