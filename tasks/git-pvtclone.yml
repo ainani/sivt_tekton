@@ -19,6 +19,8 @@ spec:
       image: $(params.imagename)
       script: |
         cd /workspace/task-shared-data/
+        rm -rf *
+        rm -rf .tmp
         git clone $(params.giturl) -b $(params.branch)
         cp -rf arcas-tekton-cicd/config .
         cp -rf arcas-tekton-cicd/deployment-state .

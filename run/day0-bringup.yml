@@ -19,8 +19,8 @@ spec:
     name: day0-pipeline
   params:
     - name: imagename
-      value: "REPLACE_IMAGE_NAME"
+      value: "IMAGE_NAME"
     - name: giturl
-      value: "REPLACE_GIT_URL"
+      value: "GIT_URL"
     - name: branch
-      value: "REPLACE_GIT_BRANCH"
+      value: "GIT_BRANCH"
