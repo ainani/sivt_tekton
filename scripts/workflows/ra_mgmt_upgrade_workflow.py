@@ -33,17 +33,15 @@ class RaMgmtUpgradeWorkflow:
                 raise EnvironmentError(f"Tanzu cli version unsupported. \n{version}")
 
             if self.run_config.desired_state.version.tkg not in version:
-                raise ValueError(
-                    f"Desired state version({self.run_config.desired_state.version.tkg}) and "
-                    f"tanzu cli version  does not match"
-                )
-            # Proceed to download the binaries.
-            refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
 
-            for binary in UpgradeBinaries.binary_list:
-                logger.info("Downloading and replacing binary: {}".format(binary))
-                download_status = download_upgrade_binaries(binary, refToken)
-                logger.info("Download status: {}".format(download_status))
+                # Proceed to download the binaries.
+                refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
+
+                for binary in UpgradeBinaries.binary_list:
+                    logger.info("Downloading and replacing binary: {}".format(binary))
+                    download_status = download_upgrade_binaries(binary, refToken)
+                    logger.info("Download status: {}".format(download_status))
+                    # Proceed to install the binary
 
             # Precheck if template is present else download it if marketplace token is provided
             # if template is already present skip to execution of upgrade
@@ -51,7 +49,7 @@ class RaMgmtUpgradeWorkflow:
             # from market place and place it as template and proceed to upgrade execution
             # if neither template nor marketplace token is provided, bail out with failure
 
-            logger.info(("Checking if required template is already present"))
+            logger.info("Checking if required template is already present")
             kubernetes_ova_os = \
                 self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"][
                     "tkgMgmtBaseOs"]
