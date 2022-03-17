@@ -17,6 +17,8 @@ spec:
     - name: branch
       description: the branch to clone from. By default, it is set to master.
       default: alpha
+    - name: targetcluster
+      description: The targetted cluster
 
   tasks:
     - name: start-prep-workspace
@@ -33,7 +35,27 @@ spec:
         - name: branch
           value: "$(params.branch)"
 
-    - name: start-mgmt-upgrade
+    - name: start-mgmt-upgrade-only
+      when:
+        - input: "$(params.targetcluster)"
+          operator: in
+          values:  [ "mgmt" ]
+      taskRef:
+        name: dind-mgmt-upgrade
+      workspaces:
+        - name: task-shared-data
+          workspace: pipeline-shared-data
+      params:
+        - name: imagename
+          value: "$(params.imagename)"
+      runAfter:
+          - start-prep-workspace
+
+    - name: start-mgmt-upgrade-all
+      when:
+        - input: "$(params.targetcluster)"
+          operator: in
+          values:  [ "all" ]
       taskRef:
         name: dind-mgmt-upgrade
       workspaces:
@@ -46,6 +68,10 @@ spec:
           - start-prep-workspace
 
     - name: start-shared-upgrade
+      when:
+        - input: "$(params.targetcluster)"
+          operator: in
+          values:  [ "all" ]
       taskRef:
           name: dind-shared-upgrade
       workspaces:
@@ -55,9 +81,13 @@ spec:
         - name: imagename
           value: $(params.imagename)
       runAfter:
-          - start-mgmt-upgrade
+          - start-mgmt-upgrade-all
 
     - name: dind-workload-upgrade
+      when:
+        - input: "$(params.targetcluster)"
+          operator: in
+          values:  [ "all" ]
       taskRef:
           name: dind-workload-upgrade
       workspaces:
