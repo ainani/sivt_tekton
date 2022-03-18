@@ -122,7 +122,7 @@ class MarketPlaceUrl:
     AVI_PRODUCT = "NSX Advanced Load Balancer"
 
 class UpgradeBinaries:
-    binary_list = ['tanzu-cli-bundle-linux-amd64-tar.tar',
+    binary_list = ['tanzu-cli-bundle-linux-amd64.tar',
                    'kubectl-linux-v1-21-2-vmware-1-gz.gz',
                    'yq_linux_amd64-tar-gz.gz']
 
@@ -165,8 +165,8 @@ class UpgradeVersions:
     PHOTON_KUBERNETES_TEMPLATE_FILE_NAME = "photon-3-kube-v1.21.2+vmware.1"
     UBUNTU_KUBERNETES__TEMPLATE_FILE_NAME = "ubuntu-2004-kube-v1.21.2+vmware.1"
     KUBERNETES_OVA_LATEST_VERSION = "v1.21.2"
-
-
+    TARGET_VERSION = "1.4.1"
+    OLD_TKG_COMP_FILE = '/root/.config/tanzu/tkg/'
 
 class GovcCommands(str, Enum):
     DEPLOY_OVA = "govc vm.deploy"

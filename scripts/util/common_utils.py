@@ -41,7 +41,7 @@ def checkenv(jsonspec):
     try:
         check_connection = rcmd.run_cmd_output(cmd)
         logger.info("OUTPUT: {}".format(check_connection))
-
+        return True
     except subprocess.CalledProcessError:
         return None
 
@@ -118,11 +118,19 @@ def download_upgrade_binaries(binary, refreshToken):
         product_id = product.json()['response']['data']['productid']
         for metalist in product.json()['response']['data']['metafilesList']:
             binary_targetted = metalist["metafileobjectsList"][0]['filename']
-            if binary in binary_targetted:
-                objectid = metalist["metafileobjectsList"][0]['fileid']
-                binaryName = metalist["metafileobjectsList"][0]['filename']
-                app_version = metalist['appversion']
-                metafileid = metalist['metafileid']
+            app_version = metalist['appversion']
+
+            if app_version in UpgradeVersions.TARGET_VERSION:
+                logger.info("Binary: {}".format(binary_targetted))
+                logger.info("appversion: {}".format(app_version))
+
+                if binary in binary_targetted:
+                    logger.info("Found the binary....")
+                    objectid = metalist["metafileobjectsList"][0]['fileid']
+                    binaryName = metalist["metafileobjectsList"][0]['filename']
+                    metafileid = metalist['metafileid']
+                    logger.info("Binary Downloading...: {}".format(binaryName))
+                    logger.info("appversion Downloading..: {}".format(app_version))
 
     if (objectid or binaryName or app_version or metafileid) is None:
         return None, "Failed to find the file details in Marketplace"
@@ -202,12 +210,18 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS):
     product = requests.get(
         MarketPlaceUrl.API_URL + "/products/" + solutionName + "?isSlug=" + slug + "&ownorg=false", headers=headers,
         verify=False)
-
+    logger.info("================")
+    logger.info("csp: {}".format(token))
+    logger.info("================")
+    logger.info("headers: {}".format(headers))
     if product.status_code != 200:
         return None, "Failed to Obtain Product ID"
     else:
         product_id = product.json()['response']['data']['productid']
+
         for metalist in product.json()['response']['data']['metafilesList']:
+            ovaname = metalist["metafileobjectsList"][0]['filename']
+            logger.info("OVANAME:{}".format(ovaname))
             if metalist["version"] == version[1:] and str(metalist["groupname"]).strip("\t") == ova_groupname:
                 objectid = metalist["metafileobjectsList"][0]['fileid']
                 ovaName = metalist["metafileobjectsList"][0]['filename']
