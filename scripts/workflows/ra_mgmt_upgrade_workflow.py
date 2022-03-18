@@ -56,7 +56,6 @@ class RaMgmtUpgradeWorkflow:
                         installer_cmd = ''
 
                         break
-
             #
             # Precheck if template is present else download it if marketplace token is provided
             # if template is already present skip to execution of upgrade
