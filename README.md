@@ -35,3 +35,12 @@ Target the pipeline and execute:
 
 - kubectl apply -f tasks/git-pvtclone.yml -f tasks/avi_setup.yml  -f tasks/mgmt_setup.yml -f tasks/shared_cluster_setup.yml -f tasks/wld_setup.yml -f pipelines/main-pipeline.yml
 - kubectl apply -f run/arcas-e2e.yml
+
+
+----
+For upgrade:
+---
+tkn p start upgrade-pipeline -s git-bot -w name=pipeline-shared-data,claimName=tekton-day0 -p imagename=$IMAGENAME -p giturl=$giturl -p targetcluster="mgmt" --showlog
+tkn p start upgrade-pipeline -s git-bot -w name=pipeline-shared-data,claimName=tekton-day0 -p imagename=$IMAGENAME -p giturl=$giturl -p targetcluster="all" --showlog
+
+
