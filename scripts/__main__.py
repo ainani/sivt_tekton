@@ -1,9 +1,7 @@
 import os
 from pathlib import Path
-
 import click
 import yaml
-
 from constants.constants import Paths
 from model.desired_state import DesiredState
 from model.run_config import RunConfig, DeploymentPlatform
@@ -179,33 +177,6 @@ def validate_env(ctx):
 def validate(ctx):
     root_dir = ctx.obj["ROOT_DIR"]
     EnvValidator(root_dir).prepare_env()
-
-
-@cli.command(hidden=True)
-def test():
-    logger.warn("Only for testing.. hidden option")
-
-
-@cli.group(hidden=True)
-@click.pass_context
-def dev(ctx):
-    logger.warn("Only for testing.. hidden option")
-    ctx.ensure_object(dict)
-
-
-@dev.command()
-@click.pass_context
-def cleanup(ctx):
-    root_dir = ctx.obj["ROOT_DIR"]
-    state_file_path = os.path.join(root_dir, Paths.STATE_PATH)
-    try:
-        if os.path.exists(state_file_path):
-            os.remove(state_file_path)
-            Git.add_all_and_commit(os.path.dirname(state_file_path), "Delete state file for testing")
-        FileHelper.clear_kubeconfig(root_dir)
-        Git.add_all_and_commit(os.path.join(root_dir, Paths.KUBECONFIG_REPO), "cleanup kubeconfigs")
-    except Exception as e:
-        logger.error(e)
 
 
 if __name__ == "__main__":
