@@ -1,4 +1,4 @@
-
+``` sh
 #MANUAL
 export IMAGENAME="10.202.233.205:80/library/service_installer_tekton:v141"
 export GIT_FQDN=gitlab.eng.vmware.com
@@ -25,16 +25,20 @@ kubectl apply -f resources/secret.yaml -f resources/sa.yaml -f resources/day0-re
 # apply tasks and pipelines
 kubectl apply -f tasks/git-pvtclone.yml -f tasks/avi_setup.yml  -f tasks/mgmt_setup.yml -f tasks/shared_cluster_setup.yml -f tasks/wld_setup.yml
 kubectl apply -f pipelines/day0-pipeline.yml -f pipelines/upgrade-pipeline.yml
-
+```
+``` sh
 #SCRIPT/MANUAL
 #ACTUAL TRIGGER
 #Day0
 tkn p start day0-pipeline -s git-bot -w name=pipeline-shared-data,claimName=tekton-day0 -p imagename=$IMAGENAME -p giturl=$GITREPO -p branch=$GITBRANCH --showlog
 
-#if script:
+# SCRIPT TO ENCOMPASS THE ABOVE COMMAND 
 #  ./launch.sh --create-cluster --exec day0 #to create cluster
 #  ./launch.sh  --exec day0   # to use existing cluster 
 
+```
+
+```sh
 #Day2
 #tkn p start upgrade-pipeline -s git-bot -w name=pipeline-shared-data,claimName=tekton-day0 -p imagename=$IMAGENAME -p giturl=$giturl --showlog
 
@@ -44,4 +48,5 @@ tkn p start upgrade-pipeline -s git-bot -w name=pipeline-shared-data,claimName=t
 #if script:
 #  ./launch.sh --create-cluster --exec day2 --targetcluster <mgmt/all>
 #  ./launch.sh --exec day2 --targetcluster <mgmt/all>
+```
 
