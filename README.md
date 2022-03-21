@@ -1,46 +1,49 @@
-# ARCAS TEKTON CICD PIPELINE
-Setup Kubernetes cluster
+# TEKTON PIPELINE 
 
-For Minikube: 
-     
-wget https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-chmod +x minikube-linux-amd64
-sudo mv minikube-linux-amd64 /usr/local/bin/minikube
-minikube version
+Tekton is a cloud-native solution for building CI/CD systems. It consists of Tekton Pipelines, which provides the DayO deployment and Day2 operations of TKGM 1.4.x on vSphere backed environment. 
 
+## Features
 
-
-Install kubectl 
-
-curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
-chmod +x kubectl
-sudo mv kubectl  /usr/local/bin/
-
-Start minikube 
-minikube start
+- Bring based on Reference Architecture of TKGM on vSphere.
+- E2E deployement and configuration of AVI Controller, Management, SharedServices, Workload clusters 
+- Support for Day2 of upgrade from 1.4.0 to 1.4.1
 
 
-Install Tekton 
-kubectl apply --filename https://github.com/tektoncd/pipeline/releases/download/v0.19.0/release.notags.yaml
+## Pre-requisites
 
-Install Tekton cli
-wget https://github.com/tektoncd/cli/releases/download/v0.15.0/tkn_0.15.0_Linux_x86_64.tar.gz 
-tar -zxvf tkn_0.15.0_Linux_x86_64.tar.gz 
-cp tkn /usr/bin/; 
+Tekton pipelines execution require the following: 
 
----
+- Service Installer OVA
+- Kind:Node image present locally on service installer
+- Docker:dind image present locally on service installer
+- Service Installer Docker image
+- Private git repo
 
-Execution: 
-Target the pipeline and execute:
+## Execution
 
-- kubectl apply -f tasks/git-pvtclone.yml -f tasks/avi_setup.yml  -f tasks/mgmt_setup.yml -f tasks/shared_cluster_setup.yml -f tasks/wld_setup.yml -f pipelines/main-pipeline.yml
-- kubectl apply -f run/arcas-e2e.yml
+1. Update config/deployment.json based on the environment. 
+2. Traverse to path in Service Installer which has the git repo cloned.
+
+    ### - Setting Environment values
+    ```sh
+    export IMAGENAME="<service_installer_tekton:v141>"
+    export GIT_FQDN="<Private_git_fqdn>"
+    export GITUSER="<git_username>"
+    export GITPAT="<git_PAT>"
+    export GITREPO="<FULL PATH OF GIT REPO>"
+    export GITBRANCH="<Branch to clone from. Defaults to master, if not specified>"
+    ```
+    
+    ### - Triggering the pipeline
+    ```sh
+    ./launch.sh --create-cluster --exec day0 #for day0 deployment
+    ```
+    ```sh
+    ./launch.sh --create-cluster --exec day2 --targetcluster <mgmt/all>
+    #for upgrade operation
+    ```
+    
 
 
-----
-For upgrade:
----
-tkn p start upgrade-pipeline -s git-bot -w name=pipeline-shared-data,claimName=tekton-day0 -p imagename=$IMAGENAME -p giturl=$giturl -p targetcluster="mgmt" --showlog
-tkn p start upgrade-pipeline -s git-bot -w name=pipeline-shared-data,claimName=tekton-day0 -p imagename=$IMAGENAME -p giturl=$giturl -p targetcluster="all" --showlog
 
 
