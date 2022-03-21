@@ -19,6 +19,7 @@ from workflows.ra_shared_cluster_workflow import RaSharedClusterWorkflow
 from workflows.ra_mgmt_upgrade_workflow import RaMgmtUpgradeWorkflow
 from workflows.ra_shared_cluster_upgrade import RaSharedUpgradeWorkflow
 from workflows.ra_workload_cluster_workflow import RaWorkloadClusterWorkflow
+from workflows.ra_workload_cluster_upgrade import RaWorkloadUpgradeWorkflow
 
 logger = LoggerHelper.get_logger(name="__main__")
 
@@ -118,7 +119,7 @@ def wl_deploy(ctx):
 @click.pass_context
 def wl_upgrade(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    RaSharedUpgradeWorkflow(run_config).upgrade_workflow()
+    RaWorkloadUpgradeWorkflow(run_config).upgrade_workflow()
 
 
 @cli.command(name="pull-kubeconfig")
