@@ -63,10 +63,9 @@ class RaMgmtClusterWorkflow:
             return json.dumps(d), 500
         config_mgmt = self.configTkgMgmt()
         if config_mgmt[1] != 200:
-            logger.error(str(config_mgmt[0].json['msg']))
             d = {
                 "responseType": "ERROR",
-                "msg": "Failed to Config management cluster " + str(config_mgmt[0].json['msg']),
+                "msg": "Failed to Config management cluster ",
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
