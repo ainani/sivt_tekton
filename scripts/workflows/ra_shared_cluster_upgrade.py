@@ -61,7 +61,7 @@ class RaSharedUpgradeWorkflow:
                             logger.info("Locating full path of binary...")
                             full_path_bin = locate_binary_tmp(search_dir='/tmp/cli/core',
                                                               filestring='tanzu')
-                            if not full_path_bin:
+                            if full_path_bin:
                                 installer_cmd = 'install {} /usr/local/bin/tanzu'.format(
                                     full_path_bin)
                             else:
@@ -71,7 +71,6 @@ class RaSharedUpgradeWorkflow:
 
                         except Exception:
                             logger.error("Error: {}".format(traceback.format_exc()))
-                        raise Exception()
 
             logger.info("Binary Version is already upgraded to targetted version")
             logger.info("Checking if required template is already present")

@@ -42,7 +42,6 @@ def checkenv(jsonspec):
     cmd = 'govc ls'
     try:
         check_connection = rcmd.run_cmd_output(cmd)
-        logger.info("OUTPUT: {}".format(check_connection))
         return True
     except subprocess.CalledProcessError:
         return None
@@ -212,10 +211,6 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
     product = requests.get(
         MarketPlaceUrl.API_URL + "/products/" + solutionName + "?isSlug=" + slug + "&ownorg=false", headers=headers,
         verify=False)
-    logger.info("================")
-    logger.info("csp: {}".format(token))
-    logger.info("================")
-    logger.info("headers: {}".format(headers))
     if product.status_code != 200:
         return None, "Failed to Obtain Product ID"
     else:
@@ -434,19 +429,19 @@ def createResourceFolderAndWait(vcenter_ip, vcenter_username, password,
     }
     return json.dumps(d), 200
 
-def untar_binary(tarfile, dest_path='/tmp/'):
+def untar_binary(target_tar, dest_path='/tmp/'):
     """
     untar .tar or .tgz file to /tmp/<tarfile>
     :param tarfile:
     :return:
     """
-    tar = tarfile.open(tarfile)
+    tar = tarfile.open(target_tar)
     tar.extractall(path=dest_path)
     tar.close()
 
 def locate_binary_tmp(search_dir, filestring):
 
-    installer_file = ''
+    installer_file = None
     for fpath in pathlib.Path(search_dir).glob('**/*'):
         fabs_path = fpath
         if filestring in str(fabs_path):

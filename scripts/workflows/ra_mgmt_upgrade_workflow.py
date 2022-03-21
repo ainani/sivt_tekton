@@ -64,7 +64,7 @@ class RaMgmtUpgradeWorkflow:
                             logger.info("Locating full path of binary...")
                             full_path_bin = locate_binary_tmp(search_dir='/tmp/cli/core',
                                                               filestring='tanzu')
-                            if not full_path_bin:
+                            if full_path_bin:
                                 installer_cmd = 'install {} /usr/local/bin/tanzu'.format(full_path_bin)
                             else:
                                 logger.error("Unable to install tanzu binary")
@@ -73,7 +73,6 @@ class RaMgmtUpgradeWorkflow:
 
                         except Exception:
                             logger.error("Error: {}".format(traceback.format_exc()))
-                        raise Exception()
 
             # Precheck if template is present else download it if marketplace token is provided
             # if template is already present skip to execution of upgrade
