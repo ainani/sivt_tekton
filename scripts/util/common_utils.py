@@ -23,6 +23,8 @@ from ruamel import yaml as ryaml
 from datetime import datetime
 from util.vcenter_operations import createResourcePool, create_folder
 import subprocess
+import pathlib
+import tarfile
 
 logger = LoggerHelper.get_logger('common_utils')
 logging.getLogger("paramiko").setLevel(logging.WARNING)
@@ -169,7 +171,7 @@ def download_upgrade_binaries(binary, refreshToken):
 
     return filename, "Kubernetes OVA download successful"
 
-def getOvaMarketPlace(filename, refreshToken, version, baseOS):
+def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
 
     rcmd = cmd_runner.RunCmd()
     filename = filename + ".ova"
@@ -222,16 +224,27 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS):
         for metalist in product.json()['response']['data']['metafilesList']:
             ovaname = metalist["metafileobjectsList"][0]['filename']
             logger.info("OVANAME:{}".format(ovaname))
-            if metalist["version"] == version[1:] and str(metalist["groupname"]).strip("\t") == ova_groupname:
-                objectid = metalist["metafileobjectsList"][0]['fileid']
-                ovaName = metalist["metafileobjectsList"][0]['filename']
-                app_version = metalist['appversion']
-                metafileid = metalist['metafileid']
+            if upgrade:
+                if metalist['appversion'] in UpgradeVersions.TARGET_VERSION:
+                    if metalist["version"] == version[1:] and str(metalist["groupname"]).strip(
+                             "\t") == ova_groupname:
+                         objectid = metalist["metafileobjectsList"][0]['fileid']
+                         ovaName = metalist["metafileobjectsList"][0]['filename']
+                         app_version = metalist['appversion']
+                         metafileid = metalist['metafileid']
+
+            else:
+                if metalist["version"] == version[1:] and str(metalist["groupname"]).strip("\t")\
+                        == ova_groupname:
+                    objectid = metalist["metafileobjectsList"][0]['fileid']
+                    ovaName = metalist["metafileobjectsList"][0]['filename']
+                    app_version = metalist['appversion']
+                    metafileid = metalist['metafileid']
 
     if (objectid or ovaName or app_version or metafileid) is None:
         return None, "Failed to find the file details in Marketplace"
 
-    logger.info("Downloading kfubernetes ova - " + ovaName)
+    logger.info("Downloading kubernetes ova - " + ovaName)
 
     payload = {
         "eulaAccepted": "true",
@@ -266,13 +279,13 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS):
     return filename, "Kubernetes OVA download successful"
 
 
-def downloadAndPushToVCMarketPlace(file, datacenter, datastore, networkName, clusterName, refresToken, ovaVersion,
-                                   ovaOS, jsonspec):
+def downloadAndPushToVCMarketPlace(file, datacenter, datastore, networkName, clusterName,
+                                   refresToken, ovaVersion, ovaOS, jsonspec, upgrade):
     my_file = Path("/tmp/" + file + ".ova")
     rcmd = cmd_runner.RunCmd()
     if not my_file.exists():
         logger.info("Downloading kubernetes ova from MarketPlace")
-        download_status = getOvaMarketPlace(file, refresToken, ovaVersion, ovaOS)
+        download_status = getOvaMarketPlace(file, refresToken, ovaVersion, ovaOS, upgrade)
         if download_status[0] is None:
             return None, download_status[1]
         logger.info("Kubernetes ova downloaded  at location " + "/tmp/" + file)
@@ -340,7 +353,7 @@ def downloadAndPushKubernetesOvaMarketPlace(jsonspec, version, baseOS, upgrade=F
 
         download = downloadAndPushToVCMarketPlace(file, vCenter_datacenter, data_store, networkName,
                                                           vCenter_cluster, refToken,
-                                                          version, baseOS, jsonspec)
+                                                          version, baseOS, jsonspec, upgrade)
         if download[0] is None:
 
             return None, download[1]
@@ -420,6 +433,26 @@ def createResourceFolderAndWait(vcenter_ip, vcenter_username, password,
         "ERROR_CODE": 200
     }
     return json.dumps(d), 200
+
+def untar_binary(tarfile, dest_path='/tmp/'):
+    """
+    untar .tar or .tgz file to /tmp/<tarfile>
+    :param tarfile:
+    :return:
+    """
+    tar = tarfile.open(tarfile)
+    tar.extractall(path=dest_path)
+    tar.close()
+
+def locate_binary_tmp(search_dir, filestring):
+
+    installer_file = ''
+    for fpath in pathlib.Path(search_dir).glob('**/*'):
+        fabs_path = fpath
+        if filestring in str(fabs_path):
+            installer_file = fabs_path
+            break
+    return installer_file
 
 def getCloudStatus(ip, csrf2, aviVersion, cloudName):
     headers = {

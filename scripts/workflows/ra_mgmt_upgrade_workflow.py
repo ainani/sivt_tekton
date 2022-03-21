@@ -7,8 +7,9 @@ from util.logger_helper import LoggerHelper
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 import traceback
 from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, download_upgrade_binaries, \
-    checkenv
+    checkenv, untar_binary, locate_binary_tmp
 from util.cmd_runner import RunCmd
+import pathlib
 
 logger = LoggerHelper.get_logger(name='ra_mgmt_upgrade_workflow')
 
@@ -51,62 +52,78 @@ class RaMgmtUpgradeWorkflow:
                         download_status = download_upgrade_binaries(binary, refToken)
                         logger.info("Download status: {}".format(download_status))
                         # Proceed to install the binary
-                        remove_old_bom_cmd = 'rm -rf {}'.format(UpgradeVersions.OLD_TKG_COMP_FILE)
-                        rm_output = self.rcmd.run_cmd_only(remove_old_bom_cmd)
-                        installer_cmd = ''
+                        try:
+                            logger.info("Removing old bom file")
+                            remove_old_bom_cmd = 'rm -rf {}'.format(UpgradeVersions.OLD_TKG_COMP_FILE)
+                            self.rcmd.run_cmd_only(remove_old_bom_cmd)
+                            # extract to /tmp
+                            logger.info("Untar binary...")
+                            tar_binary_tmp = '/tmp/{}'.format(binary)
+                            untar_binary(tar_binary_tmp)
+                            # locate the right binary path
+                            logger.info("Locating full path of binary...")
+                            full_path_bin = locate_binary_tmp(search_dir='/tmp/cli/core',
+                                                              filestring='tanzu')
+                            if not full_path_bin:
+                                installer_cmd = 'install {} /usr/local/bin/tanzu'.format(full_path_bin)
+                            else:
+                                logger.error("Unable to install tanzu binary")
+                                raise Exception()
+                            self.rcmd.run_cmd_only(installer_cmd)
 
-                        break
-            #
+                        except Exception:
+                            logger.error("Error: {}".format(traceback.format_exc()))
+                        raise Exception()
+
             # Precheck if template is present else download it if marketplace token is provided
             # if template is already present skip to execution of upgrade
             # if template is not present and marketplace token is provided, proceed to download
             # from market place and place it as template and proceed to upgrade execution
             # if neither template nor marketplace token is provided, bail out with failure
 
-            # logger.info("Checking if required template is already present")
-            # kubernetes_ova_os = \
-            #     self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"][
-            #         "tkgMgmtBaseOs"]
-            # kubernetes_ova_version = UpgradeVersions.KUBERNETES_OVA_LATEST_VERSION
-            # down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec,
-            #                                                       kubernetes_ova_version,
-            #                                                       kubernetes_ova_os,
-            #                                                       upgrade=True)
-            # if down_status[0] is None:
-            #     logger.error(down_status[1])
-            #     d = {
-            #         "responseType": "ERROR",
-            #         "msg": down_status[1],
-            #         "ERROR_CODE": 500
-            #     }
-            #     logger.error("Error: {}".format(json.dumps(d)))
-            #     msg = "Failed to download template..."
-            #     raise Exception(msg)
-            # else:
-            #
-            #     # execute upgrade
-            #     cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtClusterName']
-            #     self.tanzu_client.login(cluster_name=cluster)
-            #     if self.tanzu_client.management_cluster_upgrade(cluster_name=cluster) is None:
-            #         msg= "Failed to upgrade Management cluster"
-            #         logger.error("Error: {}".format(msg))
-            #         raise Exception(msg)
-            #
-            #     if not self.tanzu_client.retriable_check_cluster_exists(cluster_name=cluster):
-            #         msg = f"Cluster: {cluster} not in running state"
-            #         logger.error(msg)
-            #         raise Exception(msg)
-            #
-            #     logger.info("Checking for services status...")
-            #     cluster_status = self.tanzu_client.get_all_clusters()
-            #     mgmt_health = ClusterCommonWorkflow.check_cluster_health(cluster_status, cluster)
-            #     if mgmt_health == "UP":
-            #         msg = f"Management Cluster {cluster} upgraded successfully"
-            #         logger.info(msg)
-            #     else:
-            #         msg = f"Management Cluster {cluster} failed to upgrade"
-            #         logger.error(msg)
-            #         raise Exception(msg)
+            logger.info("Checking if required template is already present")
+            kubernetes_ova_os = \
+                self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"][
+                    "tkgMgmtBaseOs"]
+            kubernetes_ova_version = UpgradeVersions.KUBERNETES_OVA_LATEST_VERSION
+            down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec,
+                                                                  kubernetes_ova_version,
+                                                                  kubernetes_ova_os,
+                                                                  upgrade=True)
+            if down_status[0] is None:
+                logger.error(down_status[1])
+                d = {
+                    "responseType": "ERROR",
+                    "msg": down_status[1],
+                    "ERROR_CODE": 500
+                }
+                logger.error("Error: {}".format(json.dumps(d)))
+                msg = "Failed to download template..."
+                raise Exception(msg)
+            else:
+                # execute upgrade
+                cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtClusterName']
+                self.tanzu_client.login(cluster_name=cluster)
+                if self.tanzu_client.management_cluster_upgrade(cluster_name=cluster) is None:
+                    msg= "Failed to upgrade Management cluster"
+                    logger.error("Error: {}".format(msg))
+                    raise Exception(msg)
+
+                if not self.tanzu_client.retriable_check_cluster_exists(cluster_name=cluster):
+                    msg = f"Cluster: {cluster} not in running state"
+                    logger.error(msg)
+                    raise Exception(msg)
+
+                logger.info("Checking for services status...")
+                cluster_status = self.tanzu_client.get_all_clusters()
+                mgmt_health = ClusterCommonWorkflow.check_cluster_health(cluster_status, cluster)
+                if mgmt_health == "UP":
+                    msg = f"Management Cluster {cluster} upgraded successfully"
+                    logger.info(msg)
+                else:
+                    msg = f"Management Cluster {cluster} failed to upgrade"
+                    logger.error(msg)
+                    raise Exception(msg)
 
         except Exception:
             logger.error("Error Encountered: {}".format(traceback.format_exc()))
