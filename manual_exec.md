@@ -1,9 +1,9 @@
 ``` sh
-#MANUAL
+#MANUAL INPUTS FROM THE USER TO BE EXPORTED 
 export IMAGENAME="10.202.233.205:80/library/service_installer_tekton:v141"
 export GIT_FQDN=gitlab.eng.vmware.com
 export GITUSER=smuthukumar
-export GITPAT=2x5ithxjeJAcucjAC8Kp
+export GITPAT=xxxxxxxxx
 export GITREPO="https://gitlab.eng.vmware.com/smuthukumar/arcas-tekton-cicd"
 export GITBRANCH=alpha
 
