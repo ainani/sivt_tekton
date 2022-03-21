@@ -470,7 +470,6 @@ class RaSharedClusterWorkflow:
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
-        logger.info('Starting Tanzu Observability Integration')
         to_enable = self.jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"]["tanzuObservabilityAvailability"]
         to = registerTanzuObservability(shared_cluster_name, to_enable, size, self.jsonspec)
         if to[1] != 200:
@@ -481,6 +480,8 @@ class RaSharedClusterWorkflow:
             "msg": "Successfully deployed  cluster " + shared_cluster_name,
             "SUCCESS_CODE": 200
         }
+        logger.info("Successfully completed deploying Shared Services Cluster.")
+
         return json.dumps(d), 200
 
     @log('Deploy Shared Services Cluster')

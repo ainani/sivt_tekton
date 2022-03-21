@@ -1680,6 +1680,7 @@ def registerTanzuObservability(cluster_name, to_enable, size, jsonspec):
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
+            logger.info('Starting Tanzu Observability Integration')
             st = integrateSas(cluster_name, jsonspec, SAS.TO)
             return st[0].json, st[1]
         else:
