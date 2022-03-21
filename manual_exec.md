@@ -10,6 +10,8 @@ export GITBRANCH=alpha
 
 
 # FULL e2e script
+#CHANGE DIRECTORY 
+cd arcas-tekton-cicd
 
 #SCRIPT
 # replace for service bot creation
