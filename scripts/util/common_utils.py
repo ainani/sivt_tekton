@@ -218,7 +218,6 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
 
         for metalist in product.json()['response']['data']['metafilesList']:
             ovaname = metalist["metafileobjectsList"][0]['filename']
-            logger.info("OVANAME:{}".format(ovaname))
             if upgrade:
                 if metalist['appversion'] in UpgradeVersions.TARGET_VERSION:
                     if metalist["version"] == version[1:] and str(metalist["groupname"]).strip(

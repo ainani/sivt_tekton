@@ -9,7 +9,7 @@
             "vcenterDatastore": "iscsi-storage",
             "contentLibraryName": "TanzuAutomation-Lib",
             "aviOvaName": "avi-controller",
-            "resourcePoolName": ""
+            "resourcePoolName": "TEKTON"
         },
         "envType": "tkgm",
         "marketplaceSpec": {
@@ -113,7 +113,7 @@
             "tkgSharedserviceClusterCidr": "100.96.0.0/11",
             "tkgSharedserviceServiceCidr": "100.64.0.0/13",
             "tkgSharedserviceBaseOs": "photon",
-            "tkgSharedserviceKubeVersion": "v1.22.5"
+            "tkgSharedserviceKubeVersion": "v1.21.2"
         }
     },
     "tkgMgmtDataNetwork": {
