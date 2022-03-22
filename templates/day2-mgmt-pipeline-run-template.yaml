@@ -3,7 +3,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: PipelineRun
 metadata:
-  name: day2
+  generateName: tkgm-upgrade-day2-
 spec:
   pipelineRef:
     name: upgrade-pipeline
