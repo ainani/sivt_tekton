@@ -26,10 +26,7 @@ spec:
       script: |
           ls -l
           cd /workspace/task-shared-data
-          ssh-keygen -q -t rsa -N '' -f /root/.ssh/id_rsa
-          varchange=`cat /root/.ssh/id_rsa.pub`
-          sed  "s~WLD_CLUSTER_SSHKEY~$varchange~g" config/deployment-config.yml > replace_deployment.yml
-          cp -rf replace_deployment.yml config/deployment-config.yml
+
           python arcas-tekton-cicd/scripts/__main__.py --root-dir=/workspace/task-shared-data workload-clusters deploy
       volumeMounts:
       - mountPath: /certs/client

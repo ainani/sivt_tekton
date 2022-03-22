@@ -24,7 +24,12 @@ spec:
       script: |
           ls -l
           cd /workspace/task-shared-data
-          python arcas-tekton-cicd/scripts/__main__.py --root-dir=/workspace/task-shared-data  shared-services upgrade
+          rm -rf /root/.config
+          cp -rf /workspace/task-shared-data/kubeconfig-repo/.kube /root/
+          cp -rf /workspace/task-shared-data/kubeconfig-repo/.kube-tkg /root/
+          cp -rf  /workspace/task-shared-data/kubeconfig-repo/.config /root/
+
+        python arcas-tekton-cicd/scripts/__main__.py --root-dir=/workspace/task-shared-data  shared-services upgrade
       volumeMounts:
       - mountPath: /certs/client
         name: dind-certs
