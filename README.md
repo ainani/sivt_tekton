@@ -24,7 +24,7 @@ Tekton pipelines execution require the following:
 1. Update config/deployment.json based on the environment. 
 2. Traverse to path in Service Installer which has the git repo cloned.
 
-    ### 2.a Update entries in values.yaml
+    ### 2.1 Update entries in values.yaml
     ```cat values.yaml
         #@data/values-schema
         ---
@@ -36,21 +36,49 @@ Tekton pipelines execution require the following:
         password: <GIT PAT>
         imagename: <IMAGE PATH OF SERVICE INSTALLER> #service_installer_tekton:v141 #registry:/library/service_installer_tekton:v141
     ```
-    ### 2.b For triggering Day0 bringup
+    ### 2.2 For triggering Day0 bringup
     ``` 
         #For launching Day0 bringup of TKGM
         ./launch.sh --create-cluster --deploy-dashboard -exec day0
     ```
-    ### 2.c For triggering Day2 operation targetting management cluster
+    ### 2.3 For triggering Day2 operation targetting management cluster
     ``` 
         #For launching Day2 upgrade opearations for Management cluster
         ./launch.sh --create-cluster --deploy-dashboard -exec day2 --targetcluster mgmt
     ```
-    ### 2.d For triggering Day2 operation targetting all clusters
+    ### 2.4 For triggering Day2 operation targetting all clusters
     ``` 
         #For launching Day2 upgrade opearations for Management cluster
         ./launch.sh --create-cluster --deploy-dashboard -exec day2 --targetcluster all
     ```
-    
+3. Re-triggering any Pipelines
+    ### From kubectl
+    ``` 
+        kubectl create -f run/day0-bringup.yml        
+    ```
+5. Listing Pipelines and taskruns
+    ### From tkn
+    ``` 
+        #for PipelineRuns
+        tkn pr ls
+        NAME                      STARTED          DURATION     STATUS
+        tkgm-bringup-day0-jd2mp   53 minutes ago   58 minutes   Succeeded
+        tkgm-bringup-day0-jqkbz   3 hours ago      47 minutes   Succeeded      
+
+        #for TaskRuns
+        tkn tr ls
+        NAME                                                  STARTED          DURATION     STATUS        
+        tkgm-bringup-day0-jd2mp-start-mgmt-create             46 minutes ago   20 minutes   Succeeded
+        tkgm-bringup-day0-jd2mp-start-avi                     54 minutes ago   8 minutes    Succeeded
+        tkgm-bringup-day0-jd2mp-start-prep-workspace          54 minutes ago   11 seconds   Succeeded
+
+    ```
+4. Monitoring Pipelines
+    ### From tkn
+    ``` 
+        tkn pr logs <tkgm-bringup-day0-jd2mp> --follow
+        #For debugging. 
+        tkn pr desc <tkgm-bringup-day0-jd2mp>
+    ```
 
 
