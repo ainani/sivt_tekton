@@ -521,7 +521,7 @@ class RaWorkloadClusterWorkflow:
                 "msg": "Failed to get ip of avi controller",
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
         avienc_pass = self.jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64']
         csrf2 = obtain_second_csrf(ip, avienc_pass)
         if csrf2 is None:
@@ -531,7 +531,7 @@ class RaWorkloadClusterWorkflow:
                 "msg": "Failed to get csrf from new set password",
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
         create = createResourceFolderAndWait(vcenter_ip, vcenter_username, password,
                                              cluster_name, data_center,
                                              ResourcePoolAndFolderName.WORKLOAD_RESOURCE_POOL_VSPHERE,
@@ -545,7 +545,7 @@ class RaWorkloadClusterWorkflow:
                 "msg": "Failed to create resource pool " + str(create[0].json['msg']),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
         try:
             with open('/root/.ssh/id_rsa.pub', 'r') as f:
                 re = f.readline()
@@ -556,7 +556,7 @@ class RaWorkloadClusterWorkflow:
                 "msg": "Failed to ssh key from config file " + str(e),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
         podRunninng = ["tanzu", "cluster", "list"]
         command_status = runShellCommandAndReturnOutputAsList(podRunninng)
         if command_status[1] != 0:
@@ -566,7 +566,7 @@ class RaWorkloadClusterWorkflow:
                 "msg": "Failed to run command to check status of pods",
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
         tmc_required = str(self.jsonspec['envSpec']['saasEndpoints']['tmcDetails']['tmcAvailability'])
         tmc_flag = False
         if tmc_required.lower() == "true":
@@ -581,7 +581,7 @@ class RaWorkloadClusterWorkflow:
                 "msg": "Wrong tmc selection attribute provided " + tmc_required,
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
         cluster_plan = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadDeploymentType']
         if cluster_plan == PLAN.DEV_PLAN:
             additional_command = ""
@@ -598,7 +598,7 @@ class RaWorkloadClusterWorkflow:
                        cluster_plan,
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
         size = str(self.jsonspec['tkgWorkloadComponents']['tkgWorkloadSize'])
         if size.lower() == "medium":
             cpu = Sizing.medium['CPU']
@@ -626,7 +626,7 @@ class RaWorkloadClusterWorkflow:
                        " medium/large/extra-large/custom " + size,
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
         deployWorkload = False
         workload_cluster_name = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadClusterName']
         management_cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtClusterName']
@@ -635,15 +635,7 @@ class RaWorkloadClusterWorkflow:
         _base64_bytes = vsphere_password.encode('ascii')
         _enc_bytes = base64.b64encode(_base64_bytes)
         vsphere_password = _enc_bytes.decode('ascii')
-        # dhcp = self.clusterops.enableDhcpForManagementNetwork(ip, csrf2, workload_network, aviVersion)
-        # if dhcp[0] is None:
-        #     logger.error("Failed to enable dhcp " + str(dhcp[1]))
-        #     d = {
-        #         "responseType": "ERROR",
-        #         "msg": "Failed to enable dhcp " + str(dhcp[1]),
-        #         "ERROR_CODE": 500
-        #     }
-        #     return json.dumps(d), 500
+
         datacenter_path = "/" + data_center
         datastore_path = datacenter_path + "/datastore/" + data_store
         workload_folder_path = datacenter_path + "/vm/" +\
@@ -664,7 +656,7 @@ class RaWorkloadClusterWorkflow:
                 "msg": "Network folder not found for " + workload_network,
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
 
         logger.info("Deploying workload cluster using tanzu cli")
         deploy_status = deployCluster(workload_cluster_name, cluster_plan,
@@ -681,7 +673,7 @@ class RaWorkloadClusterWorkflow:
                 "msg": "Failed to deploy workload cluster " + deploy_status[1],
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
         isCheck = True
         count = 0
         if isCheck:
@@ -694,7 +686,7 @@ class RaWorkloadClusterWorkflow:
                     "msg": "Failed to check pods are running " + str(command_status[0]),
                     "ERROR_CODE": 500
                 }
-                return json.dumps(d), 500
+                raise Exception
             if verifyPodsAreRunning(workload_cluster_name, command_status[0], RegexPattern.running):
                 found = True
             while not verifyPodsAreRunning(workload_cluster_name, command_status[0],
@@ -715,7 +707,7 @@ class RaWorkloadClusterWorkflow:
                 "msg": workload_cluster_name + " is not running on waiting " + str(count * 30) + "s",
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
         commands = ["tanzu", "management-cluster", "kubeconfig", "get", management_cluster,
                     "--admin"]
         kubeContextCommand = grabKubectlCommand(commands, RegexPattern.SWITCH_CONTEXT_KUBECTL)
@@ -726,7 +718,7 @@ class RaWorkloadClusterWorkflow:
                 "msg": "Failed to get switch to management cluster context command",
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
         lisOfSwitchContextCommand = str(kubeContextCommand).split(" ")
         status = runShellCommandAndReturnOutputAsList(lisOfSwitchContextCommand)
         if status[1] != 0:
@@ -737,7 +729,7 @@ class RaWorkloadClusterWorkflow:
                 "msg": "Failed to get switch to management cluster context " + str(status[0]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
         lisOfCommand = ["kubectl", "label", "cluster",
                         workload_cluster_name, AkoType.KEY + "=" + AkoType.type_ako_set]
         status = runShellCommandAndReturnOutputAsList(lisOfCommand)
@@ -749,7 +741,7 @@ class RaWorkloadClusterWorkflow:
                     "msg": "Failed to apply ako label " + str(status[0]),
                     "ERROR_CODE": 500
                 }
-                return json.dumps(d), 500
+                raise Exception
         else:
             logger.info("Status: {}".format(status[0]))
 
@@ -776,7 +768,7 @@ class RaWorkloadClusterWorkflow:
                 "msg": "Ako pods are not running on waiting " + str(count_ako * 30),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
 
         logger.info("Ako pods are running on waiting " + str(count_ako * 30))
         connectToWorkload = self.connectToWorkLoadCluster()
@@ -788,7 +780,7 @@ class RaWorkloadClusterWorkflow:
                 "msg": "Switching context to workload failed " + connectToWorkload[0].json['msg'],
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
         logger.info(
             "Succesfully configured workload cluster and ako pods are running on waiting " + str(
                 count_ako * 30))
