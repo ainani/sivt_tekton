@@ -1,4 +1,5 @@
 import os
+import re
 import traceback
 import json
 from util import cmd_runner
@@ -6,7 +7,7 @@ from pathlib import Path
 import base64
 import logging
 from constants.constants import Paths, ControllerLocation, KubernetesOva, MarketPlaceUrl, VrfType, \
-    ClusterType, TmcUser, RegexPattern, SAS, AppName, UpgradeVersions
+    ClusterType, TmcUser, RegexPattern, SAS, AppName, UpgradeVersions, TKGCommands
 from util.logger_helper import LoggerHelper
 import requests
 from util.avi_api_helper import getProductSlugId
@@ -173,6 +174,18 @@ def download_upgrade_binaries(binary, refreshToken):
 def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
 
     rcmd = cmd_runner.RunCmd()
+    ovaName = None
+    app_version = None
+    metafileid = None
+    # get base tanzu version for right ova to be downloaded
+    try:
+        tanzu_version = rcmd.run_cmd_output(cmd=TKGCommands.VERSION)
+        obt_version = [line for line in tanzu_version.split("\n") if "version" in line][0]
+        tanzu_targetted_version = re.sub('[^\d\.]', '', obt_version)
+    except Exception:
+        tanzu_targetted_version = '1.4.0'
+        pass
+
     filename = filename + ".ova"
     solutionName = KubernetesOva.MARKETPLACE_KUBERNETES_SOLUTION_NAME
     logger.debug(("Solution Name: {}".format(solutionName)))
@@ -226,14 +239,19 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
                          ovaName = metalist["metafileobjectsList"][0]['filename']
                          app_version = metalist['appversion']
                          metafileid = metalist['metafileid']
+                         break
 
             else:
-                if metalist["version"] == version[1:] and str(metalist["groupname"]).strip("\t")\
-                        == ova_groupname:
-                    objectid = metalist["metafileobjectsList"][0]['fileid']
-                    ovaName = metalist["metafileobjectsList"][0]['filename']
-                    app_version = metalist['appversion']
-                    metafileid = metalist['metafileid']
+                # tanzu_targetted_version since we have grouped ova's under marketplace
+                # under versions
+                if metalist['appversion'] == tanzu_targetted_version:
+                    if metalist["version"] == version[1:] and str(metalist["groupname"]).strip("\t")\
+                            == ova_groupname:
+                        objectid = metalist["metafileobjectsList"][0]['fileid']
+                        ovaName = metalist["metafileobjectsList"][0]['filename']
+                        app_version = metalist['appversion']
+                        metafileid = metalist['metafileid']
+                        break
 
     if (objectid or ovaName or app_version or metafileid) is None:
         return None, "Failed to find the file details in Marketplace"

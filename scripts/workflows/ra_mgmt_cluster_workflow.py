@@ -54,10 +54,10 @@ class RaMgmtClusterWorkflow:
     def create_mgmt_cluster(self):
         config_cloud = self.configCloud()
         if config_cloud[1] != 200:
-            logger.error(str(config_cloud[0].json['msg']))
+
             d = {
                 "responseType": "ERROR",
-                "msg": "Failed to Config management cluster " + str(config_cloud[0].json['msg']),
+                "msg": "Failed to Config management cluster ",
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500

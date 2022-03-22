@@ -35,7 +35,6 @@ class RaSharedUpgradeWorkflow:
             # Precheck if binary is already downloaded.
             version_raw = self.rcmd.run_cmd_output(TKGCommands.VERSION)
             version = [line for line in version_raw.split("\n") if "version" in line][0]
-            logger.info("----: {}".format(version))
             if not UpgradeVersions.TARGET_VERSION in version:
                 logger.info("Binary Version needs to be upgraded to targetted version")
                 refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
