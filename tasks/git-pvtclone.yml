@@ -25,4 +25,5 @@ spec:
         cp -rf arcas-tekton-cicd/config .
         cp -rf arcas-tekton-cicd/deployment-state .
         cp -rf arcas-tekton-cicd/desired-state .
+        cp -rf arcas-tekton-cicd/kubeconfig-repo .
         ls -la
