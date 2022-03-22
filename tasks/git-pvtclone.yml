@@ -22,8 +22,9 @@ spec:
         rm -rf *
         rm -rf .tmp
         git clone $(params.giturl) -b $(params.branch)
-        cp -rf arcas-tekton-cicd/config .
-        cp -rf arcas-tekton-cicd/deployment-state .
-        cp -rf arcas-tekton-cicd/desired-state .
-        cp -rf arcas-tekton-cicd/kubeconfig-repo .
+        cur_dir=`ls`
+        cp -rf $cur_dir/config .
+        cp -rf $cur_dir/deployment-state .
+        cp -rf $cur_dir/desired-state .
+        cp -rf $cur_dir/kubeconfig-repo .
         ls -la
