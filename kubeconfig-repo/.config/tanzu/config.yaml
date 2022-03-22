@@ -1,18 +1,1 @@
-apiVersion: config.tanzu.vmware.com/v1alpha1
-clientOptions:
-  cli:
-    repositories:
-    - gcpPluginRepository:
-        bucketName: tanzu-cli-tkg
-        name: core
-    unstableVersionSelector: none
-current: tekton-mgmt-cluster
-kind: ClientConfig
-metadata:
-  creationTimestamp: null
-servers:
-- managementClusterOpts:
-    context: tekton-mgmt-cluster-admin@tekton-mgmt-cluster
-    path: /root/.kube-tkg/config
-  name: tekton-mgmt-cluster
-  type: managementcluster
+
