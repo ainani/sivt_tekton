@@ -39,22 +39,25 @@ Tekton pipelines execution require the following:
     ### 2.2 For triggering Day0 bringup
     ``` 
         #For launching Day0 bringup of TKGM
-        ./launch.sh --create-cluster --deploy-dashboard -exec day0
+        ./launch.sh --create-cluster --deploy-dashboard --exec-day0
     ```
     ### 2.3 For triggering Day2 operation targetting management cluster
     ``` 
         #For launching Day2 upgrade opearations for Management cluster
-        ./launch.sh --create-cluster --deploy-dashboard -exec day2 --targetcluster mgmt
+        ./launch.sh --create-cluster --deploy-dashboard --exec-upgrade-mgmt
     ```
     ### 2.4 For triggering Day2 operation targetting all clusters
     ``` 
         #For launching Day2 upgrade opearations for Management cluster
-        ./launch.sh --create-cluster --deploy-dashboard -exec day2 --targetcluster all
+        ./launch.sh --create-cluster --deploy-dashboard     --exec-upgrade-all To trigger upgrade of all clusters
+
     ```
 3. Re-triggering any Pipelines
     ### From kubectl
     ``` 
         kubectl create -f run/day0-bringup.yml        
+        #or 
+        ./launch.sh --exec-day0
     ```
 5. Listing Pipelines and taskruns
     ### From tkn
