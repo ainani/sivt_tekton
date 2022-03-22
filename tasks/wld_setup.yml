@@ -37,7 +37,7 @@ spec:
 
   sidecars:
     - image: docker:dind
-      name: mgmtserver
+      name: wldserver
       args:
         - --storage-driver=vfs
         - --userland-proxy=false

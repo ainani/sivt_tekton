@@ -31,7 +31,7 @@ spec:
 
   sidecars:
     - image: docker:dind
-      name: mgmtserver
+      name: sharedupgradeserver
       args:
         - --storage-driver=vfs
         - --userland-proxy=false

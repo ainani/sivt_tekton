@@ -52,7 +52,7 @@ spec:
 
   sidecars:
     - image: docker:dind
-      name: mgmtserver
+      name: sharedserver
       args:
         - --storage-driver=vfs
         - --userland-proxy=false

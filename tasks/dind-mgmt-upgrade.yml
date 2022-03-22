@@ -32,7 +32,7 @@ spec:
 
   sidecars:
     - image: docker:dind
-      name: mgmtserver
+      name: mgmtupgradeserver
       args:
         - --storage-driver=vfs
         - --userland-proxy=false
