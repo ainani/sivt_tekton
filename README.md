@@ -24,26 +24,33 @@ Tekton pipelines execution require the following:
 1. Update config/deployment.json based on the environment. 
 2. Traverse to path in Service Installer which has the git repo cloned.
 
-    ### - Setting Environment values
-    ```sh
-    export IMAGENAME="<service_installer_tekton:v141>"
-    export GIT_FQDN="<Private_git_fqdn>"
-    export GITUSER="<git_username>"
-    export GITPAT="<git_PAT>"
-    export GITREPO="<FULL PATH OF GIT REPO>"
-    export GITBRANCH="<Branch to clone from. Defaults to master, if not specified>"
+    ### 2.a Update entries in values.yaml
+    ```cat values.yaml
+        #@data/values-schema
+        ---
+        git:
+        host: <FQDN/IP OF GIT>
+        repository: <GITUSER/GITREPO> #foo/master
+        branch: <BRANCH>
+        username: <USER WITH GIT ACCESS FOR THE REPO> #foo
+        password: <GIT PAT>
+        imagename: <IMAGE PATH OF SERVICE INSTALLER> #service_installer_tekton:v141 #registry:/library/service_installer_tekton:v141
+    ```
+    ### 2.b For triggering Day0 bringup
+    ``` 
+        #For launching Day0 bringup of TKGM
+        ./launch.sh --create-cluster --deploy-dashboard -exec day0
+    ```
+    ### 2.c For triggering Day2 operation targetting management cluster
+    ``` 
+        #For launching Day2 upgrade opearations for Management cluster
+        ./launch.sh --create-cluster --deploy-dashboard -exec day2 --targetcluster mgmt
+    ```
+    ### 2.d For triggering Day2 operation targetting all clusters
+    ``` 
+        #For launching Day2 upgrade opearations for Management cluster
+        ./launch.sh --create-cluster --deploy-dashboard -exec day2 --targetcluster all
     ```
     
-    ### - Triggering the pipeline
-    ```sh
-    ./launch.sh --create-cluster --exec day0 #for day0 deployment
-    ```
-    ```sh
-    ./launch.sh --create-cluster --exec day2 --targetcluster <mgmt/all>
-    #for upgrade operation
-    ```
-    
-
-
 
 
