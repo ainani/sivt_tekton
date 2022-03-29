@@ -1,19 +1,19 @@
 {
     "envSpec": {
         "vcenterDetails": {
-            "vcenterAddress": "",
-            "vcenterSsoUser": "",
-            "vcenterSsoPasswordBase64": "",
-            "vcenterDatacenter": "",
-            "vcenterCluster": "",
-            "vcenterDatastore": "",
-            "contentLibraryName": "",
+            "vcenterAddress": "vcenter.tanzu.lab",
+            "vcenterSsoUser": "administrator@vsphere.local",
+            "vcenterSsoPasswordBase64": "Vk13YXJlMSE=",
+            "vcenterDatacenter": "tanzu-dc01",
+            "vcenterCluster": "VMware-Cloud",
+            "vcenterDatastore": "iscsi-storage",
+            "contentLibraryName": "TanzuAutomation-Lib",
             "aviOvaName": "avi-controller",
             "resourcePoolName": "TEKTON"
         },
         "envType": "tkgm",
         "marketplaceSpec": {
-            "refreshToken": ""
+            "refreshToken": "bs-F9AhRbsQegoxAh-YZDeysDKoW_k7HyN4up3CAnl2n8qB3TzBmYexPKhbQVJbz"
         },
         "customRepositorySpec": {
             "tkgCustomImageRepository": "",
@@ -22,7 +22,7 @@
         "saasEndpoints": {
             "tmcDetails": {
                 "tmcAvailability": "false",
-                "tmcRefreshToken": ""
+                "tmcRefreshToken": "bs-F9AhRbsQegoxAh-YZDeysDKoW_k7HyN4up3CAnl2n8qB3TzBmYexPKhbQVJbz"
             },
             "tanzuObservabilityDetails": {
                 "tanzuObservabilityAvailability": "false",
@@ -31,9 +31,9 @@
             }
         },
         "infraComponents": {
-            "dnsServersIp": "",
-            "ntpServers": "",
-            "searchDomains": ""
+            "dnsServersIp": "192.168.110.10",
+            "ntpServers": "192.168.100.1",
+            "searchDomains": ".tanzu.lab"
         },
         "proxySpec": {
             "arcasVm": {
@@ -64,37 +64,37 @@
     },
     "tkgComponentSpec": {
         "aviMgmtNetwork": {
-            "aviMgmtNetworkName": "",
-            "aviMgmtNetworkGatewayCidr": "",
-            "aviMgmtServiceIpStartRange": "",
-            "aviMgmtServiceIpEndRange": ""
+            "aviMgmtNetworkName": "vcf-management",
+            "aviMgmtNetworkGatewayCidr": "192.168.110.1/24",
+            "aviMgmtServiceIpStartRange": "192.168.110.140",
+            "aviMgmtServiceIpEndRange": "192.168.110.199"
         },
         "tkgClusterVipNetwork": {
-            "tkgClusterVipNetworkName": "",
-            "tkgClusterVipNetworkGatewayCidr": "",
-            "tkgClusterVipIpStartRange": "",
-            "tkgClusterVipIpEndRange": ""
+            "tkgClusterVipNetworkName": "vds-tkg-cluster-vip",
+            "tkgClusterVipNetworkGatewayCidr": "192.168.20.1/24",
+            "tkgClusterVipIpStartRange": "192.168.20.100",
+            "tkgClusterVipIpEndRange": "192.168.20.199"
         },
         "aviComponents": {
-            "aviPasswordBase64": "",
-            "aviBackupPassphraseBase64": "",
+            "aviPasswordBase64": "Vk13YXJlMSE=",
+            "aviBackupPassphraseBase64": "Vk13YXJlMSE=",
             "enableAviHa": "false",
-            "aviController01Ip": "",
-            "aviController01Fqdn": "",
-            "aviController02Ip": "",
-            "aviController02Fqdn": "",
-            "aviController03Ip": "",
-            "aviController03Fqdn": "",
-            "aviClusterIp": "",
-            "aviClusterFqdn": "",
+            "aviController01Ip": "192.168.110.41",
+            "aviController01Fqdn": "avi-controller1.tanzu.lab",
+            "aviController02Ip": "192.168.110.42",
+            "aviController02Fqdn": "avi-controller2.tanzu.lab",
+            "aviController03Ip": "192.168.110.43",
+            "aviController03Fqdn": "avi-controller3.tanzu.lab",
+            "aviClusterIp": "192.168.110.40",
+            "aviClusterFqdn": "avi-controller.tanzu.lab",
             "aviSize": "essentials",
             "aviCertPath": "",
             "aviCertKeyPath": ""
         },
         "tkgMgmtComponents": {
-            "tkgMgmtNetworkName": "",
-            "tkgMgmtGatewayCidr": "",
-            "tkgMgmtClusterName": "",
+            "tkgMgmtNetworkName": "vds-tkg-management-pg",
+            "tkgMgmtGatewayCidr": "192.168.22.1/24",
+            "tkgMgmtClusterName": "tekton-mgmt-cluster",
             "tkgMgmtSize": "custom",
             "tkgMgmtCpuSize": "2",
             "tkgMgmtMemorySize": "4",
@@ -117,20 +117,20 @@
         }
     },
     "tkgMgmtDataNetwork": {
-        "tkgMgmtDataNetworkName": "",
-        "tkgMgmtDataNetworkGatewayCidr": "",
-        "tkgMgmtAviServiceIpStartRange": "",
-        "tkgMgmtAviServiceIpEndRange": ""
+        "tkgMgmtDataNetworkName": "vds-tkg-management-data-pg",
+        "tkgMgmtDataNetworkGatewayCidr": "192.168.21.1/24",
+        "tkgMgmtAviServiceIpStartRange": "192.168.21.100",
+        "tkgMgmtAviServiceIpEndRange": "192.168.21.199"
     },
     "tkgWorkloadDataNetwork": {
-        "tkgWorkloadDataNetworkName": "",
-        "tkgWorkloadDataNetworkGatewayCidr": "",
-        "tkgWorkloadAviServiceIpStartRange": "",
-        "tkgWorkloadAviServiceIpEndRange": ""
+        "tkgWorkloadDataNetworkName": "vds-tkg-workload01-data-pg",
+        "tkgWorkloadDataNetworkGatewayCidr": "192.168.31.1/24",
+        "tkgWorkloadAviServiceIpStartRange": "192.168.31.100",
+        "tkgWorkloadAviServiceIpEndRange": "192.168.31.199"
     },
     "tkgWorkloadComponents": {
-        "tkgWorkloadNetworkName": "",
-        "tkgWorkloadGatewayCidr": "",
+        "tkgWorkloadNetworkName": "vds-tkg-workload01-pg",
+        "tkgWorkloadGatewayCidr": "192.168.32.1/24",
         "tkgWorkloadClusterName": "tekton-workload-cluster",
         "tkgWorkloadSize": "custom",
         "tkgWorkloadCpuSize": "2",
@@ -150,8 +150,8 @@
     },
     "harborSpec": {
         "enableHarborExtension": "true",
-        "harborFqdn": "",
-        "harborPasswordBase64": "",
+        "harborFqdn": "harbor.tanzu.tk",
+        "harborPasswordBase64": "Vk13YXJlQDEyMw==",
         "harborCertPath": "",
         "harborCertKeyPath": ""
     },
