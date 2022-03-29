@@ -67,6 +67,41 @@ class State(BaseModel):
     shared_services: SharedClusterInfo
     workload_clusters: Optional[List[WorkloadClusterInfo]] = []
 
+class ScaleMemberState(BaseModel):
+    execute_scale: bool
+    clustername: str
+    scalecontrolnodecount: str
+    scalworkernodecount: str
+
+class ScaleState(BaseModel):
+    execute: bool
+    mgmt: ScaleMemberState
+    shared_services: ScaleMemberState
+    workload_clusters: ScaleMemberState
+
+class RepaveMemberState(BaseModel):
+    execute_repave: bool
+    clustername: str
+    repave_memory_mb: str
+    repave_cpu: str
+
+
+class RepaveClusterInfo(BaseModel):
+    scalemgmt: RepaveMemberState
+    scaleshared: RepaveMemberState
+    scaleworkload: RepaveMemberState
+
+
+class RepaveState(BaseModel):
+    execute: bool
+    mgmt: RepaveMemberState
+    shared_services: RepaveMemberState
+    workload_clusters: RepaveMemberState
+
+class ScaleRepave(BaseModel):
+    scaleinfo: ScaleState
+    repaveinfo: RepaveState
+
 
 def new_extension_state() -> ExtensionState:
     return ExtensionState(deployed=False, upgraded=False)

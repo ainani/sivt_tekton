@@ -18,6 +18,7 @@ from workflows.ra_mgmt_upgrade_workflow import RaMgmtUpgradeWorkflow
 from workflows.ra_shared_cluster_upgrade import RaSharedUpgradeWorkflow
 from workflows.ra_workload_cluster_workflow import RaWorkloadClusterWorkflow
 from workflows.ra_workload_cluster_upgrade import RaWorkloadUpgradeWorkflow
+from workflows.ra_scale_workflow import ScaleWorkflow
 
 logger = LoggerHelper.get_logger(name="__main__")
 
@@ -28,13 +29,17 @@ def load_run_config(root_dir):
         logger.error("state file missing")
         return
     state: State = FileHelper.load_state(state_file_path)
-    desired_state: DesiredState = FileHelper.load_desired_state(os.path.join(root_dir, Paths.DESIRED_STATE_PATH))
+    desired_state: DesiredState = FileHelper.load_desired_state(os.path.join(root_dir,
+                                                                             Paths.DESIRED_STATE_PATH))
     support_matrix = yaml.safe_load(FileHelper.read_resource(Paths.SUPPORT_MATRIX_FILE))
+    scalerepave_file_path = os.path.join(root_dir, Paths.SCALE_REPAVE_PATH)
+    scale_repave = FileHelper.load_scale(scalerepave_file_path)
     run_config = RunConfig(root_dir=root_dir, state=state, desired_state=desired_state,
-                           support_matrix=support_matrix, deployment_platform=DeploymentPlatform.VSPHERE, vmc=None)
+                           support_matrix=support_matrix,
+                           deployment_platform=DeploymentPlatform.VSPHERE,
+                           vmc=None, scaledetails=scale_repave)
 
     return run_config
-
 
 @click.group()
 @click.option("--root-dir", default=".tmp")
@@ -112,13 +117,17 @@ def wl_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
     RaWorkloadClusterWorkflow(run_config).deploy()
 
-
 @workload_clusters.command(name="upgrade")
 @click.pass_context
 def wl_upgrade(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
     RaWorkloadUpgradeWorkflow(run_config).upgrade_workflow()
 
+@cli.command(name="execute-scale")
+@click.pass_context
+def scale_op(ctx):
+    run_config = load_run_config(ctx.obj["ROOT_DIR"])
+    ScaleWorkflow(run_config).execute_scale()
 
 @cli.command(name="pull-kubeconfig")
 @click.pass_context
@@ -165,11 +174,11 @@ def validate_spec(ctx):
     logger.info("Validated Spec, State, Desired state")
 
 
-@validate.command(name="env")
-@click.pass_context
-def validate_env(ctx):
-    root_dir = ctx.obj["ROOT_DIR"]
-    EnvValidator(root_dir).validate_all()
+# @validate.command(name="env")
+# @click.pass_context
+# def validate_env(ctx):
+#     root_dir = ctx.obj["ROOT_DIR"]
+#     EnvValidator(root_dir).validate_all()
 
 
 @cli.command(name="prepare-env")
