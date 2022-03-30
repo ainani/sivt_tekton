@@ -1,4 +1,4 @@
-import os
+import os, sys
 import re
 import traceback
 import json
@@ -43,8 +43,8 @@ def checkenv(jsonspec):
     cmd = 'govc ls'
     try:
         check_connection = rcmd.run_cmd_output(cmd)
-        return True
-    except subprocess.CalledProcessError:
+        return check_connection
+    except Exception:
         return None
 
 

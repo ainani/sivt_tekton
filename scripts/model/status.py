@@ -75,9 +75,9 @@ class ScaleMemberState(BaseModel):
 
 class ScaleState(BaseModel):
     execute: bool
-    mgmt: ScaleMemberState
-    shared_services: ScaleMemberState
-    workload_clusters: ScaleMemberState
+    mgmt: Optional[ScaleMemberState]
+    shared_services: Optional[ScaleMemberState]
+    workload_clusters: Optional[ScaleMemberState]
 
 class RepaveMemberState(BaseModel):
     execute_repave: bool
@@ -87,9 +87,9 @@ class RepaveMemberState(BaseModel):
 
 
 class RepaveClusterInfo(BaseModel):
-    scalemgmt: RepaveMemberState
-    scaleshared: RepaveMemberState
-    scaleworkload: RepaveMemberState
+    scalemgmt: Optional[RepaveMemberState]
+    scaleshared: Optional[RepaveMemberState]
+    scaleworkload: Optional[RepaveMemberState]
 
 
 class RepaveState(BaseModel):
@@ -98,10 +98,11 @@ class RepaveState(BaseModel):
     shared_services: RepaveMemberState
     workload_clusters: RepaveMemberState
 
-class ScaleRepave(BaseModel):
+class ScaleDetail(BaseModel):
     scaleinfo: ScaleState
-    repaveinfo: RepaveState
 
+class RepaveDetail(BaseModel):
+    repaveinfo: RepaveState
 
 def new_extension_state() -> ExtensionState:
     return ExtensionState(deployed=False, upgraded=False)

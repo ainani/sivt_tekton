@@ -41,7 +41,7 @@ class RaWorkloadScaleWorkflow:
 
     def scale(self):
         try:
-            # precheck for right entries in scale-repave.yml to identify the cluster
+            # precheck for right entries in scale.yml to identify the cluster
             # to be scaled and the controlnode and worker node to be scaled
 
             if not self.scaledetails.execute:

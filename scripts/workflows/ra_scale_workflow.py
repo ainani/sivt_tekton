@@ -1,4 +1,4 @@
-import os
+import os, sys
 import json
 from constants.constants import Paths
 from lib.tkg_cli_client import TkgCliClient
@@ -19,16 +19,21 @@ class ScaleWorkflow:
 
         with open(jsonpath) as f:
             self.jsonspec = json.load(f)
+        try:
+            check_env_output = checkenv(self.jsonspec)
+            print("check_env_output: {}".format(check_env_output))
+            if check_env_output is None:
+                msg = "Failed to connect to VC. Possible connection to VC is not available or " \
+                      "incorrect spec provided."
+                logger.error(msg)
+                sys.exit(-1)
+        except Exception:
+            logger.error(traceback.format_exc())
+
+        logger.debug("Get tanzu login for entire flow")
         management_cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
             'tkgMgmtClusterName']
         self.tanzu_client.login(cluster_name=management_cluster)
-
-        check_env_output = checkenv(self.jsonspec)
-        if check_env_output is None:
-            msg = "Failed to connect to VC. Possible connection to VC is not available or " \
-                  "incorrect spec provided."
-            raise Exception(msg)
-
         self.scaledetails = self.run_config.scaledetails.scaleinfo
 
     def get_cluster_dict(self):
@@ -120,9 +125,9 @@ class ScaleWorkflow:
 
     def execute_scale(self):
         try:
-            # precheck for right entries in scale-repave.yml to identify the cluster
+            # precheck for right entries in scale.yml to identify the cluster
             # to be scaled and the controlnode and worker node to be scaled
-
+            logger.info("====Perform precheck======")
             if not self.scaledetails.execute:
                 logger.info("Scale operation is not enabled.")
                 d = {
@@ -139,6 +144,7 @@ class ScaleWorkflow:
             # clusters. Same dictionary can be reused for mgmt, shared and workload clusters
 
             self.fetched_cluster_dict = self.get_cluster_dict()
+            logger.debug(f'Cluster details: {self.fetched_cluster_dict} ')
 
             if self.fetched_cluster_dict is None:
                 error_msg = "Error Fetching cluster details. Possible reasons could be:" \

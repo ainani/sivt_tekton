@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from model.desired_state import DesiredState
 from model.spec import MasterSpec
-from model.status import State, ScaleRepave
+from model.status import State, ScaleDetail, RepaveDetail
 
 
 class DeploymentPlatform(str, Enum):
@@ -32,5 +32,7 @@ class RunConfig(BaseModel):
     support_matrix: dict
     deployment_platform: DeploymentPlatform
     vmc: Optional[VmcConfig]
-    scaledetails: ScaleRepave
+    scaledetails: ScaleDetail
+    repave_details: RepaveDetail
+
 

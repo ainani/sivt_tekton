@@ -10,7 +10,8 @@ from constants.constants import Paths
 from model.desired_state import DesiredState
 from model.spec import MasterSpec
 from model.status import State
-from model.status import ScaleRepave
+from model.status import ScaleDetail
+from model.status import RepaveDetail
 from pydantic.main import BaseModel
 from yaml.loader import SafeLoader
 
@@ -28,11 +29,18 @@ class FileHelper:
         return State.parse_obj(data)
 
     @staticmethod
-    def load_scale(spec_path: str) -> ScaleRepave:
+    def load_scale(spec_path: str) -> ScaleDetail:
         # Open the file and load the file
         with open(spec_path) as f:
             data = yaml.load(f, Loader=SafeLoader)
-        return ScaleRepave.parse_obj(data)
+        return ScaleDetail.parse_obj(data)
+
+    @staticmethod
+    def load_repave(spec_path: str) -> RepaveDetail:
+        # Open the file and load the file
+        with open(spec_path) as f:
+            data = yaml.load(f, Loader=SafeLoader)
+        return RepaveDetail.parse_obj(data)
 
     @staticmethod
     def load_desired_state(spec_path: str) -> DesiredState:
