@@ -1,42 +1,35 @@
 import os
 import json
-from constants.constants import Paths, RepaveTkgCommands, TKGCommands
+from constants.constants import Paths
 from lib.tkg_cli_client import TkgCliClient
 from model.run_config import RunConfig
 from util.logger_helper import LoggerHelper
 import traceback
-from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, checkenv, \
-    download_upgrade_binaries, untar_binary, locate_binary_tmp
+from util.common_utils import checkenv
 from util.cmd_runner import RunCmd
 logger = LoggerHelper.get_logger(name='scale_workflow')
 
 class ScaleWorkflow:
     def __init__(self, run_config: RunConfig):
         self.run_config = run_config
-        # logger.info("Current deployment state: %s", self.run_config.state)
         jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
         self.tanzu_client = TkgCliClient()
         self.rcmd = RunCmd()
+        self.fetched_cluster_dict = {}
 
         with open(jsonpath) as f:
             self.jsonspec = json.load(f)
+        management_cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+            'tkgMgmtClusterName']
+        self.tanzu_client.login(cluster_name=management_cluster)
 
-        # check_env_output = checkenv(self.jsonspec)
-        # if check_env_output is None:
-        #     msg = "Failed to connect to VC. Possible connection to VC is not available or " \
-        #           "incorrect spec provided."
-        #     raise Exception(msg)
+        check_env_output = checkenv(self.jsonspec)
+        if check_env_output is None:
+            msg = "Failed to connect to VC. Possible connection to VC is not available or " \
+                  "incorrect spec provided."
+            raise Exception(msg)
 
         self.scaledetails = self.run_config.scaledetails.scaleinfo
-
-    # def add_node(self, cluster_name, control_plane_node_count, worker_node_count):
-    #     self.ssh.run_cmd_only(
-    #         RepaveTkgCommands.ADD_NODES.format(
-    #             cluster_name=cluster_name,
-    #             control_plane_node_count=control_plane_node_count,
-    #             worker_node_count=worker_node_count,
-    #         )
-    #     )
 
     def get_cluster_dict(self):
 
@@ -50,25 +43,80 @@ class ScaleWorkflow:
         logger.info("Fetching cluster details")
         try:
             cluster_dict = self.tanzu_client.get_all_clusters()
-            logger.info("Cluster dict")
-            logger.info(cluster_dict)
+            logger.debug("Cluster dict")
             return cluster_dict
         except Exception:
             logger.error("Error Encountered")
             logger.error(traceback.format_exc())
             return None
 
-    def get_cluster_state(self, cluster):
+    def validate_node_options(self, cluster_details_dict):
+        """
+        CHECK IF GIVEN CPNODE AND WORKER NODE ARE HIGHER THAN EXISITNG
 
+        :param cluster_details_dict:
+        :return: skip_cnode=True/False
+                 skip_wnode = True/False
         """
-        Checks if clustername is given in scale-repave.yml
-        if cluster name is present,
-         check for cluster exist
-         check for cluster
-        :param cluster:
-        :return:
+        skip_cnode = False
+        skip_wnode = False
+        existing_cnode = str(cluster_details_dict['controlplane']).split('/')[1]
+        existing_wnode = str(cluster_details_dict['workers']).split('/')[1]
+        if existing_cnode >= str(self.scaledetails.mgmt.scalecontrolnodecount):
+            logger.info("Either No controller nodes are opted for scaling or "
+                        "Existing controller nodes are either higher or equal to provided. "
+                        "Skipping controller scaling operation..")
+            skip_cnode = True
+        elif existing_wnode >= str(self.scaledetails.mgmt.scalworkernodecount):
+            logger.info("Either No worker nodes are opted for scaling or "
+                        "Existing worker nodes are either higher or equal to provided. "
+                        "Skipping worker scaling operation..")
+            skip_wnode = True
+        return skip_cnode, skip_wnode
+
+    def construct_cmd(self, cluster_name, skip_cnode, skip_wnode, ctrl_count, worker_count):
         """
-        pass
+        Constructs tanzu cluster scale cmd based on provided controller and worker count
+        :param cluster_name:
+        :param skip_cnode:
+        :return: constructed tanzu cli scale command
+        """
+        tanzu_scale_cmd = 'tanzu cluster scale {} '.format(cluster_name)
+        add_cnode_options = ''
+        add_wnode_options = ''
+        if not skip_cnode:
+            add_cnode_options = '--controlplane-machine-count {}'. \
+                format(ctrl_count)
+        if not skip_wnode:
+            add_wnode_options = '--worker-machine-count {}'. \
+                format(worker_count)
+        exec_scale_cmd = f'{tanzu_scale_cmd} {add_cnode_options} {add_wnode_options}' \
+                              f' --namespace tkg-system'
+        return exec_scale_cmd
+
+    def execute_and_validate(self, cluster_name, exec_cmd):
+        """
+        executes cluster scale cmd
+        validate cluster health after executing
+        :param cluster_name:
+        :param exec_cmd:
+        :return: True on completion.
+                 Bail on Exception if failed
+        """
+        scale_output = self.rcmd.run_cmd_output(exec_cmd)
+        logger.debug(scale_output)
+        if scale_output is None:
+            logger.error("Failure during scaling operation..")
+            raise Exception(traceback.format_exc())
+        else:
+            scale_completed = self.tanzu_client.retriable_check_cluster_exists(
+                cluster_name=cluster_name)
+            if scale_completed:
+                logger.info("Completed Scaling Operation Successfully: {}".format(scale_output))
+                return True
+            else:
+                error_msg = "Unable to get cluster health after scaling"
+                raise Exception(error_msg)
 
     def execute_scale(self):
         try:
@@ -91,14 +139,120 @@ class ScaleWorkflow:
             # clusters. Same dictionary can be reused for mgmt, shared and workload clusters
 
             self.fetched_cluster_dict = self.get_cluster_dict()
-            # # Check if mgmt needs scaling
-            # if not self.scaledetails.mgmt.execute_scale:
-            #     logger.info("Scale operation is not enabled.")
-            # else:
-            #     logger.info("Starting scaling of management cluster")
-            #     cluster_name = self.scaledetails.mgmt.clustername
-            #     cluster_state = self.get_cluster_state(cluster=cluster_name)
 
+            if self.fetched_cluster_dict is None:
+                error_msg = "Error Fetching cluster details. Possible reasons could be:" \
+                            " unable to login to cluster or command output has failed"
+                logger.error("Error: {}".format(error_msg))
+                raise Exception(error_msg)
+
+            # Check if mgmt needs scaling
+            if not self.scaledetails.mgmt.execute_scale:
+                logger.info("Scale operation is not enabled for management.")
+            else:
+
+                logger.info("Starting scaling of management cluster")
+                cluster_name = self.scaledetails.mgmt.clustername
+                if not self.tanzu_client.check_cluster_exists(cluster_name=cluster_name):
+                    error_msg = f'Cluster {cluster_name} does not exit. Cannot execute Scale ' \
+                                f'Operation on given cluster. Check the cluster name and retry ' \
+                                f'the operation'
+                    logger.error('Error: {}'.format(error_msg))
+                    raise Exception(error_msg)
+                # strip out mgmt cluster details from the list obtained from cluster_list_json
+                mgmt_details_list = [cluster for cluster in self.fetched_cluster_dict
+                                     if cluster['name'] == cluster_name]
+                mgmt_details_dict = {k: v for d in mgmt_details_list for k, v in d.items()}
+                logger.debug(mgmt_details_dict)
+                # CHECK IF GIVEN CPNODE AND WORKER NODE ARE HIGHER THAN EXISITNG..
+                skip_cnode, skip_wnode = self.validate_node_options(mgmt_details_dict)
+                if skip_cnode:
+                    if skip_wnode:
+                        error_msg = "Invalid counts provided for controller and worker."
+                        raise Exception(error_msg)
+
+                ctrl_count = self.scaledetails.mgmt.scalecontrolnodecount
+                worker_count = self.scaledetails.mgmt.scalworkernodecount
+                construct_tanzu_scale_cmd = self.construct_cmd(cluster_name, skip_cnode, skip_wnode,
+                                                               ctrl_count, worker_count)
+                # append namespace for mgmt cluster
+                exec_scale_mgmt_cmd = f'{construct_tanzu_scale_cmd} --namespace tkg-system'
+                logger.debug("TANZU MGMT SCALE CMD: {}".format(exec_scale_mgmt_cmd))
+                if self.execute_and_validate(cluster_name, exec_scale_mgmt_cmd):
+                    logger.info("Completed scaling for mgmt cluster. Proceeding to next cluster.")
+
+            # Proceed for next cluster
+            # Check if shared_services needs scaling
+            if not self.scaledetails.shared_services.execute_scale:
+                logger.info("Scale operation is not enabled for shared cluster.")
+            else:
+                logger.info("Starting scaling of Shared Service cluster")
+                cluster_name = self.scaledetails.shared_services.clustername
+                if not self.tanzu_client.check_cluster_exists(cluster_name=cluster_name):
+                    error_msg = f'Cluster {cluster_name} does not exit. Cannot execute Scale ' \
+                                f'Operation on given cluster. Check the cluster name and retry ' \
+                                f'the operation'
+                    logger.error('Error: {}'.format(error_msg))
+                    raise Exception(error_msg)
+                # strip out shared cluster details from the list obtained from cluster_list_json
+                shared_details_list = [cluster for cluster in self.fetched_cluster_dict if
+                                       cluster['name'] == cluster_name]
+                shared_details_dict = {k: v for d in shared_details_list for k, v in d.items()}
+                logger.debug(shared_details_dict)
+                # CHECK IF GIVEN CPNODE AND WORKER NODE ARE HIGHER THAN EXISITNG..
+                skip_cnode, skip_wnode = self.validate_node_options(shared_details_dict)
+                if skip_cnode:
+                    if skip_wnode:
+                        error_msg = "Invalid counts provided for controller and worker."
+                        raise Exception(error_msg)
+
+                ctrl_count = self.scaledetails.shared_services.scalecontrolnodecount
+                worker_count = self.scaledetails.shared_services.scalworkernodecount
+                construct_tanzu_scale_cmd = self.construct_cmd(cluster_name, skip_cnode,
+                                                               skip_wnode,
+                                                               ctrl_count, worker_count)
+                logger.debug("TANZU SHARED SCALE CMD: {}".format(construct_tanzu_scale_cmd))
+                if self.execute_and_validate(cluster_name, construct_tanzu_scale_cmd):
+                    logger.info("Completed scaling for shared cluster. Proceeding to next cluster.")
+            # Proceed for next cluster
+            # Check if workload_clusters needs scaling
+            if not self.scaledetails.workload_clusters.execute_scale:
+                logger.info("Scale operation is not enabled for shared cluster.")
+            else:
+                logger.info("Starting scaling of workload cluster")
+                cluster_name = self.scaledetails.workload_clusters.clustername
+                if not self.tanzu_client.check_cluster_exists(cluster_name=cluster_name):
+                    error_msg = f'Cluster {cluster_name} does not exit. Cannot execute Scale ' \
+                                f'Operation on given cluster. Check the cluster name and retry ' \
+                                f'the operation'
+                    logger.error('Error: {}'.format(error_msg))
+                    raise Exception(error_msg)
+                # strip out workload_clusters details from the list obtained from cluster_list_json
+                wld_details_list = [cluster for cluster in self.fetched_cluster_dict if
+                                       cluster['name'] == cluster_name]
+                wld_details_dict = {k: v for d in wld_details_list for k, v in d.items()}
+                logger.debug(wld_details_dict)
+                # CHECK IF GIVEN CPNODE AND WORKER NODE ARE HIGHER THAN EXISITNG..
+                skip_cnode, skip_wnode = self.validate_node_options(wld_details_dict)
+                if skip_cnode:
+                    if skip_wnode:
+                        error_msg = "Invalid counts provided for controller and worker."
+                        raise Exception(error_msg)
+
+                ctrl_count = self.scaledetails.workload_clusters.scalecontrolnodecount
+                worker_count = self.scaledetails.workload_clusters.scalworkernodecount
+                construct_tanzu_scale_cmd = self.construct_cmd(cluster_name, skip_cnode, skip_wnode,
+                                                               ctrl_count, worker_count)
+                logger.debug("TANZU SHARED SCALE CMD: {}".format(construct_tanzu_scale_cmd))
+                if self.execute_and_validate(cluster_name, construct_tanzu_scale_cmd):
+                    logger.info("Completed scaling for workload_cluster.")
+            logger.info("All Scale operations have been completed..")
+            d = {
+                "responseType": "SUCCESS",
+                "msg": "Scale operation completed",
+                "ERROR_CODE": 200
+            }
+            return json.dumps(d), 200
         except Exception:
             logger.error("Error Encountered: {}".format(traceback.format_exc()))
 
