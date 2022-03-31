@@ -1,7 +1,7 @@
 repaveinfo:
   mgmt:
     execute_repave: false
-    clustername: ''
+    workername: ''
     repave_memory_mb: ''
     repave_cpu: ''
   shared_services:

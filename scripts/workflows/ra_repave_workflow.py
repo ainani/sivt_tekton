@@ -172,7 +172,7 @@ class RepaveWorkflow:
             logger.error("Machine deployments are not running on waiting " + str(count_md * 30))
             return None
 
-    def triggger_repave(self, skip_cpu, skip_mem):
+    def trigger_repave(self, skip_cpu, skip_mem):
         
         """
         1. switch to mgmt context
@@ -310,7 +310,7 @@ class RepaveWorkflow:
                     logger.error("Both CPU/Memory spec are not specified.")
                     raise Exception('Specify either resources')
 
-                shared_operation = self.triggger_repave(skip_cpu, skip_mem)
+                shared_operation = self.trigger_repave(skip_cpu, skip_mem)
                 if shared_operation is None:
                     raise Exception("Error encountered during resize operation on shared cluster")
                 else:
@@ -333,7 +333,7 @@ class RepaveWorkflow:
                 if skip_cpu and skip_mem:
                     logger.error("Both CPU/Memory spec are not specified.")
                     raise Exception('Specify either resources')
-                shared_operation = self.triggger_repave(skip_cpu, skip_mem)
+                shared_operation = self.trigger_repave(skip_cpu, skip_mem)
                 if shared_operation is None:
                     raise Exception("Error encountered during resize operation on workload cluster")
                 else:

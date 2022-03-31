@@ -94,9 +94,9 @@ class RepaveClusterInfo(BaseModel):
 
 class RepaveState(BaseModel):
     execute: bool
-    mgmt: RepaveMemberState
-    shared_services: RepaveMemberState
-    workload_clusters: RepaveMemberState
+    mgmt: Optional[RepaveMemberState]
+    shared_services: Optional[RepaveMemberState]
+    workload_clusters: Optional[RepaveMemberState]
 
 class ScaleDetail(BaseModel):
     scaleinfo: ScaleState

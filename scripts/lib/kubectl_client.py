@@ -28,7 +28,7 @@ class KubectlClient:
     def get_vsphere_template_json(self, worker_name):
         logger.info(f"Getting machine template for {worker_name}")
         # kubectl get VsphereMachineTemplate tekton-shared-cluster-worker -o json
-        get_template = KubectlCommands.GET_VSPHERE_TEMPLATE.format(worker_name=worker_name)
+        get_template = KubectlCommands.GET_VSPHERE_TEMPLATE.format(workername=worker_name)
         return self.rcmd.run_cmd_output(get_template)
 
     def get_machinedeployment_json(self, deployment_name):
