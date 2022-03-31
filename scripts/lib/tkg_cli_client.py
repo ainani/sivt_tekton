@@ -41,6 +41,12 @@ class TkgCliClient:
             raise ValueError(f"Waiting for Cluster {cluster_name} to be in running state.")
         return True
 
+    @retry(ValueError, tries=10, delay=60, logger=logger)
+    def retriable_long_duration_check_cluster_exists(self, cluster_name):
+        if not self.check_cluster_exists(cluster_name):
+            raise ValueError(f"Waiting for Cluster {cluster_name} to be in running state.")
+        return True
+
     @log("Deploying Tanzu kubernetes cluster")
     def deploy_cluster(self, config_file_path, verbosity='-v 9'):
         cluster_deploy = TKGCommands.CLUSTER_DEPLOY.format(file_path=config_file_path, verbose=verbosity)

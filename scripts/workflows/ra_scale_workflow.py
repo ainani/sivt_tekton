@@ -56,24 +56,30 @@ class ScaleWorkflow:
             logger.error(traceback.format_exc())
             return None
 
-    def validate_node_options(self, cluster_details_dict):
+    def validate_node_options(self, cluster_details_dict, ctrl_count, worker_count):
         """
-        CHECK IF GIVEN CPNODE AND WORKER NODE ARE HIGHER THAN EXISITNG
+                CHECK IF GIVEN CPNODE AND WORKER NODE ARE HIGHER THAN EXISITNG
 
         :param cluster_details_dict:
-        :return: skip_cnode=True/False
-                 skip_wnode = True/False
+        :param ctrl_count:
+        :param worker_count:
+        :return:
         """
         skip_cnode = False
         skip_wnode = False
         existing_cnode = str(cluster_details_dict['controlplane']).split('/')[1]
         existing_wnode = str(cluster_details_dict['workers']).split('/')[1]
-        if existing_cnode >= str(self.scaledetails.mgmt.scalecontrolnodecount):
+        logger.debug(f"Existing cnode: {existing_cnode}")
+        logger.debug(f"Provided node: {ctrl_count}")
+        logger.debug(f"Existing wnode: {existing_wnode}")
+        logger.debug(f"Provided wnode: {worker_count}")
+
+        if existing_cnode >= str(ctrl_count):
             logger.info("Either No controller nodes are opted for scaling or "
                         "Existing controller nodes are either higher or equal to provided. "
                         "Skipping controller scaling operation..")
             skip_cnode = True
-        elif existing_wnode >= str(self.scaledetails.mgmt.scalworkernodecount):
+        elif existing_wnode >= str(worker_count):
             logger.info("Either No worker nodes are opted for scaling or "
                         "Existing worker nodes are either higher or equal to provided. "
                         "Skipping worker scaling operation..")
@@ -85,7 +91,10 @@ class ScaleWorkflow:
         Constructs tanzu cluster scale cmd based on provided controller and worker count
         :param cluster_name:
         :param skip_cnode:
-        :return: constructed tanzu cli scale command
+        :param skip_wnode:
+        :param ctrl_count:
+        :param worker_count:
+        :return:
         """
         tanzu_scale_cmd = 'tanzu cluster scale {} '.format(cluster_name)
         add_cnode_options = ''
@@ -96,8 +105,8 @@ class ScaleWorkflow:
         if not skip_wnode:
             add_wnode_options = '--worker-machine-count {}'. \
                 format(worker_count)
-        exec_scale_cmd = f'{tanzu_scale_cmd} {add_cnode_options} {add_wnode_options}' \
-                              f' --namespace tkg-system'
+        exec_scale_cmd = f'{tanzu_scale_cmd} {add_cnode_options} {add_wnode_options}'
+
         return exec_scale_cmd
 
     def execute_and_validate(self, cluster_name, exec_cmd):
@@ -115,7 +124,7 @@ class ScaleWorkflow:
             logger.error("Failure during scaling operation..")
             raise Exception(traceback.format_exc())
         else:
-            scale_completed = self.tanzu_client.retriable_check_cluster_exists(
+            scale_completed = self.tanzu_client.retriable_long_duration_check_cluster_exists(
                 cluster_name=cluster_name)
             if scale_completed:
                 logger.info("Completed Scaling Operation Successfully: {}".format(scale_output))
@@ -172,14 +181,15 @@ class ScaleWorkflow:
                 mgmt_details_dict = {k: v for d in mgmt_details_list for k, v in d.items()}
                 logger.debug(mgmt_details_dict)
                 # CHECK IF GIVEN CPNODE AND WORKER NODE ARE HIGHER THAN EXISITNG..
-                skip_cnode, skip_wnode = self.validate_node_options(mgmt_details_dict)
+                ctrl_count = self.scaledetails.mgmt.scalecontrolnodecount
+                worker_count = self.scaledetails.mgmt.scalworkernodecount
+                skip_cnode, skip_wnode = self.validate_node_options(mgmt_details_dict, ctrl_count,
+                                                                    worker_count)
                 if skip_cnode:
                     if skip_wnode:
                         error_msg = "Invalid counts provided for controller and worker."
                         raise Exception(error_msg)
 
-                ctrl_count = self.scaledetails.mgmt.scalecontrolnodecount
-                worker_count = self.scaledetails.mgmt.scalworkernodecount
                 construct_tanzu_scale_cmd = self.construct_cmd(cluster_name, skip_cnode, skip_wnode,
                                                                ctrl_count, worker_count)
                 # append namespace for mgmt cluster
@@ -207,14 +217,16 @@ class ScaleWorkflow:
                 shared_details_dict = {k: v for d in shared_details_list for k, v in d.items()}
                 logger.debug(shared_details_dict)
                 # CHECK IF GIVEN CPNODE AND WORKER NODE ARE HIGHER THAN EXISITNG..
-                skip_cnode, skip_wnode = self.validate_node_options(shared_details_dict)
+                ctrl_count = self.scaledetails.shared_services.scalecontrolnodecount
+                worker_count = self.scaledetails.shared_services.scalworkernodecount
+                skip_cnode, skip_wnode = self.validate_node_options(shared_details_dict,
+                                                                    ctrl_count,
+                                                                    worker_count)
+                logger.debug(f"skipcnode: {skip_cnode} \t skipwnode: {skip_wnode}")
                 if skip_cnode:
                     if skip_wnode:
                         error_msg = "Invalid counts provided for controller and worker."
                         raise Exception(error_msg)
-
-                ctrl_count = self.scaledetails.shared_services.scalecontrolnodecount
-                worker_count = self.scaledetails.shared_services.scalworkernodecount
                 construct_tanzu_scale_cmd = self.construct_cmd(cluster_name, skip_cnode,
                                                                skip_wnode,
                                                                ctrl_count, worker_count)
@@ -240,14 +252,15 @@ class ScaleWorkflow:
                 wld_details_dict = {k: v for d in wld_details_list for k, v in d.items()}
                 logger.debug(wld_details_dict)
                 # CHECK IF GIVEN CPNODE AND WORKER NODE ARE HIGHER THAN EXISITNG..
-                skip_cnode, skip_wnode = self.validate_node_options(wld_details_dict)
+                ctrl_count = self.scaledetails.workload_clusters.scalecontrolnodecount
+                worker_count = self.scaledetails.workload_clusters.scalworkernodecount
+                skip_cnode, skip_wnode = self.validate_node_options(wld_details_dict,
+                                                                    ctrl_count,
+                                                                    worker_count)
                 if skip_cnode:
                     if skip_wnode:
                         error_msg = "Invalid counts provided for controller and worker."
                         raise Exception(error_msg)
-
-                ctrl_count = self.scaledetails.workload_clusters.scalecontrolnodecount
-                worker_count = self.scaledetails.workload_clusters.scalworkernodecount
                 construct_tanzu_scale_cmd = self.construct_cmd(cluster_name, skip_cnode, skip_wnode,
                                                                ctrl_count, worker_count)
                 logger.debug("TANZU SHARED SCALE CMD: {}".format(construct_tanzu_scale_cmd))
