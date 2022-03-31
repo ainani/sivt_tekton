@@ -448,7 +448,7 @@ class KubectlCommands(str, Enum):
     UPDATE_SECRET = "kubectl create secret generic {name} --from-file={config_file}" \
                     " -n {namespace} -o yaml --dry-run | kubectl replace -f-"
     GET_VSPHERE_TEMPLATE = "kubectl get VsphereMachineTemplate {workername} -o json"
-    GET_MACHINE_DEPLOYMENT = "kubectl get machinedeployment {workername} -o json"
+    GET_MACHINE_DEPLOYMENT = "kubectl get machinedeployment {deployment_name} -o json"
 
 class ClusterType:
     WORKLOAD = "workload"

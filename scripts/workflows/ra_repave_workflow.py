@@ -106,7 +106,7 @@ class RepaveWorkflow:
             # replace worker name
 
             generated_worker_name = ''.join(
-                random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
+                random.choice(string.ascii_lowercase + string.digits) for _ in range(5))
             mod_worker_name = f'{current_worker_name}-{generated_worker_name}'
             self.new_worker_name = mod_worker_name
             filedump['metadata']['name'] = mod_worker_name
@@ -116,14 +116,14 @@ class RepaveWorkflow:
             if skip_cpu:
                 logger.debug(f'Current memorysize: {current_memory_size} \t Resized:'
                              f' {self.memory_change}')
-                filedump['spec']['template']['spec']['memoryMiB'] = self.memory_change
+                filedump['spec']['template']['spec']['memoryMiB'] = int(self.memory_change)
             elif skip_mem:
                 logger.debug(f'Current CPUCount: {current_cpu_count} \t Resized: {self.cpu_change}')
-                filedump['spec']['template']['spec']['numCPUs'] = self.cpu_change
+                filedump['spec']['template']['spec']['numCPUs'] = int(self.cpu_change)
             else:
                 logger.debug(f'Current CPUCount: {current_cpu_count} \t Resized: {self.cpu_change}')
-                filedump['spec']['template']['spec']['memoryMiB'] = self.memory_change
-                filedump['spec']['template']['spec']['numCPUs'] = self.cpu_change
+                filedump['spec']['template']['spec']['memoryMiB'] = int(self.memory_change)
+                filedump['spec']['template']['spec']['numCPUs'] = int(self.cpu_change)
 
             replaced_values = json.dumps(filedump)
 
