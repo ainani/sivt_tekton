@@ -19,6 +19,7 @@ from workflows.ra_shared_cluster_upgrade import RaSharedUpgradeWorkflow
 from workflows.ra_workload_cluster_workflow import RaWorkloadClusterWorkflow
 from workflows.ra_workload_cluster_upgrade import RaWorkloadUpgradeWorkflow
 from workflows.ra_scale_workflow import ScaleWorkflow
+from workflows.ra_repave_workflow import RepaveWorkflow
 
 logger = LoggerHelper.get_logger(name="__main__")
 
@@ -132,6 +133,13 @@ def wl_upgrade(ctx):
 def scale_op(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
     ScaleWorkflow(run_config).execute_scale()
+
+@cli.command(name="execute-repave")
+@click.pass_context
+def repave_op(ctx):
+    run_config = load_run_config(ctx.obj["ROOT_DIR"])
+    RepaveWorkflow(run_config).execute_repave()
+
 
 @cli.command(name="pull-kubeconfig")
 @click.pass_context

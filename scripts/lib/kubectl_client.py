@@ -25,6 +25,19 @@ class KubectlClient:
         exit_code, output = self.rcmd.run_cmd_output(KubectlCommands.GET_ALL_PODS)
         return output
 
+    def get_vsphere_template_json(self, worker_name):
+        logger.info(f"Getting machine template for {worker_name}")
+        # kubectl get VsphereMachineTemplate tekton-shared-cluster-worker -o json
+        get_template = KubectlCommands.GET_VSPHERE_TEMPLATE.format(worker_name=worker_name)
+        return self.rcmd.run_cmd_output(get_template)
+
+    def get_machinedeployment_json(self, deployment_name):
+        logger.info(f"Getting machine deployment for {deployment_name}")
+        # k get machinedeployment  tekton-shared-cluster-md-0 -o json
+        get_template = KubectlCommands.GET_MACHINE_DEPLOYMENT.format(deployment_name=
+                                                                     deployment_name)
+        return self.rcmd.run_cmd_output(get_template)
+
     def get_all_namespaces(self, options=""):
         logger.info("Listing all namespaces...")
         exit_code, output = self.rcmd.run_cmd_output(KubectlCommands.LIST_NAMESPACES.format(options=options))

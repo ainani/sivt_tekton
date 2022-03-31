@@ -81,7 +81,7 @@ class ScaleState(BaseModel):
 
 class RepaveMemberState(BaseModel):
     execute_repave: bool
-    clustername: str
+    workername: str
     repave_memory_mb: str
     repave_cpu: str
 

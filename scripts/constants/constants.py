@@ -445,7 +445,10 @@ class KubectlCommands(str, Enum):
     DELETE = "kubectl delete -f {config_file}"
     DELETE_EXTENSION = "kubectl delete extension {app_name} -n {namespace}"
     GET_SECRET_DETAILS = "kubectl get secret {name} -n {namespace} {options}"
-    UPDATE_SECRET = "kubectl create secret generic {name} --from-file={config_file} -n {namespace} -o yaml --dry-run | kubectl replace -f-"
+    UPDATE_SECRET = "kubectl create secret generic {name} --from-file={config_file}" \
+                    " -n {namespace} -o yaml --dry-run | kubectl replace -f-"
+    GET_VSPHERE_TEMPLATE = "kubectl get VsphereMachineTemplate {workername} -o json"
+    GET_MACHINE_DEPLOYMENT = "kubectl get machinedeployment {workername} -o json"
 
 class ClusterType:
     WORKLOAD = "workload"
@@ -455,7 +458,8 @@ class ClusterType:
 class TmcCommands(str, Enum):
     LOGIN = "export TMC_API_TOKEN={token} && tmc login --no-configure --name arcas"
     GET_KUBECONFIG = "tanzu cluster kubeconfig get {cluster_name} --admin --export-file {file}"
-    ATTACH_CLUSTER = "tmc cluster attach --name  {cluster_name} --cluster-group {cluster_group} -k kubeconfig_cluster.yaml --force"
+    ATTACH_CLUSTER = "tmc cluster attach --name  {cluster_name} --cluster-group {cluster_group}" \
+                     " -k kubeconfig_cluster.yaml --force"
 
 class Constants(str, Enum):
     MANAGEMENT_ROLE = "management"

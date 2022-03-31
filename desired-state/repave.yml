@@ -6,12 +6,12 @@ repaveinfo:
     repave_cpu: ''
   shared_services:
     execute_repave: false
-    clustername: ''
+    workername: ''
     repave_memory_mb: ''
     repave_cpu: ''
   workload_clusters:
     execute_repave: false
-    clustername: ''
+    workername: ''
     repave_memory_mb: ''
     repave_cpu: ''
   execute: false
