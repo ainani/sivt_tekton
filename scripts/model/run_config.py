@@ -32,7 +32,9 @@ class RunConfig(BaseModel):
     support_matrix: dict
     deployment_platform: DeploymentPlatform
     vmc: Optional[VmcConfig]
+
+class ScaleConfig(BaseModel):
     scaledetails: ScaleDetail
+
+class RepaveConfig(BaseModel):
     repave_details: RepaveDetail
-
-

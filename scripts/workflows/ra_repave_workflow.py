@@ -7,7 +7,7 @@ import time
 from constants.constants import Paths, RegexPattern, KubectlCommands
 from lib.tkg_cli_client import TkgCliClient
 from lib.kubectl_client import KubectlClient
-from model.run_config import RunConfig
+from model.run_config import RunConfig, RepaveConfig
 from util.logger_helper import LoggerHelper
 import traceback
 from util.common_utils import checkenv
@@ -20,7 +20,8 @@ from ruamel.yaml.comments import CommentedMap
 logger = LoggerHelper.get_logger(name='repave_workflow')
 
 class RepaveWorkflow:
-    def __init__(self, run_config: RunConfig):
+    def __init__(self, run_config: RunConfig, repave_config: RepaveConfig):
+        self.repave_config = repave_config
         self.run_config = run_config
         jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
         self.tanzu_client = TkgCliClient()
@@ -48,7 +49,7 @@ class RepaveWorkflow:
         self.management_cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
             'tkgMgmtClusterName']
         self.tanzu_client.login(cluster_name=self.management_cluster)
-        self.repavedetails = self.run_config.repave_details.repaveinfo
+        self.repavedetails = self.repave_config.repave_details.repaveinfo
 
     def replace_md(self, filedump):
         """

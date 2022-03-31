@@ -4,7 +4,7 @@ import click
 import yaml
 from constants.constants import Paths
 from model.desired_state import DesiredState
-from model.run_config import RunConfig, DeploymentPlatform
+from model.run_config import RunConfig, DeploymentPlatform, ScaleConfig, RepaveConfig
 from model.status import State, get_fresh_state
 from util.env_validation import EnvValidator
 from util.file_helper import FileHelper
@@ -33,18 +33,23 @@ def load_run_config(root_dir):
     desired_state: DesiredState = FileHelper.load_desired_state(os.path.join(root_dir,
                                                                              Paths.DESIRED_STATE_PATH))
     support_matrix = yaml.safe_load(FileHelper.read_resource(Paths.SUPPORT_MATRIX_FILE))
-    scale_file_path = os.path.join(root_dir, Paths.SCALE_PATH)
-    scale_state = FileHelper.load_scale(scale_file_path)
-    repave_file_path = os.path.join(root_dir, Paths.REPAVE_PATH)
-    repave_state = FileHelper.load_repave(repave_file_path)
-
     run_config = RunConfig(root_dir=root_dir, state=state, desired_state=desired_state,
                            support_matrix=support_matrix,
                            deployment_platform=DeploymentPlatform.VSPHERE,
-                           vmc=None, scaledetails=scale_state,
-                           repave_details=repave_state)
-
+                           vmc=None)
     return run_config
+
+def load_scale_config(root_dir):
+    scale_file_path = os.path.join(root_dir, Paths.SCALE_PATH)
+    scale_state = FileHelper.load_scale(scale_file_path)
+    scale_config = ScaleConfig(scaledetails=scale_state)
+    return scale_config
+
+def load_repave_config(root_dir):
+    repave_file_path = os.path.join(root_dir, Paths.REPAVE_PATH)
+    repave_state = FileHelper.load_repave(repave_file_path)
+    repave_config = RepaveConfig(repave_details=repave_state)
+    return repave_config
 
 @click.group()
 @click.option("--root-dir", default=".tmp")
@@ -132,13 +137,15 @@ def wl_upgrade(ctx):
 @click.pass_context
 def scale_op(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    ScaleWorkflow(run_config).execute_scale()
+    scale_config = load_scale_config(ctx.obj["ROOT_DIR"])
+    ScaleWorkflow(run_config, scale_config).execute_scale()
 
 @cli.command(name="execute-repave")
 @click.pass_context
 def repave_op(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    RepaveWorkflow(run_config).execute_repave()
+    repave_config = load_repave_config(ctx.obj["ROOT_DIR"])
+    RepaveWorkflow(run_config, repave_config).execute_repave()
 
 
 @cli.command(name="pull-kubeconfig")

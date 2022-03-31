@@ -2,7 +2,7 @@ import os, sys
 import json
 from constants.constants import Paths
 from lib.tkg_cli_client import TkgCliClient
-from model.run_config import RunConfig
+from model.run_config import RunConfig, ScaleConfig
 from util.logger_helper import LoggerHelper
 import traceback
 from util.common_utils import checkenv
@@ -10,7 +10,8 @@ from util.cmd_runner import RunCmd
 logger = LoggerHelper.get_logger(name='scale_workflow')
 
 class ScaleWorkflow:
-    def __init__(self, run_config: RunConfig):
+    def __init__(self, run_config: RunConfig, scale_config: ScaleConfig):
+        self.scale_config = scale_config
         self.run_config = run_config
         jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
         self.tanzu_client = TkgCliClient()
@@ -34,7 +35,7 @@ class ScaleWorkflow:
         management_cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
             'tkgMgmtClusterName']
         self.tanzu_client.login(cluster_name=management_cluster)
-        self.scaledetails = self.run_config.scaledetails.scaleinfo
+        self.scaledetails = self.scale_config.scaledetails.scaleinfo
 
     def get_cluster_dict(self):
 
