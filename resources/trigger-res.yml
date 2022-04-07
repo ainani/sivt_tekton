@@ -1,0 +1,16 @@
+apiVersion: polling.tekton.dev/v1alpha1
+kind: Repository
+metadata:
+  name: trigger-repository
+spec:
+  url: https://gitlab.eng.vmware.com/smuthukumar/arcas-tekton-cicd.git
+  ref: repave
+  frequency: 5m
+  type: gitlab
+  pipelineRef:
+    name: say-things
+  auth:
+    secretRef:
+      name: git-user-pass
+    key: password
+
