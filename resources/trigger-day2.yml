@@ -1,14 +1,14 @@
 apiVersion: polling.tekton.dev/v1alpha1
 kind: Repository
 metadata:
-  name: monitor-mesage
+  name: monitor-day2-mesage
 spec:
   url: https://gitlab.eng.vmware.com/smuthukumar/arcas-tekton-cicd.git
-  ref: repave
+  ref: trigger
   frequency: 2m
   type: gitlab
   pipelineRef:
-    name: trigger-pipeline
+    name: trigger-day2-pipeline
     params:
     - name: message
       expression: commit.message

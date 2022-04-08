@@ -4,7 +4,7 @@ metadata:
   name: trigger-upgrade-pipeline
 spec:
   description: >-
-    The Pipline to run uprade of mgmt, shared, workload cluster
+    The Pipline to capture git event and trigger tasks
 
   workspaces:
     - name: pipeline-shared-data
@@ -12,16 +12,15 @@ spec:
   params:
     - name: imagename
       description: "The image location"
-      default:  10.202.233.205:80/library/service_installer_tekton:v141
+      default: "10.202.233.205:80/library/service_installer_tekton:v141"
     - name: giturl
       description: The full http git path
-      default: https://gitlab.eng.vmware.com/smuthukumar/arcas-tekton-cicd
+      default: "https://gitlab.eng.vmware.com/smuthukumar/arcas-tekton-cicd.git"
     - name: branch
-      description: the branch to clone from. By default, it is set to master. 
+      description: the branch to clone from. By default, it is set to master.
       default: repave
-    - name: targetcluster
-      description: The targetted cluster
-      default: all
+    - name: message
+      description: The commit message
 
   tasks:
     - name: start-prep-workspace
@@ -38,27 +37,11 @@ spec:
         - name: branch
           value: "$(params.branch)"
 
-    - name: start-mgmt-upgrade-only
+    - name: start-mgmt-upgrade
       when:
-        - input: "$(params.targetcluster)"
-          operator: in 
-          values:  [ "mgmt" ]
-      taskRef:
-        name: dind-mgmt-upgrade
-      workspaces:
-        - name: task-shared-data
-          workspace: pipeline-shared-data
-      params:
-        - name: imagename
-          value: "$(params.imagename)"
-      runAfter:
-          - start-prep-workspace
-
-    - name: start-mgmt-upgrade-all
-      when:
-        - input: "$(params.targetcluster)"
-          operator: in 
-          values:  [ "all" ]
+        - input: "$(params.message)"
+          operator: in
+          values:  [ "exec_upgrade" ]
       taskRef:
         name: dind-mgmt-upgrade
       workspaces:
@@ -72,9 +55,9 @@ spec:
 
     - name: start-shared-upgrade
       when:
-        - input: "$(params.targetcluster)"
-          operator: in 
-          values:  [ "all" ]
+        - input: "$(params.message)"
+          operator: in
+          values:  [ "exec_upgrade" ]
       taskRef:
           name: dind-shared-upgrade
       workspaces:
@@ -84,13 +67,13 @@ spec:
         - name: imagename
           value: $(params.imagename)
       runAfter:
-          - start-mgmt-upgrade-all
+          - start-mgmt-upgrade
 
     - name: dind-workload-upgrade
       when:
-        - input: "$(params.targetcluster)"
-          operator: in 
-          values:  [ "all" ]
+        - input: "$(params.message)"
+          operator: in
+          values:  [ "exec_upgrade" ]
       taskRef:
           name: dind-workload-upgrade
       workspaces:
@@ -99,9 +82,33 @@ spec:
       params:
         - name: imagename
           value: $(params.imagename)
-          
       runAfter:
           -  start-shared-upgrade
 
+    - name: exec-scale
+      when:
+        - input: "$(params.message)"
+          operator: in
+          values:  [ "exec_scale" ]
+      taskRef:
+          name: scale-cluster-task
+      workspaces:
+          - name: task-shared-data
+            workspace: pipeline-shared-data
+      params:
+        - name: imagename
+          value: $(params.imagename)
 
-
+    - name: exec-repave
+      when:
+        - input: "$(params.message)"
+          operator: in
+          values:  [ "exec_repave" ]
+      taskRef:
+          name: repave-cluster-task
+      workspaces:
+          - name: task-shared-data
+            workspace: pipeline-shared-data
+      params:
+        - name: imagename
+          value: $(params.imagename)
