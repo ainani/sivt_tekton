@@ -12,7 +12,6 @@ spec:
     params:
     - name: message
       expression: commit.message
-
   auth:
     secretRef:
       name: git-user-pass
