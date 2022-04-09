@@ -1,7 +1,7 @@
 apiVersion: polling.tekton.dev/v1alpha1
 kind: Repository
 metadata:
-  name: monitor-mesage
+  name: monitor-bringup-mesage
 spec:
   url: https://gitlab.eng.vmware.com/smuthukumar/arcas-tekton-cicd.git
   ref: trigger
