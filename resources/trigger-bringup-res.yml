@@ -8,7 +8,7 @@ spec:
   frequency: 2m
   type: gitlab
   pipelineRef:
-    name: trigger-pipeline
+    name: trigger-bringup-pipeline
     params:
     - name: message
       expression: commit.message
