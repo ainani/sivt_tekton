@@ -4,7 +4,9 @@ TKG_EXTENSIONS_ROOT = {
     "1.3.0": "/tanzu/tkg-extensions-v1.3.0+vmware.1",
     "1.3.1": "/tanzu/tkg-extensions-v1.3.1+vmware.1",
     "1.4.0": "/tanzu/tkg-standard-repo-v1.4.0",
-    "1.4.1": "/tanzu/tkg-standard-repo-v1.4.1"
+    "1.4.1": "/tanzu/tkg-standard-repo-v1.4.1",
+    "1.5.3": "/tanzu/tkg-standard-repo-v1.5.3"
+
 }
 
 CLUSTER_NODE_SIZES = ["small", "medium", "large", "extra-large"]
@@ -61,7 +63,7 @@ class Paths(str, Enum):
     REPO_TANZU_CONFIG_NEW = f"{KUBECONFIG_REPO}/.config/tanzu/config.yaml"
 
     # pipeline resources
-    ALB_OVA_PATH = "alb-controller-ova/controller-20.1.6-9132.ova"  # ova_path # todo fix ova path
+    ALB_OVA_PATH = "alb-controller-ova/controller-21.1.2-9124.ova"  # ova_path # todo fix ova path
     ALB_SE_OVA_PATH = "alb-se-ova/se.ova"
 
     # remote paths
@@ -139,9 +141,9 @@ class ControllerLocation:
     CONTROLLER_SE_WORKLOAD_NAME2 = "tkgvmc-workload-se02"
     SE_OVA_TEMPLATE_NAME = "tkgvmc-cloud01-avi-se"
     SUBSCRIBED_CONTENT_LIBRARY = "SubscribedAutomation-Lib"
-    MARKETPLACE_CONTROLLER_FILENAME = "controller-20-1641297052015.ova"
+    MARKETPLACE_CONTROLLER_FILENAME = "controller-20-1641297052015.ova" #TODO: CHANGEMARKETPLACENAME
     MARKETPLACE_AVI_SOLUTION_NAME = "nsx-advanced-load-balancer-1"
-    VSPHERE_AVI_VERSION = "20.1.6"
+    VSPHERE_AVI_VERSION = "21.1.2"
     OVA_LOCATION = ''
     SPEC_FILE_PATH = ''
     CONTROLLER_NAME2 = "avi-controller2"
@@ -150,16 +152,16 @@ class ControllerLocation:
     CONTROLLER_NAME_VSPHERE3 = "tkg-vsphere-avi-ctrl-03"
 
 class KubernetesOva:
-    UBUNTU_KUBERNETES_FILE_NAME = "ubuntu-2004-kube-v1.21.2+vmware.1-tkg.1-7832907791984498322.ova"
-    PHOTON_KUBERNETES_FILE_NAME = "photon-3-kube-v1.21.2+vmware.1-tkg.2-12816990095845873721.ova"
-    PHOTON_KUBERNETES_TEMPLATE_FILE_NAME = "photon-3-kube-v1.21.2+vmware.1"
-    UBUNTU_KUBERNETES__TEMPLATE_FILE_NAME = "ubuntu-2004-kube-v1.21.2+vmware.1"
+    UBUNTU_KUBERNETES_FILE_NAME = "ubuntu-2004-kube-v1.22.8+vmware.1-tkg.2-5eab4250bf00d5e78c0f04257d03360e.ova"
+    PHOTON_KUBERNETES_FILE_NAME = "photon-3-kube-v1.22.8+vmware.1-tkg.1-d69148b2a4aa7ef6d5380cc365cac8cd.ova"
+    PHOTON_KUBERNETES_TEMPLATE_FILE_NAME = "photon-3-kube-v1.22.8+vmware.1"
+    UBUNTU_KUBERNETES__TEMPLATE_FILE_NAME = "ubuntu-2004-kube-v1.22.8+vmware.1"
     MARKETPLACE_KUBERNETES_SOLUTION_NAME = "tanzu-kubernetes-grid-1-1"
     MARKETPLACE_UBUNTU_KUBERNETES_FILE_NAME = "arcas-ubuntu-kube"
     MARKETPLACE_PHOTON_KUBERNETES_FILE_NAME = "arcas-photon-kube"
     MARKETPLACE_PHOTON_GROUPNAME = "Photon-OVA"
     MARKETPLACE_UBUTNU_GROUPNAME = "Ubuntu-OVA"
-    KUBERNETES_OVA_LATEST_VERSION = "v1.21.2"
+    KUBERNETES_OVA_LATEST_VERSION = "v1.22.8"
 
 class UpgradeVersions:
     UBUNTU_KUBERNETES_FILE_NAME = "ubuntu-2004-kube-v1.21.2+vmware.1-tkg.2-14542111852555356776.ova"
