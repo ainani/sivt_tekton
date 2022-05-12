@@ -1,3 +1,6 @@
+#  Copyright 2021 VMware, Inc
+#  SPDX-License-Identifier: BSD-2-Clause
+
 import traceback
 import logging
 from pathlib import Path

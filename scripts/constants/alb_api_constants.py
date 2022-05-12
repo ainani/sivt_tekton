@@ -4,6 +4,9 @@ General convention for adding fields:
 """
 
 
+#  Copyright 2021 VMware, Inc
+#  SPDX-License-Identifier: BSD-2-Clause
+
 class AlbEndpoint:
     CRUD_SSL_CERT = "https://{ip}/api/sslkeyandcertificate"
     IMPORT_SSL_CERTIFICATE = CRUD_SSL_CERT + "/validate"

@@ -2,6 +2,9 @@
 General convention for adding fields:
 - All the API endpoints must start with '/' prefix and the base URL must not have a trailing '/'
 """
+#  Copyright 2021 VMware, Inc
+#  SPDX-License-Identifier: BSD-2-Clause
+
 from enum import Enum
 
 

@@ -1,3 +1,6 @@
+#  Copyright 2021 VMware, Inc
+#  SPDX-License-Identifier: BSD-2-Clause
+
 from enum import Enum
 
 TKG_EXTENSIONS_ROOT = {
@@ -127,7 +130,7 @@ class MarketPlaceUrl:
 
 class UpgradeBinaries:
     binary_list = ['tanzu-cli-bundle-linux-amd64.tar',
-                   'kubectl-linux-v1-21-2-vmware-1-gz.gz',
+                   'kubectl-linux-v1-22-8-vmware-1-gz.gz',
                    'yq_linux_amd64-tar-gz.gz']
 
 class ControllerLocation:
@@ -143,7 +146,7 @@ class ControllerLocation:
     SUBSCRIBED_CONTENT_LIBRARY = "SubscribedAutomation-Lib"
     MARKETPLACE_CONTROLLER_FILENAME = "controller-20-1641297052015.ova" #TODO: CHANGEMARKETPLACENAME
     MARKETPLACE_AVI_SOLUTION_NAME = "nsx-advanced-load-balancer-1"
-    VSPHERE_AVI_VERSION = "21.1.2"
+    VSPHERE_AVI_VERSION = "20.1.7"
     OVA_LOCATION = ''
     SPEC_FILE_PATH = ''
     CONTROLLER_NAME2 = "avi-controller2"
@@ -168,8 +171,8 @@ class UpgradeVersions:
     PHOTON_KUBERNETES_FILE_NAME = "photon-3-kube-v1.21.2+vmware.1-tkg.3-6345993713475494409.ova"
     PHOTON_KUBERNETES_TEMPLATE_FILE_NAME = "photon-3-kube-v1.21.2+vmware.1"
     UBUNTU_KUBERNETES__TEMPLATE_FILE_NAME = "ubuntu-2004-kube-v1.21.2+vmware.1"
-    KUBERNETES_OVA_LATEST_VERSION = "v1.21.2"
-    TARGET_VERSION = "1.4.1"
+    KUBERNETES_OVA_LATEST_VERSION = "v1.22.8"
+    TARGET_VERSION = "1.5.3"
     OLD_TKG_COMP_FILE = '/root/.config/tanzu/tkg/'
 
 class GovcCommands(str, Enum):

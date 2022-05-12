@@ -1,3 +1,6 @@
+#  Copyright 2021 VMware, Inc
+#  SPDX-License-Identifier: BSD-2-Clause
+
 from constants.constants import ControllerLocation, Repo, AppName, RegexPattern, Constants, Paths
 from pathlib import Path
 import base64

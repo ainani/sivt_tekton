@@ -1,3 +1,6 @@
+#  Copyright 2021 VMware, Inc
+#  SPDX-License-Identifier: BSD-2-Clause
+
 import os, sys
 import re
 import traceback
@@ -1749,3 +1752,4 @@ def getVipNetworkIpNetMask(ip, csrf2, name, aviVersion):
         return "NOT_FOUND", "FAILED"
     except KeyError:
         return "NOT_FOUND", "FAILED"
+

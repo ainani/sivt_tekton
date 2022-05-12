@@ -3,6 +3,9 @@ BaseCmdHelper is an abstract class which provides methods for running commands.
 Derived classes must provide implementations for these methods.
 Examples of derived classes may include helpers for local command, ssh command, docker command, etc.
 """
+#  Copyright 2021 VMware, Inc
+#  SPDX-License-Identifier: BSD-2-Clause
+
 from abc import ABC, abstractmethod
 
 
