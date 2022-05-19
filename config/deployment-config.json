@@ -141,7 +141,7 @@
         "tkgWorkloadClusterCidr": "100.96.0.0/11",
         "tkgWorkloadServiceCidr": "100.64.0.0/13",
         "tkgWorkloadBaseOs": "photon",
-        "tkgWorkloadKubeVersion": "v1.21.2",
+        "tkgWorkloadKubeVersion": "v1.22.8",
         "tkgWorkloadTsmIntegration": "false",
         "namespaceExclusions": {
             "exactName": "",
