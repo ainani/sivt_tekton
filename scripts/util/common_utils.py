@@ -921,6 +921,9 @@ def deployCluster(cluster_name, clusterPlan, datacenter, dataStorePath,
                                  machineCount, size, typen, vsSpec, jsonspec)
             logger.info("Deploying " + cluster_name + "cluster")
             os.putenv("DEPLOY_TKG_ON_VSPHERE7", "true")
+            logger.info("---------- yaml---------")
+            logger.info(cluster_name)
+            logger.info("------------------------------")
             listOfCmd = ["tanzu", "cluster", "create", "-f", cluster_name + ".yaml", "-v", "6"]
             runProcess(listOfCmd)
             return "SUCCESS", 200

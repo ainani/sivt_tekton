@@ -304,6 +304,7 @@ class RaMgmtClusterWorkflow:
             "msg": "Successfully configured management cluster ",
             "ERROR_CODE": 200
         }
+
         return json.dumps(d), 200
 
     @log("Wait for AVI Default Cloud to be in Ready State")
