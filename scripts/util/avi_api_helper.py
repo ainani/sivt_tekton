@@ -27,7 +27,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class AviApiSpec:
     params = dict()
-    """Ref: 
+    """Ref:
         https://docs.ansible.com/ansible/latest/collections/community/network/avi_api_version_module.html#ansible-collections-community-network-avi-api-version-module
     """
 
@@ -137,8 +137,9 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
                     logger.info("obj id: {objectid} filename: {filename} avi_version: {avi_version}".format(objectid=objectid,
                                                                                  filename=filename,
                                                                                  avi_version=avi_version))
-                    logger.info("PRODUCT ID: {prodcut_id}".format(product_id))
+                    logger.info("PRODUCT ID: {prodcut_id}".format(product_id=product_id))
                     break
+        logger.info('------------------------here')
         payload = {
             "deploymentFileId": objectid,
             "eulaAccepted": "true",
@@ -211,9 +212,6 @@ def downloadAviControllerAndPushToContentLibrary(vcenter_ip, vcenter_username, p
         VC_AVI_OVA_NAME = jsonspec['envSpec']['vcenterDetails']["aviOvaName"]
         find_command = ["govc", "library.ls", "/" + VC_Content_Library_name + "/"]
         output = rcmd.runShellCommandAndReturnOutputAsList(find_command)
-        logger.info('-----------')
-        logger.info('output: %s'.format(output))
-        logger.info('output0: %s'.format(output[0]))
         if str(output[0]).__contains__(VC_Content_Library_name):
             logger.info(VC_Content_Library_name + " is already present")
         else:
