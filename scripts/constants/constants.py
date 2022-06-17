@@ -122,9 +122,9 @@ class Paths(str, Enum):
     EXTERNAL_DNS_EXTENSION_CONFIG = "service-discovery/external-dns/external-dns-extension.yaml"
 
 class MarketPlaceUrl:
-    URL = "https://gtwstg.market.csp.vmware.com"
-    API_URL = "https://apistg.market.csp.vmware.com"
-    PRODUCT_SEARCH_URL = API_URL + "/products?managed=false&filters={%22Publishers%22:[%223bcbbfe3-638a-4ef8-8d63-762f5a5e79a1%22]}"
+    URL = "https://gtw.marketplace.cloud.vmware.com"
+    API_URL = "https://api.marketplace.cloud.vmware.com"
+    PRODUCT_SEARCH_URL = API_URL + "/products?managed=false&filters={%22Publishers%22:[%22318e72f1-7215-41fa-9016-ef4528b82d0a%22]}"
     TANZU_PRODUCT = "Tanzu Kubernetes Grid"
     AVI_PRODUCT = "NSX Advanced Load Balancer"
 
@@ -144,7 +144,7 @@ class ControllerLocation:
     CONTROLLER_SE_WORKLOAD_NAME2 = "tkgvmc-workload-se02"
     SE_OVA_TEMPLATE_NAME = "tkgvmc-cloud01-avi-se"
     SUBSCRIBED_CONTENT_LIBRARY = "SubscribedAutomation-Lib"
-    MARKETPLACE_CONTROLLER_FILENAME = "controller-20-1641297052015.ova" #TODO: CHANGEMARKETPLACENAME
+    # MARKETPLACE_CONTROLLER_FILENAME = "controller-20-1641297052015.ova"
     MARKETPLACE_AVI_SOLUTION_NAME = "nsx-advanced-load-balancer-1"
     VSPHERE_AVI_VERSION = "20.1.7"
     OVA_LOCATION = ''
@@ -167,10 +167,10 @@ class KubernetesOva:
     KUBERNETES_OVA_LATEST_VERSION = "v1.22.8"
 
 class UpgradeVersions:
-    UBUNTU_KUBERNETES_FILE_NAME = "ubuntu-2004-kube-v1.21.2+vmware.1-tkg.2-14542111852555356776.ova"
-    PHOTON_KUBERNETES_FILE_NAME = "photon-3-kube-v1.21.2+vmware.1-tkg.3-6345993713475494409.ova"
-    PHOTON_KUBERNETES_TEMPLATE_FILE_NAME = "photon-3-kube-v1.21.2+vmware.1"
-    UBUNTU_KUBERNETES__TEMPLATE_FILE_NAME = "ubuntu-2004-kube-v1.21.2+vmware.1"
+    UBUNTU_KUBERNETES_FILE_NAME = "ubuntu-2004-kube-v1.21.11-vmware.1-tkg.2-d788dbbb335710c0a0d1a28670057896.ova"
+    PHOTON_KUBERNETES_FILE_NAME = "photon-3-kube-v1.21.11-vmware.1-tkg.1-0262f0ab881e294df81498075207f2b5.ova"
+    PHOTON_KUBERNETES_TEMPLATE_FILE_NAME = "photon-3-kube-v1.22.8+vmware.1"
+    UBUNTU_KUBERNETES__TEMPLATE_FILE_NAME = "ubuntu-2004-kube-v1.22.8+vmware.1"
     KUBERNETES_OVA_LATEST_VERSION = "v1.22.8"
     TARGET_VERSION = "1.5.3"
     OLD_TKG_COMP_FILE = '/root/.config/tanzu/tkg/'

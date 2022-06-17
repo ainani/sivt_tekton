@@ -23,6 +23,7 @@ from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
 from util.vcenter_operations import checkforIpAddress, getSi
 from util.common_utils import checkenv
+from util.vcenter_operations import create_folder, createResourcePool
 
 logger = LoggerHelper.get_logger(name='alb_workflow')
 
@@ -165,15 +166,24 @@ class RALBWorkflow:
                     VSPHERE_ALB_DEPLOY_JSON3)
             VC_Content_Library_name = self.jsonspec['envSpec']['vcenterDetails'][
                     "contentLibraryName"]
+            if not VC_Content_Library_name:
+                VC_Content_Library_name = 'TanzuAutomation-Lib'
             VC_AVI_OVA_NAME = self.jsonspec['envSpec']['vcenterDetails'][
                     "aviOvaName"]
+            if not VC_AVI_OVA_NAME:
+                VC_AVI_OVA_NAME = 'avi-controller'
             controller_location = "/" + VC_Content_Library_name + "/" + VC_AVI_OVA_NAME
-            parent_resourcepool = self.jsonspec['envSpec']['vcenterDetails']['resourcePoolName']
             dcname = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
             clustername = self.jsonspec['envSpec']['vcenterDetails']['vcenterCluster']
             dsname = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
+            parent_resourcepool = self.jsonspec['envSpec']['vcenterDetails']['resourcePoolName']
             rp_pool = dcname + "/host/" + clustername + "/Resources/" + parent_resourcepool
             foldername = "TEKTON"
+            vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
+            password = CmdHelper.decode_base64(vcpass_base64)
+            vcenter_username = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
+            vcenter_ip = self.jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
+            create_folder(vcenter_ip, vcenter_username, password, dcname, foldername)
             options = f"-options {VSPHERE_ALB_DEPLOY_JSON} -dc={dcname} -ds={dsname} -folder={foldername} -pool=/{rp_pool}"
             if isAviHaEnabled(ha_field):
                 options2 = f"-options {VSPHERE_ALB_DEPLOY_JSON2} -dc={dcname} -ds={dsname} -folder={foldername} -pool=/{rp_pool}"
@@ -191,12 +201,8 @@ class RALBWorkflow:
                                     jsonspec=self.jsonspec)
         if not dep:
             logger.error(
-                "Failed to deploy and configure avi " + str(dep[0].json['msg']))
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to deploy and configure avi  " + str(dep[0].json['msg']),
-                "ERROR_CODE": 500
-            }
+                "Failed to deploy and configure avi " + str(dep))
+
             return None
         if isAviHaEnabled(ha_field):
             logger.info("Deploying 2nd avi controller")

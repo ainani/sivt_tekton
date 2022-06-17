@@ -181,14 +181,7 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
     app_version = None
     metafileid = None
     # get base tanzu version for right ova to be downloaded
-    try:
-        tanzu_version = rcmd.run_cmd_output(cmd=TKGCommands.VERSION)
-        obt_version = [line for line in tanzu_version.split("\n") if "version" in line][0]
-        tanzu_targetted_version = re.sub('[^\d\.]', '', obt_version)
-    except Exception:
-        tanzu_targetted_version = '1.4.0'
-        pass
-
+    tanzu_targetted_version = KubernetesOva.TARGET_VERSION
     filename = filename + ".ova"
     solutionName = KubernetesOva.MARKETPLACE_KUBERNETES_SOLUTION_NAME
     logger.debug(("Solution Name: {}".format(solutionName)))
@@ -235,6 +228,8 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
         for metalist in product.json()['response']['data']['metafilesList']:
             ovaname = metalist["metafileobjectsList"][0]['filename']
             if upgrade:
+                # todo: Change targetted version to get from desired state
+                #version:  tkg: 1.5.3
                 if metalist['appversion'] in UpgradeVersions.TARGET_VERSION:
                     if metalist["version"] == version[1:] and str(metalist["groupname"]).strip(
                              "\t") == ova_groupname:
