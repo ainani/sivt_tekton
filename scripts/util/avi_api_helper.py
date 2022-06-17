@@ -409,6 +409,9 @@ def get_system_configuration_and_set_values(ip, second_csrf, avi_version, jsonsp
     }
     payload = {}
     response_csrf = requests.request("GET", url, headers=headers, data=payload, verify=False)
+    logger.info('aviversion: {}'.format(avi_version))
+    logger.info('response: {}'.format(response_csrf.text))
+    logger.info('response code: {}'.format(response_csrf.status_code))
     if response_csrf.status_code != 200:
         return None
     os.system("rm -rf ./systemConfig1.json")
