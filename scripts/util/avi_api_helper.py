@@ -129,10 +129,15 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
             logger.info('Product ID: {}'.format(product_id))
             for metalist in product.json()['response']['data']['productdeploymentfilesList']:
                 if metalist["appversion"] == avi_version:
+                    logger.info("============")
                     objectid = metalist['fileid']
                     filename = metalist['name']
                     ls.append(filename)
                     logger.info('filename: {}'.format(filename))
+                    logger.info("obj id: {objectid} filename: {filename} avi_version: {avi_version}".format(objectid=objectid,
+                                                                                 filename=filename,
+                                                                                 avi_version=avi_version))
+                    logger.info("PRODUCT ID: {prodcut_id}".format(product_id))
                     break
         payload = {
             "deploymentFileId": objectid,
