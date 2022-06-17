@@ -165,6 +165,7 @@ class KubernetesOva:
     MARKETPLACE_PHOTON_GROUPNAME = "Photon-OVA"
     MARKETPLACE_UBUTNU_GROUPNAME = "Ubuntu-OVA"
     KUBERNETES_OVA_LATEST_VERSION = "v1.22.8"
+    TARGET_VERSION = "1.5.3"
 
 class UpgradeVersions:
     UBUNTU_KUBERNETES_FILE_NAME = "ubuntu-2004-kube-v1.21.11-vmware.1-tkg.2-d788dbbb335710c0a0d1a28670057896.ova"
