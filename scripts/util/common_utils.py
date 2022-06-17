@@ -250,7 +250,10 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
                         app_version = metalist['appversion']
                         metafileid = metalist['metafileid']
                         break
-
+    logger.info("---------------------")
+    logger.info("ovaName: {ovaName} app_version: {app_version} metafileid: {metafileid}".format(ovaName=ovaName,
+                                                                                                app_version=app_version,
+                                                                                                metafileid=metafileid))
     if (objectid or ovaName or app_version or metafileid) is None:
         return None, "Failed to find the file details in Marketplace"
 
@@ -270,6 +273,7 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
                                      MarketPlaceUrl.URL + "/api/v1/products/" + product_id + "/download",
                                      headers=headers, data=json_object, verify=False)
     logger.info('presigned_url: {}'.format(presigned_url))
+    logger.info('presigned_url text: {}'.format(presigned_url.text))
     if presigned_url.status_code != 200:
         return None, "Failed to obtain pre-signed URL"
     else:
