@@ -264,9 +264,12 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
     }
 
     json_object = json.dumps(payload, indent=4).replace('\"true\"', 'true')
+    logger.info('--------')
+    logger.info('Marketplaceurl: {url} data: {data}'.format(url=MarketPlaceUrl.URL, data=json_object))
     presigned_url = requests.request("POST",
                                      MarketPlaceUrl.URL + "/api/v1/products/" + product_id + "/download",
                                      headers=headers, data=json_object, verify=False)
+    logger.info('presigned_url: {}'.format(presigned_url))
     if presigned_url.status_code != 200:
         return None, "Failed to obtain pre-signed URL"
     else:
