@@ -563,11 +563,11 @@ class RaWorkloadClusterWorkflow:
             raise Exception
 
         # Init tanzu cli plugins
-        tanzu_init_cmd = ["tanzu", "plugin", "sync"]
+        tanzu_init_cmd = "tanzu plugin sync"
         command_status = self.rcmd.run_cmd_output(tanzu_init_cmd)
         logger.debug("Tanzu plugin output: {}".format(command_status))
 
-        podRunninng = ["tanzu", "cluster", "list"]
+        podRunninng = "tanzu cluster list"
         command_status = runShellCommandAndReturnOutputAsList(podRunninng)
         if command_status[1] != 0:
             logger.error("Failed to run command to check status of pods")
