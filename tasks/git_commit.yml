@@ -1,0 +1,34 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: git-commit-task
+spec:
+  workspaces:
+    - name: task-shared-data
+  params:
+    - name: imagename
+      description: the operand image
+    - name: branch
+      description: the branch to clone from
+      default: alpha
+    - name: imagepullpolicy
+      description: imagepullpolicy for operand image("Always", "IfNotPresent", "Never")
+  steps:
+    - name: run-git-commit
+      image: $(params.imagename)
+      imagePullPolicy: $(params.imagepullpolicy)
+      script: |
+        cd /workspace/task-shared-data
+        set -x
+        dst_dir=`pwd`
+        mkdir -p $dst_dir/kubeconfig-repo/.config/tanzu
+        cp -rf /root/.config/tanzu/config.yaml $dst_dir/kubeconfig-repo/.config/tanzu/config.yaml
+        cp -rf /root/.kube/config $dst_dir/kubeconfig-repo/.kube/config
+        cp -rf /root/.kube-tkg/config $dst_dir/kubeconfig-repo/.kube-tkg/config
+
+        git config --global user.email tektonuser@sivt.com
+        git add $dst_dir/kubeconfig-repo/.config/tanzu/config.yaml
+        git add $dst_dir/kubeconfig-repo/.kube/config
+        git add $dst_dir/kubeconfig-repo/.kube-tkg/config
+        git commit -m "kube cfg uploaded"
+        git push origin $(params.branch)
