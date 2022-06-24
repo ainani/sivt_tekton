@@ -1173,6 +1173,7 @@ class RaMgmtClusterWorkflow:
             cloud_url = cloud[0]
         else:
             cloud_url = get_cloud[0]
+            isGen = True
         if isGen:
             for i in tqdm(range(60), desc="Waiting…", ascii=False, ncols=75):
                 time.sleep(1)
