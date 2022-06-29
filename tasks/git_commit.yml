@@ -21,10 +21,6 @@ spec:
         cd /workspace/task-shared-data
         set -x
         dst_dir=`pwd`
-        mkdir -p $dst_dir/kubeconfig-repo/.config/tanzu
-        cp -rf /root/.config/tanzu/config.yaml $dst_dir/kubeconfig-repo/.config/tanzu/config.yaml
-        cp -rf /root/.kube/config $dst_dir/kubeconfig-repo/.kube/config
-        cp -rf /root/.kube-tkg/config $dst_dir/kubeconfig-repo/.kube-tkg/config
 
         git config --global user.email tektonuser@sivt.com
         git add $dst_dir/kubeconfig-repo/.config/tanzu/config.yaml

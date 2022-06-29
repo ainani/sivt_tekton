@@ -15,7 +15,7 @@ function usage() {
 
 DEFAULT_IMAGES="docker:dind"
 CLUSTER_IMAGE="kindest/node:v1.21.1"
-TARBALL_URL="http://sc-dbc2131.eng.vmware.com/smuthukumar/SERVICE_INSTALLER_IMAGES/service_installer_tekton_v153.tar"
+TARBALL_URL=""
 
 CLUSTER_INIT_CONFIG_FILE="${CLUSTER_INIT_CONFIG_FILE:=./cluster_resources/kind-init-config.yaml}"
 NGINX_INGRESS_FILE="${NGINX_INGRESS_FILE:=https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml}"
