@@ -16,6 +16,7 @@ function usage() {
 DEFAULT_IMAGES="docker:dind"
 CLUSTER_IMAGE="kindest/node:v1.21.1"
 TARBALL_URL=""
+TARBALL_FILE_PATH=""
 
 CLUSTER_INIT_CONFIG_FILE="${CLUSTER_INIT_CONFIG_FILE:=./cluster_resources/kind-init-config.yaml}"
 NGINX_INGRESS_FILE="${NGINX_INGRESS_FILE:=https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml}"
@@ -92,28 +93,40 @@ function kind_load_tar_imgs() {
 
   local tar_url_list="$@"
   
+  if [ -n "${TARBALL_FILE_PATH}" ]; then
+     if [ -f $TARBALL_FILE_PATH ]; then
+        if ! kind load image-archive $TARBALL_FILE_PATH --name $CLUSTER_NAME; then
+           echo "failed to load tarball image file:- $i" >&2
+        fi
+     else
+        echo "Mentioned Tarball file ${TARBALL_FILE_PATH} is not found "
+        exit 1
+     fi
+  elif [ -n "${tar_url_list}" ]; then
+    for i in $tar_url_list
+      do
+        if ! echo $i | grep -q "\.tar"; then
+          echo "Invalid URL format:- $i" >&2
+        fi
 
-  for i in $tar_url_list
-    do
-      if ! echo $i | grep -q "\.tar"; then
-        echo "Invalid URL format:- $i" >&2
-      fi
+        tar_file=$(echo $i | rev | cut -d "." -f2 | cut -d "/" -f1 | rev)
 
-      tar_file=$(echo $i | rev | cut -d "." -f2 | cut -d "/" -f1 | rev)
+        if [ -f $tar_file.tar ]; then
+           echo "$tar_file.tar is present"
+        else
+           if ! wget $i; then
+             echo "Failed to download tarball image:- $i" >&2
+           fi
+        fi
 
-      if [ -f $tar_file.tar ]; then
-         echo "$tar_file.tar is present"
-      else
-         if ! wget $i; then
-           echo "Failed to download tarball image:- $i" >&2
-         fi
-      fi
-     
-
-      if ! kind load image-archive $tar_file.tar --name $CLUSTER_NAME; then
-         echo "failed to load tarball image file:- $i" >&2
-      fi
-  done
+        if ! kind load image-archive $tar_file.tar --name $CLUSTER_NAME; then
+           echo "failed to load tarball image file:- $i" >&2
+        fi
+    done
+  else
+      echo "Both TARBALL_FILE_PATH variable and TARBALL_URL is empty"
+      exit 1
+  fi
 
 }
 
@@ -127,7 +140,6 @@ function kind_load_docker_imgs() {
          echo "failed to load docker image :- $i" >&2
       fi
   done
-
 }
 
 
@@ -136,40 +148,48 @@ function create_cluster() {
   if kind get clusters | grep "${CLUSTER_NAME}" &> /dev/null; then
     echo "Cluster ${CLUSTER_NAME} already created"
 
-    if [ ! -f "${CLUSTER_CONFIG_PATH}" ]; then
+     if [ ! -f "${CLUSTER_CONFIG_PATH}" ]; then
       echo "Getting cluster config file..."
       if ! kind export kubeconfig --name "${CLUSTER_NAME}" --kubeconfig "${CLUSTER_CONFIG_PATH}"; then
         echo "Failed to get cluster config file" >&2
-        return 1
+        exit 1
+        #return 1
       fi
+     fi
+     printf "Done\n\n"
+  elif ! kind get clusters | grep "${CLUSTER_NAME}" &> /dev/null; then
+  
+
+    CLUSTER_IMAGE_ARG=""
+    if [ -n "${CLUSTER_IMAGE}" ]; then
+      CLUSTER_IMAGE_ARG=${CLUSTER_IMAGE}
     fi
+
+    CLUSTER_CONFIG_ARG=""
+    if [ -n "${CLUSTER_INIT_CONFIG_FILE}" ]; then
+      CLUSTER_CONFIG_ARG=${CLUSTER_INIT_CONFIG_FILE}
+    fi
+
+    docker_pull_imgs $CLUSTER_IMAGE $DEFAULT_IMAGES
+
+    if ! kind create cluster --config "${CLUSTER_CONFIG_ARG}" --image "${CLUSTER_IMAGE_ARG}" --name "${CLUSTER_NAME}" --kubeconfig "${CLUSTER_CONFIG_PATH}"; then
+      echo "Failed to create cluster" >&2
+      exit 1
+      #return 1
+    fi
+    kind_load_tar_imgs $TARBALL_URL
+    kind_load_docker_imgs $DEFAULT_IMAGES
+
+    kubectl apply -f ${NGINX_INGRESS_FILE}
     printf "Done\n\n"
-    return
+
   fi
 
-  CLUSTER_IMAGE_ARG=""
-  if [ -n "${CLUSTER_IMAGE}" ]; then
-    CLUSTER_IMAGE_ARG=${CLUSTER_IMAGE}
-  fi
+    kind_load_tar_imgs $TARBALL_URL
+    kind_load_docker_imgs $DEFAULT_IMAGES
 
-  CLUSTER_CONFIG_ARG=""
-  if [ -n "${CLUSTER_INIT_CONFIG_FILE}" ]; then
-    CLUSTER_CONFIG_ARG=${CLUSTER_INIT_CONFIG_FILE}
-  fi
-
-  docker_pull_imgs $CLUSTER_IMAGE $DEFAULT_IMAGES
-
-  if ! kind create cluster --config "${CLUSTER_CONFIG_ARG}" --image "${CLUSTER_IMAGE_ARG}" --name "${CLUSTER_NAME}" --kubeconfig "${CLUSTER_CONFIG_PATH}"; then
-    echo "Failed to create cluster" >&2
-    exit 1
-    #return 1
-  fi
-
-  kind_load_tar_imgs $TARBALL_URL
-  kind_load_docker_imgs $DEFAULT_IMAGES
-
-  kubectl apply -f ${NGINX_INGRESS_FILE}
-  printf "Done\n\n"
+    kubectl apply -f ${NGINX_INGRESS_FILE}
+    printf "Done\n\n"
 }
 
 function deploy_tekton() {
@@ -343,10 +363,10 @@ function main() {
 
   check_for_kubectl
   if [ "${needToCreateCluster}" == "true" ]; then
+    export KUBECONFIG="${CLUSTER_CONFIG_PATH}"
     check_for_kind
     create_cluster
     deploy_tekton
-    export KUBECONFIG="${CLUSTER_CONFIG_PATH}"
   fi
 
   export KUBECONFIG="${CLUSTER_CONFIG_PATH}"
