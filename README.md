@@ -42,20 +42,21 @@ Tekton pipelines execution require the following:
   - TARBALL_FILE_PATH="/root/tekton/arcas-tekton-cicd/service_installer_tekton_v153.tar" 
   or
   - TARBALL_URL="http://mynfsserver/images/service_installer_tekton_v153.tar"
-4. ./launch.sh --create-cluster #This will create a kind cluster which is required for TEKTON pipeline 
-5. When prompted for docker login, provide the docker login credentials. #This would be a one time effort
+  4. Save file and exit. 
+  5. Open cluster_resources/kind-init-config.yaml.
+  Provide a free port for the  nginx service to use. If not, by default, 80 port is used. 
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: <PROVIDE FREE PORT like 8085 or 8001>
+  
+  6. ./launch.sh --create-cluster #This will create a kind cluster which is required for TEKTON pipeline 
+  7. When prompted for docker login, provide the docker login credentials. #This would be a one time effort
   ```
 - Preparing TEKTON Dashboard
 
 TEKTON provides a helpful dashboard for monitoring and triggering pipelines from UI. It is recommended to have dashboard integrated. This step can be skipped, if TEKTON dashboard is not required for your environment
 ```
-1. From SIVT ova, browse to cluster_resources/kind-init-config.yaml where the code is git cloned.
-2. Provide a free port for the dashboard nginx service to use. If not, by default, 80 port is used. 
-extraPortMappings:
-  - containerPort: 80
-    hostPort: <PROVIDE FREE PORT like 8085 or 8001>
-3. Save the file.
-4. Execute ./launch.sh --deploy-dashboard
+1. Execute ./launch.sh --deploy-dashboard
 ```
 - Service Accounts and Secrets preparation
 Open values.yaml in the SIVT OVA and update the respective entries
