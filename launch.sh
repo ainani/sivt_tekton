@@ -178,6 +178,7 @@ function create_cluster() {
       exit 1
       #return 1
     fi
+    echo "Preparing loading of images..."
     kind_load_tar_imgs $TARBALL_URL
     kind_load_docker_imgs $DEFAULT_IMAGES
 
