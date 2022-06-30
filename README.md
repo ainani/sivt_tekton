@@ -50,7 +50,7 @@ Tekton pipelines execution require the following:
     hostPort: <PROVIDE FREE PORT like 8085 or 8001>
   
   6. ./launch.sh --create-cluster #This will create a kind cluster which is required for TEKTON pipeline 
-  7. When prompted for docker login, provide the docker login credentials. #This would be a one time effort
+  7. When prompted for docker login, provide the docker login credentials. #This would be an one time effort
   ```
 - Preparing TEKTON Dashboard
 
