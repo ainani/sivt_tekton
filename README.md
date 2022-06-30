@@ -114,13 +114,14 @@ From tkn
 
 **Monitoring Pipelines**
 
-From tkn
 
     tkn pr logs <tkgm-bringup-day0-jd2mp> --follow
     #For debugging. 
     tkn pr desc <tkgm-bringup-day0-jd2mp>
 
+
 **Triggering the PIPELINES through git commits**
+
 TEKTON pipelines also support execution of pipelines based on git commit changes. 
 1. Complete the Preparation stages from 1 to 5. 
 2. Install polling operator
