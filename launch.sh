@@ -118,7 +118,8 @@ function kind_load_tar_imgs() {
              echo "Failed to download tarball image:- $i" >&2
            fi
         fi
-
+        
+        echo "Loading tarball image file to kind cluster"
         if ! kind load image-archive $tar_file.tar --name $CLUSTER_NAME; then
            echo "failed to load tarball image file:- $i" >&2
         fi
@@ -233,17 +234,16 @@ function deploy_tekton_dashboard() {
 
 function print_tekton_dashboard_help() {
   printKubeconfig=$1
-  echo "To access the Tekton Dashboard, run:"
-  if [ "${printKubeconfig}" == "true" ]; then
-    echo "  kubectl proxy --kubeconfig ${KUBECONFIG} --port=8080"
-  else
-    echo "  kubectl proxy --port=8080"
-  fi
-  echo "and open:"
-  echo "  http://localhost:8080/api/v1/namespaces/tekton-pipelines/services/tekton-dashboard:http/proxy/"
+  #echo "To access the Tekton Dashboard, run:"
+  #if [ "${printKubeconfig}" == "true" ]; then
+    #echo "  kubectl proxy --kubeconfig ${KUBECONFIG} --port=8080"
+  #else
+    #echo "  kubectl proxy --port=8080"
+  #fi
+  #echo "  http://localhost:8080/api/v1/namespaces/tekton-pipelines/services/tekton-dashboard:http/proxy/"
 
   echo "To access the Tekton Dashboard through Nginx-INgress, open:"
-  echo " http://<vm-ip>/"
+  echo " http://<vm-ip>:<exposed-port>/"
 }
 
 function execute_mgmt_upgrade() {
