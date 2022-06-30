@@ -1,13 +1,15 @@
-TEKTON PIPELINE
+**TEKTON PIPELINE**
+
 Tekton is a cloud-native solution for building CI/CD systems. SIVT is bundled with Tekton capability which provides the pipelines for DayO deployment and Day2 operations of TKGM 1.5.3 on vSphere backed environment.
 
-Features
+**Features**
 
-Bring based on Reference Architecture of TKGM on vSphere.
-E2E deployement and configuration of AVI Controller, Management, SharedServices, Workload clusters
+-  Bringup of Reference Architecture based TKGM environment on vSphere.
+-  E2E deployement and configuration of AVI Controller, Management, SharedServices, Workload clusters
+-  Rescale and Resize Day2 operations. 
 
+**Pre-requisites**
 
-Pre-requisites
 Tekton pipelines execution require the following:
 
 - Service Installer OVA. Download from Marketplace https://marketplace.cloud.vmware.com/services/details/service-installer-for-vmware-tanzu-1?slug=true
