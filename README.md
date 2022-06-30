@@ -90,6 +90,10 @@ From kubectl
 ```
 
 **Listing Pipelines and taskruns**
+```
+Set the kubeconfig for the cluster. 
+export KUBECONFIG=/root/tekton/arcas-tekton-cicd/arcas-ci-cd-cluster.yaml
+```
 
 From tkn
 
