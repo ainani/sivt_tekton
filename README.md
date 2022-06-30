@@ -57,6 +57,7 @@ Tekton pipelines execution require the following:
 TEKTON provides a helpful dashboard for monitoring and triggering pipelines from UI. It is recommended to have dashboard integrated. This step can be skipped, if TEKTON dashboard is not required for your environment
 ```
 1. Execute ./launch.sh --deploy-dashboard
+Exposed port is hostPort set in step 5 of preparing TEKTON environment
 ```
 - Service Accounts and Secrets preparation
 Open values.yaml in the SIVT OVA and update the respective entries
