@@ -60,7 +60,7 @@ TEKTON provides a helpful dashboard for monitoring and triggering pipelines from
 Exposed port is hostPort set in step 5 of preparing TEKTON environment
 ```
 - Service Accounts and Secrets preparation
-Open values.yaml in the SIVT OVA and update the respective entries
+Open values.yaml in the SIVT OVA and update the respective entries. 
 ```
 #@data/values-schema
 ---
@@ -70,7 +70,7 @@ git:
   branch: <branch_name>
   username: <username>
   password: <GITPAT>
-imagename: <docker.io/library/service_installer_tekton:v153>
+imagename: docker.io/library/service_installer_tekton:v153
 imagepullpolicy: Never
 ```
 **Running the PIPELINES**
