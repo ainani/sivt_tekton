@@ -1,4 +1,4 @@
-**TEKTON PIPELINE**
+**TEKTON PIPELINE FOR TKGM**
 
 Tekton is a cloud-native solution for building CI/CD systems. SIVT is bundled with Tekton capability which provides the pipelines for DayO deployment and Day2 operations of TKGM 1.5.3 on vSphere backed environment.
 
@@ -17,7 +17,7 @@ Tekton pipelines execution require the following:
 - Service Installer Tekton Docker tar file. service_installer_tekton_v153.tar  
 - Private git repo
 
-Execution
+**Execution**
  - GIT Preparation
  ```
  1. Prepare a private git (gitlab/github) repo
@@ -71,13 +71,13 @@ git:
 imagename: <docker.io/library/service_installer_tekton:v153>
 imagepullpolicy: Never
 ```
-TRIGGERING PIPELINES
+**Running the PIPELINES**
 
 - For triggering Day0 bringup of TKGM
 ```sh
 ./launch.sh  --exec-day0
 ```
-Re-triggering any Pipelines
+**Re-running Pipelines**
 
 From kubectl
 
@@ -87,7 +87,7 @@ From kubectl
     ./launch.sh --exec-day0
 ```
 
-Listing Pipelines and taskruns
+**Listing Pipelines and taskruns**
 
 From tkn
 
@@ -105,7 +105,7 @@ From tkn
     tkgm-bringup-day0-jd2mp-start-prep-workspace          54 minutes ago   11 seconds   Succeeded
 
 
-Monitoring Pipelines
+**Monitoring Pipelines**
 
 From tkn
 
