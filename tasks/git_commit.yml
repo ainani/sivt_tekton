@@ -23,8 +23,12 @@ spec:
         dst_dir=`pwd`
 
         git config --global user.email tektonuser@sivt.com
-        git add $dst_dir/kubeconfig-repo/.config/tanzu/config.yaml
-        git add $dst_dir/kubeconfig-repo/.kube/config
-        git add $dst_dir/kubeconfig-repo/.kube-tkg/config
+        cp -rf kubeconfig-repo/.config/tanzu/config.yaml arcas-tekton-cicd/kubeconfig-repo/
+        cp -rf kubeconfig-repo/.kube/config arcas-tekton-cicd/kubeconfig-repo/
+        cp -rf kubeconfig-repo/.kube-tkg/config arcas-tekton-cicd/kubeconfig-repo/
+        cd arcas-tekton-cicd
+        git add arcas-tekton-cicd/kubeconfig-repo/.config/tanzu/config.yaml
+        git add arcas-tekton-cicd/kubeconfig-repo/.kube/config
+        git add arcas-tekton-cicd/kubeconfig-repo/.kube-tkg/config
         git commit -m "kube cfg uploaded"
         git push origin $(params.branch)
