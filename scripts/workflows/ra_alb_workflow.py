@@ -89,7 +89,7 @@ class RALBWorkflow:
             return True
         if not ra_avi_download(self.jsonspec):
             logger.error("Failed to setup AVI")
-            return False
+            raise ValueError('Failed to deploy and configure avi.')
         control_plan = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
             'tkgMgmtDeploymentType']
         avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents'][
@@ -117,11 +117,12 @@ class RALBWorkflow:
             control_plan = "dev"
         if isAviHaEnabled(ha_field):
             if not avi_fqdn or not avi_fqdn2 or not avi_fqdn3:
-                logger.error("Avi fqdn not provided, for ha mode 3 fqdns are required")
-                return False
+                logger.info("Avi fqdn not provided, for ha mode 3 fqdns are required")
+                raise ValueError('Failed to deploy and configure avi.')
         if not avi_fqdn:
-            logger.error("Avi fqdn not provided")
-            return False
+            logger.info("Avi fqdn not provided")
+            raise ValueError('Failed to deploy and configure avi.')
+
         if str(control_plan).lower() == "dev":
             if not avi_ip:
                 controller_name = ControllerLocation.CONTROLLER_NAME_VSPHERE
@@ -134,7 +135,7 @@ class RALBWorkflow:
             else:
                 if not mgmt_cidr:
                     logger.error("Mgmt cidr not provided")
-                    return False
+                    raise ValueError('Failed to deploy and configure avi.')
                 gateway, netmask = str(mgmt_cidr).split('/')
                 ip = avi_ip
                 controller_name = avi_fqdn
@@ -190,7 +191,7 @@ class RALBWorkflow:
                 options3 = f"-options {VSPHERE_ALB_DEPLOY_JSON3} -dc={dcname} -ds={dsname} -folder={foldername} -pool=/{rp_pool}"
         else:
             logger.error("Currently other then dev plan is not supported")
-            return False
+            raise ValueError('Failed to deploy and configure avi.')
         avi_version = ControllerLocation.VSPHERE_AVI_VERSION
         govc_client = GovcClient(self.jsonspec, LocalCmdHelper())
         dep = deployAndConfigureAvi(govc_client=govc_client, vm_name=controller_name,
@@ -203,7 +204,7 @@ class RALBWorkflow:
             logger.error(
                 "Failed to deploy and configure avi " + str(dep))
 
-            return False
+            raise ValueError('Failed to deploy and configure avi.')
         if isAviHaEnabled(ha_field):
             logger.info("Deploying 2nd avi controller")
             dep2 = deployAndConfigureAvi(govc_client=govc_client, vm_name=controller_name2,
@@ -221,7 +222,7 @@ class RALBWorkflow:
                     "msg": "Failed to deploy and configure avi  " + str(dep2[0].json['msg']),
                     "ERROR_CODE": 500
                 }
-                return False
+                raise ValueError('Failed to deploy and configure avi.')
             logger.info("Deploying 3rd avi controller")
             dep3 = deployAndConfigureAvi(govc_client=govc_client, vm_name=controller_name3,
                                          controller_ova_location=controller_location,
@@ -231,11 +232,11 @@ class RALBWorkflow:
                                          jsonspec=self.jsonspec)
             if not dep3:
                 logger.error("Failed to deploy and configure avi 2nd controller")
-                return False
+                raise ValueError('Failed to deploy and configure avi.')
             res, status = form_avi_ha_cluster(ip, self.jsonspec, avi_version)
             if res is None:
                 logger.error("Failed to form avi ha cluster ")
-                return False
+                raise ValueError('Failed to deploy and configure avi.')
         avi_cert = self.aviCertManagement_vsphere()
         return True
 
