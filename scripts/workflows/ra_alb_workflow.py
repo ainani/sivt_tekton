@@ -22,7 +22,7 @@ from jinja2 import Template
 from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
 from util.vcenter_operations import checkforIpAddress, getSi
-from util.common_utils import checkenv
+from util.common_utils import checkenv, isEnvTkgs_wcp, isEnvTkgs_ns
 from util.vcenter_operations import create_folder, createResourcePool
 
 logger = LoggerHelper.get_logger(name='alb_workflow')
@@ -32,8 +32,17 @@ class RALBWorkflow:
     def __init__(self, run_config: RunConfig) -> None:
         self.run_config = run_config
         self.version = None
-        jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
-        with open(jsonpath) as f:
+        self.jsonpath = None
+        self.tkg_type = self.run_config.desired_state.version.keys()
+        if "tkgs" in self.tkg_type:
+            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_WCP_MASTER_SPEC_PATH)
+            #self.ns_jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_NS_MASTER_SPEC_PATH)
+        elif "tkgm" in self.tkg_type:
+            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
+        else:
+            raise Exception(f"Could not find supported TKG version: {self.tkg_type}")
+
+        with open(self.jsonpath) as f:
             self.jsonspec = json.load(f)
 
         check_env_output = checkenv(self.jsonspec)
@@ -41,6 +50,8 @@ class RALBWorkflow:
             msg = "Failed to connect to VC. Possible connection to VC is not available or " \
                   "incorrect spec provided."
             raise Exception(msg)
+        self.isEnvTkgs_wcp = isEnvTkgs_wcp(self.jsonspec)
+        self.isEnvTkgs_ns = isEnvTkgs_ns(self.jsonspec)
 
     @log("Setting up AVI Certificate")
     def aviCertManagement_vsphere(self):
@@ -48,7 +59,11 @@ class RALBWorkflow:
         password = CmdHelper.decode_base64(vcpass_base64)
         vcenter_username = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
         vcenter_ip = self.jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
-        avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents'][
+        if self.isEnvTkgs_wcp:
+            avi_fqdn = self.jsonspec['tkgsComponentSpec']['aviComponents'][
+                'aviController01Fqdn']
+        else:
+            avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents'][
                 'aviController01Fqdn']
         if not avi_fqdn:
             logger.error("Avi fqdn not provided")
@@ -90,29 +105,49 @@ class RALBWorkflow:
         if not ra_avi_download(self.jsonspec):
             logger.error("Failed to setup AVI")
             raise ValueError('Failed to deploy and configure avi.')
-        control_plan = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
-            'tkgMgmtDeploymentType']
-        avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents'][
-            'aviController01Fqdn']
-        avi_ip = self.jsonspec['tkgComponentSpec']['aviComponents'][
-            'aviController01Ip']
-        ha_field = self.jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
         avi_fqdn2 = ''
         avi_ip2 = ''
         avi_fqdn3 = ''
         avi_ip3 = ''
-        if isAviHaEnabled(ha_field):
-            avi_fqdn2 = self.jsonspec['tkgComponentSpec']['aviComponents'][
-                'aviController02Fqdn']
-            avi_ip2 = self.jsonspec['tkgComponentSpec']['aviComponents'][
-                'aviController02Ip']
-            avi_fqdn3 = self.jsonspec['tkgComponentSpec']['aviComponents'][
-                'aviController03Fqdn']
-            avi_ip3 = self.jsonspec['tkgComponentSpec']['aviComponents'][
-                'aviController03Ip']
-        mgmgt_name = self.jsonspec['tkgComponentSpec']['aviMgmtNetwork'][
-            'aviMgmtNetworkName']
-        mgmt_cidr = self.jsonspec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkGatewayCidr']
+        if self.isEnvTkgs_wcp:
+            control_plan = "dev"
+            avi_fqdn = self.jsonspec['tkgsComponentSpec']['aviComponents'][
+                'aviController01Fqdn']
+            avi_ip = self.jsonspec['tkgsComponentSpec']['aviComponents'][
+                'aviController01Ip']
+            ha_field = self.jsonspec['tkgsComponentSpec']['aviComponents']['enableAviHa']
+            if isAviHaEnabled(ha_field):
+                avi_fqdn2 = self.jsonspec['tkgsComponentSpec']['aviComponents'][
+                    'aviController02Fqdn']
+                avi_ip2 = self.jsonspec['tkgsComponentSpec']['aviComponents'][
+                    'aviController02Ip']
+                avi_fqdn3 = self.jsonspec['tkgsComponentSpec']['aviComponents'][
+                    'aviController03Fqdn']
+                avi_ip3 = self.jsonspec['tkgsComponentSpec']['aviComponents'][
+                    'aviController03Ip']
+            mgmgt_name = self.jsonspec['tkgsComponentSpec']['aviMgmtNetwork'][
+                'aviMgmtNetworkName']
+            mgmt_cidr = self.jsonspec['tkgsComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkGatewayCidr']
+        else:
+            control_plan = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+            'tkgMgmtDeploymentType']
+            avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents'][
+                'aviController01Fqdn']
+            avi_ip = self.jsonspec['tkgComponentSpec']['aviComponents'][
+                'aviController01Ip']
+            ha_field = self.jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
+            if isAviHaEnabled(ha_field):
+                avi_fqdn2 = self.jsonspec['tkgComponentSpec']['aviComponents'][
+                    'aviController02Fqdn']
+                avi_ip2 = self.jsonspec['tkgComponentSpec']['aviComponents'][
+                    'aviController02Ip']
+                avi_fqdn3 = self.jsonspec['tkgComponentSpec']['aviComponents'][
+                    'aviController03Fqdn']
+                avi_ip3 = self.jsonspec['tkgComponentSpec']['aviComponents'][
+                    'aviController03Ip']
+            mgmgt_name = self.jsonspec['tkgComponentSpec']['aviMgmtNetwork'][
+                'aviMgmtNetworkName']
+            mgmt_cidr = self.jsonspec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkGatewayCidr']
         if str(control_plan) == "prod":
             control_plan = "dev"
         if isAviHaEnabled(ha_field):
@@ -177,7 +212,10 @@ class RALBWorkflow:
             dcname = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
             clustername = self.jsonspec['envSpec']['vcenterDetails']['vcenterCluster']
             dsname = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
-            parent_resourcepool = self.jsonspec['envSpec']['vcenterDetails']['resourcePoolName']
+            if self.isEnvTkgs_wcp:
+                parent_resourcepool = ""
+            else:
+                parent_resourcepool = self.jsonspec['envSpec']['vcenterDetails']['resourcePoolName']
             rp_pool = dcname + "/host/" + clustername + "/Resources/" + parent_resourcepool
             foldername = "TEKTON"
             vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']

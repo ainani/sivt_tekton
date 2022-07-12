@@ -29,6 +29,9 @@ from util.vcenter_operations import createResourcePool, create_folder
 import subprocess
 import pathlib
 import tarfile
+from flask import current_app, jsonify, request
+from pyVim import connect
+
 
 logger = LoggerHelper.get_logger('common_utils')
 logging.getLogger("paramiko").setLevel(logging.WARNING)
@@ -49,6 +52,30 @@ def checkenv(jsonspec):
         return check_connection
     except Exception:
         return None
+
+def isEnvTkgs_wcp(jsonspec) -> bool:
+    """
+    Method to check if TKGs environment is TKGs_wcp or not
+     - In TKGs it's WCP --> Workload Control Plane
+    :return: boolean
+    """
+    env_type = jsonspec["envSpec"]["envType"]
+    if "tkgs-wcp" in env_type:
+        return True
+    else:
+        return False
+
+def isEnvTkgs_ns(jsonspec) -> bool:
+    """
+    Method to check if TKGs environment is TKGs_ns or not
+     - In TKGs it's NS --> NameSpace Workload
+    :return: boolean
+    """
+    env_type = jsonspec["envSpec"]["envType"]
+    if "tkgs-ns" in env_type:
+        return True
+    else:
+        return False
 
 
 def createSubscribedLibrary(vcenter_ip, vcenter_username, password, jsonspec):
@@ -1758,3 +1785,14 @@ def getVipNetworkIpNetMask(ip, csrf2, name, aviVersion):
     except KeyError:
         return "NOT_FOUND", "FAILED"
 
+def verifyVcenterVersion(version):
+    vCenter = current_app.config['VC_IP']
+    vCenter_user = current_app.config['VC_USER']
+    VC_PASSWORD = current_app.config['VC_PASSWORD']
+    si = connect.SmartConnectNoSSL(host=vCenter, user=vCenter_user, pwd=VC_PASSWORD)
+    content = si.RetrieveContent()
+    vcVersion = content.about.version
+    if vcVersion.startswith(version):
+        return True
+    else:
+        return False
