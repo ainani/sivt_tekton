@@ -50,7 +50,7 @@ class RaMgmtClusterWorkflow:
         jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
         with open(jsonpath) as f:
             self.jsonspec = json.load(f)
-
+        self.env = "vsphere"
         check_env_output = checkenv(self.jsonspec)
         if check_env_output is None:
             msg = "Failed to connect to VC. Possible connection to VC is not available or " \
