@@ -4,6 +4,7 @@ import time
 import ruamel
 import json
 import requests
+from pathlib import Path
 from util.logger_helper import LoggerHelper, log
 from util.ShellHelper import runShellCommandAndReturnOutputAsList, \
     runShellCommandAndReturnOutputAsListWithChangedDir, verifyPodsAreRunning, runShellCommandAndReturnOutput, \
@@ -21,7 +22,7 @@ from util.common_utils import getVersionOfPackage, loadBomFile, checkAirGappedIs
 from util.extensions_helper import checkTanzuExtensionEnabled, checkPromethusEnabled
 from .tkg_extensions import generateYamlFile, getBomMap, getRepo
 
-#from vmc.sharedConfig.shared_config import certChanging
+from util.shared_config import certChanging
 
 from util.logger_helper import LoggerHelper, log
 

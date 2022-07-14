@@ -17,7 +17,9 @@ from util.extensions_helper import checkTanzuExtensionEnabled, check_fluent_bit_
     check_fluent_bit_elastic_search_endpoint_enabled, check_fluent_bit_http_endpoint_enabled, checkPromethusEnabled, \
     envCheck
 from constants.constants import Tkg_Extention_names, Paths 
-from util.common_utils import checkenv, RunConfig, isEnvTkgs_wcp, isEnvTkgs_ns
+from util.common_utils import checkenv, RunConfig
+from util.tkg_util import TkgUtil
+
 logger = LoggerHelper.get_logger(name='ra_deploy_ext_workflow.py')
 
 
@@ -122,7 +124,7 @@ class RaDeployExtWorkflow:
                                 "ERROR_CODE": 500
                             }
                             return json.dumps(d), 500
-                            
+
                     logger.info("Successfully deployed "+str(logginglistOfExtention))
                     
                 else:

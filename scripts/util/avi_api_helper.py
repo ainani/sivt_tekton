@@ -19,6 +19,7 @@ from util.govc_client import GovcClient
 from util.replace_value import replaceValueSysConfig, replaceCertConfig
 from util.common_utils import isEnvTkgs_wcp, isEnvTkgs_ns
 from util.vcenter_operations import verifyVcenterVersion
+from util.tkg_util import TkgUtil
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -486,7 +487,14 @@ def obtain_avi_version(ip, jsonspec):
     modified_payload = json.dumps(payload, indent=4)
     response_avi = requests.request("POST", url, headers=headers, data=modified_payload, verify=False)
     if response_avi.status_code != 200:
-        return None, response_avi.txt
+        default = {
+            "username": "admin",
+            "password": "58NFaGDJm(PJH0G"
+        }
+        modified_payload = json.dumps(default, indent=4)
+        response_avi = requests.request("POST", url, headers=headers, data=modified_payload, verify=False)
+        if response_avi.status_code != 200:
+            return None, response_avi.text
     return response_avi.json()["version"]["Version"], 200
 
 def get_backup_configuration(ip, second_csrf, avi_version):
@@ -1016,7 +1024,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
             logger.info("Deploying avi controller..")
             govc_client.deploy_library_ova(location=controller_ova_location, name=vm_name,
                                            options=deploy_options)
-            if isEnvTkgs_wcp:
+            if TkgUtil.isEnvTkgs_wcp(jsonspec):
                 avi_size = jsonspec['tkgsComponentSpec']['aviComponents']['aviSize']
             else:
                 avi_size = jsonspec['tkgComponentSpec']['aviComponents']['aviSize']
@@ -1080,6 +1088,8 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
                 avi_version) + " is not supported, supported version is: " + avi_required,
             "ERROR_CODE": 500
         }
+        logger.error(f"Required avi_version: {avi_required} is not matching as obtained avi_version: {avi_version} ")
+        logger.debug("Error: {}".format(json.dumps(d['msg'])))
         return False
     if performOtherTask:
         csrf = obtain_first_csrf(ip)
