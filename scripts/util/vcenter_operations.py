@@ -20,6 +20,8 @@ from util.logger_helper import LoggerHelper, log
 from pathlib import Path
 import urllib3
 from constants.constants import SegmentsName
+from flask import current_app, jsonify, request
+from pyVim import connect
 
 from util.cmd_helper import CmdHelper
 logger = LoggerHelper.get_logger(Path(__file__).stem)

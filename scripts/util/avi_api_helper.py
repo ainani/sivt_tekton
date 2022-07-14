@@ -435,7 +435,7 @@ def get_system_configuration_and_set_values(ip, second_csrf, avi_version, jsonsp
                           ntp)
     replaceValueSysConfig("./systemConfig1.json", "dns_configuration", "search_domain",
                           search_domain)
-    if TkgUtil.isEnvTkgs_ns(jsonspec):
+    if TkgUtil.isEnvTkgs_ns(jsonspec) or TkgUtil.isEnvTkgs_wcp(jsonspec):
         replaceValueSysConfig("./systemConfig1.json", "portal_configuration", "allow_basic_authentication",
                               "true")
     return "SUCCESS"
@@ -1023,7 +1023,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
             logger.info("Deploying avi controller..")
             govc_client.deploy_library_ova(location=controller_ova_location, name=vm_name,
                                            options=deploy_options)
-            if TkgUtil.isEnvTkgs_wcp(jsonspec):
+            if TkgUtil.isEnvTkgs_wcp:
                 avi_size = jsonspec['tkgsComponentSpec']['aviComponents']['aviSize']
             else:
                 avi_size = jsonspec['tkgComponentSpec']['aviComponents']['aviSize']
