@@ -1,3 +1,4 @@
+
 #!/usr/local/bin/python3
 
 #  Copyright 2021 VMware, Inc
@@ -15,8 +16,7 @@ import time
 import json
 from ruamel import yaml
 
-from model.run_config import RunConfig
-from model.extensions import extensions_types, deploy_extensions
+#from model.extensions import extensions_types, deploy_extensions
 from constants.constants import Tkg_Extention_names, Repo, RegexPattern, Extentions, AppName, Paths 
 import json, requests
 from util.common_utils import checkenv, RunConfig, getVersionOfPackage, switchToContext, loadBomFile, \
@@ -26,52 +26,32 @@ from util.ShellHelper import runShellCommandAndReturnOutputAsList, \
     verifyPodsAreRunning, runShellCommandAndReturnOutput, \
     grabPipeOutput
 #from exts.tkg_extensions import getBomMap, generateYamlWithoutCert, getRepo
+from util.logger_helper import LoggerHelper, log
+
+logger = LoggerHelper.get_logger(Path(__file__).stem)
 
 
-logger = LoggerHelper.get_logger(name='tkg_extensions.py')
+class deploy_tkg_extensions():
+    def __init__(self, extension_name, jsonspec):
+        self.extension_name = extension_name
+        self.jsonspec = jsonspec
+        logger.info("Deploying extentions: {}".format(self.extension_name))
 
-class deploy_tkg_extensions(deploy_extensions):
-    
+    def deploy(self):       
 
-    def deploy(self, extention_name):
-        dot4 = extention_types_dot4_impl()
-        if str(extention_name).__contains__("Fluent"):
-            status = dot4.fluent_bit(extention_name)
+        if str(self.extension_name).__contains__("Fluent"):
+            status = self.fluent_bit(self.extension_name)
             return status[0], status[1]
-        elif str(extention_name) == Tkg_Extention_names.GRAFANA:
-            status = dot4.grafana()
+        elif str(self.extension_name) == Tkg_Extention_names.GRAFANA:
+            status = self.grafana()
             return status[0], status[1]
-        elif str(extention_name) == Tkg_Extention_names.LOGGING:
-            status = dot4.logging()
+        elif str(self.extension_name) == Tkg_Extention_names.LOGGING:
+            status = self.logging()
             return status[0], status[1]
-        elif str(extention_name) == Tkg_Extention_names.PROMETHEUS:
-            status = dot4.prometheus()
+        elif str(self.extension_name) == Tkg_Extention_names.PROMETHEUS:
+            status = self.prometheus()
             return status[0], status[1]
 
-
-class extention_types_dot4_impl(extensions_types):
-    def __init__(self, run_config: RunConfig) -> None:
-        self.run_config = run_config
-        self.version = None
-        self.jsonpath = None
-        self.tkg_type = self.run_config.desired_state.version.keys()
-        if "tkgs" in self.tkg_type:
-            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_WCP_MASTER_SPEC_PATH)
-            #self.ns_jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_NS_MASTER_SPEC_PATH)
-        elif "tkgm" in self.tkg_type:
-            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
-        else:
-            raise Exception(f"Could not find supported TKG version: {self.tkg_type}")
-
-        with open(self.jsonpath) as f:
-            self.jsonspec = json.load(f)
-
-        check_env_output = checkenv(self.jsonspec)
-        if check_env_output is None:
-            msg = "Failed to connect to VC. Possible connection to VC is not available or " \
-                  "incorrect spec provided."
-            raise Exception(msg)
-        
     def fluent_bit(self, fluent_bit_type):
         fluent_bit_response = deploy_extension_fluent(fluent_bit_type, self.jsonspec)
         if fluent_bit_response[1] != 200:
@@ -137,6 +117,8 @@ class extention_types_dot4_impl(extensions_types):
             "ERROR_CODE": 200
         }
         return json.dumps(d), 200
+
+    
 
 def getImageName(server_image):
     return server_image[server_image.rindex("/") + 1:len(server_image)]
@@ -326,8 +308,7 @@ def monitoringDeployment(monitoringType, jsonspec):
                 return json.dumps(d), 500
             """
             env = "vsphere"
-            to_enable = jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"]["tanzuObservabilityAvailability"]
-            if checkToEnabled(to_enable):
+            if checkToEnabled(env, jsonspec):
                 logger.info("Tanzu observability is enabled, skipping prometheus and grafana deployment")
                 d = {
                     "responseType": "SUCCESS",

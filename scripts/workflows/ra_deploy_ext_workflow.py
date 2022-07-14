@@ -80,30 +80,51 @@ class RaDeployExtWorkflow:
                     }
                     return json.dumps(d), 200
             else:
-                listOfExtention = []
+                logginglistOfExtention = []
                 if checkTanzuExtensionEnabled(self.jsonspec):
                     if check_fluent_bit_splunk_endpoint_endpoint_enabled():
-                        listOfExtention.append(Tkg_Extention_names.FLUENT_BIT_SPLUNK)
+                        logginglistOfExtention.append(Tkg_Extention_names.FLUENT_BIT_SPLUNK)
                     if check_fluent_bit_http_endpoint_enabled():
-                        listOfExtention.append(Tkg_Extention_names.FLUENT_BIT_HTTP)
+                        logginglistOfExtention.append(Tkg_Extention_names.FLUENT_BIT_HTTP)
                     if check_fluent_bit_syslog_endpoint_enabled():
-                        listOfExtention.append(Tkg_Extention_names.FLUENT_BIT_SYSLOG)
+                        logginglistOfExtention.append(Tkg_Extention_names.FLUENT_BIT_SYSLOG)
                     if check_fluent_bit_elastic_search_endpoint_enabled():
-                        listOfExtention.append(Tkg_Extention_names.FLUENT_BIT_ELASTIC)
+                        logginglistOfExtention.append(Tkg_Extention_names.FLUENT_BIT_ELASTIC)
                     if check_fluent_bit_kafka_endpoint_endpoint_enabled():
-                        listOfExtention.append(Tkg_Extention_names.FLUENT_BIT_KAFKA)
-
+                        logginglistOfExtention.append(Tkg_Extention_names.FLUENT_BIT_KAFKA)
+                        
                 else:
-                    logger.info("Tanzu extensions deploy is disabled, no extensions will be deployed")
+                    logger.info("Tanzu logging extensions deploy is disabled, no extensions will be deployed")
                     d = {
                         "responseType": "SUCCESS",
                         "msg": "Tanzu extensions  deploy is disabled, no extensions will be deployed",
                         "ERROR_CODE": 200
                     }
                     return json.dumps(d), 200
-            
+
+                if len(logginglistOfExtention) > 1:
+                    logger.info("User can only enable one logging extension at a once, please select only one.")
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "User can only enable one logging extension at a once, please select only one.",
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+
                 if Tkg_version.TKG_VERSION == "1.5":
-                    extention = deploy_tkg_extensions(self.jsonspec)
+                    for extn in logginglistOfExtention:
+                        status = deploy_tkg_extensions.deploy(extn, self.jsonspec)
+                        if status[1] != 200:
+                            logger.info("Failed to deploy extension "+str(status[0].json['msg']))
+                            d = {
+                                "responseType": "ERROR",
+                                "msg": "Failed to deploy extension "+str(status[0].json['msg']),
+                                "ERROR_CODE": 500
+                            }
+                            return json.dumps(d), 500
+                            
+                    logger.info("Successfully deployed "+str(logginglistOfExtention))
+                    
                 else:
                     logger.info("Unsupported TKG version")
                     d = {
@@ -112,42 +133,49 @@ class RaDeployExtWorkflow:
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
-                if len(listOfExtention) > 1:
-                    logger.info("User can only enable one logging extension at a once, please select only one.")
-                    d = {
-                        "responseType": "ERROR",
-                        "msg": "User can only enable one logging extension at a once, please select only one.",
-                        "ERROR_CODE": 500
-                    }
-                    return json.dumps(d), 500
+               
+                monitoringListOfExtention = []
                 if checkPromethusEnabled(self.jsonspec):
-                    listOfExtention.append(Tkg_Extention_names.PROMETHEUS)
-                    listOfExtention.append(Tkg_Extention_names.GRAFANA)
-                if len(listOfExtention) == 0:
-                    logger.info("No extension to deploy")
+                    monitoringListOfExtention.append(Tkg_Extention_names.PROMETHEUS)
+                    monitoringListOfExtention.append(Tkg_Extention_names.GRAFANA)
+                if len(monitoringListOfExtention) == 0:
+                    logger.info("No monitoring extension to deploy")
                     d = {
                         "responseType": "SUCCESS",
                         "msg": "No extension to deploy ",
                         "ERROR_CODE": 200
                     }
                     return json.dumps(d), 200
-                for extention_name in listOfExtention:
-                    status = extention.deploy(extention_name)
-                    if status[1] != 200:
-                        logger.info("Failed to deploy extension "+str(status[0].json['msg']))
-                        d = {
-                            "responseType": "ERROR",
-                            "msg": "Failed to deploy extension "+str(status[0].json['msg']),
-                            "ERROR_CODE": 500
-                        }
-                        return json.dumps(d), 500
-                logger.info("Successfully deployed "+str(listOfExtention))
-                d = {
-                    "responseType": "SUCCESS",
-                    "msg": "Successfully deployed extension "+str(listOfExtention),
-                    "ERROR_CODE": 200
-                }
-                return json.dumps(d), 200
+
+                if Tkg_version.TKG_VERSION == "1.5":
+                    for extn in monitoringListOfExtention:
+                        status = deploy_tkg_extensions.deploy(extn, self.jsonspec)
+                        if status[1] != 200:
+                            logger.info("Failed to deploy extension "+str(status[0].json['msg']))
+                            d = {
+                                "responseType": "ERROR",
+                                "msg": "Failed to deploy extension "+str(status[0].json['msg']),
+                                "ERROR_CODE": 500
+                            }
+                            return json.dumps(d), 500
+                    logger.info("Successfully deployed "+str(monitoringListOfExtention))
+                    d = {
+                        "responseType": "SUCCESS",
+                        "msg": "Successfully deployed logging extension "+str(monitoringListOfExtention),
+                        "ERROR_CODE": 200
+                    }
+                    return json.dumps(d), 200
+                    
+                else:
+                    logger.info("Unsupported TKG version")
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Unsupported TKG version",
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+                    
+                
         except Exception as e:
             logger.error("Failed to deploy the extensions " + str(e))
             d = {

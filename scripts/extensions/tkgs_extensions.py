@@ -23,7 +23,9 @@ from .tkg_extensions import generateYamlFile, getBomMap, getRepo
 
 #from vmc.sharedConfig.shared_config import certChanging
 
-logger = LoggerHelper.get_logger(name='tkgs_extensions.py')
+from util.logger_helper import LoggerHelper, log
+
+logger = LoggerHelper.get_logger(Path(__file__).stem)
 
 def deploy_tkgs_extensions(jsonspec):
     try:
