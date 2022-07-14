@@ -435,7 +435,7 @@ def get_system_configuration_and_set_values(ip, second_csrf, avi_version, jsonsp
                           ntp)
     replaceValueSysConfig("./systemConfig1.json", "dns_configuration", "search_domain",
                           search_domain)
-    if isEnvTkgs_wcp(jsonspec):
+    if TkgUtil.TkgUtil.isEnvTkgs_ns(jsonspec):
         replaceValueSysConfig("./systemConfig1.json", "portal_configuration", "allow_basic_authentication",
                               "true")
     return "SUCCESS"
@@ -472,7 +472,7 @@ def obtain_avi_version(ip, jsonspec):
         "Accept": "application/json",
         "Content-Type": "application/json"
     }
-    if isEnvTkgs_wcp(jsonspec):
+    if TkgUtil.TkgUtil.isEnvTkgs_wcp(jsonspec):
         str_enc_avi = str(jsonspec['tkgsComponentSpec']['aviComponents']['aviPasswordBase64'])
     else:
         str_enc_avi = str(jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64'])
@@ -557,7 +557,7 @@ def get_avi_cluster_info(ip, csrf2, aviVersion):
         return None, str(e)
 
 def form_avi_ha_cluster(ip, jsonspec, aviVersion):
-    if isEnvTkgs_wcp(jsonspec):
+    if TkgUtil.TkgUtil.isEnvTkgs_wcp(jsonspec):
         avienc_pass = str(jsonspec['tkgsComponentSpec']['aviComponents']['aviPasswordBase64'])
     else:
         avienc_pass = str(jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64'])
@@ -581,7 +581,7 @@ def form_avi_ha_cluster(ip, jsonspec, aviVersion):
         if info is None:
             logger.error("Failed to get status of cluster: {}".format(str(status)))
             return None
-        if isEnvTkgs_wcp(jsonspec):
+        if TkgUtil.isEnvTkgs_wcp(jsonspec):
             avi_ip = jsonspec['tkgsComponentSpec']['aviComponents']['aviController01Ip']
             avi_ip2 = jsonspec['tkgsComponentSpec']['aviComponents']['aviController02Ip']
             avi_ip3 = jsonspec['tkgsComponentSpec']['aviComponents']['aviController03Ip']
@@ -750,7 +750,7 @@ def generate_ssl_certificate_vsphere(ip, csrf2, avi_fqdn, avi_version, jsonspec)
     ips = [str(ip), common_name]
     hafield = jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
     if isAviHaEnabled(hafield):
-        if isEnvTkgs_wcp(jsonspec):
+        if TkgUtil.isEnvTkgs_wcp(jsonspec):
             avi_fqdn2 = jsonspec['tkgsComponentSpec']['aviComponents']['aviController02Fqdn']
             avi_ip2 = jsonspec['tkgsComponentSpec']['aviComponents']['aviController02Ip']
             avi_fqdn3 = jsonspec['tkgsComponentSpec']['aviComponents']['aviController03Fqdn']
@@ -877,7 +877,7 @@ def manage_avi_certificates(ip, avi_version, jsonspec, avi_fqdn, cert_name):
         }
         return json.dumps(d), 500, False
     try:
-        if isEnvTkgs_wcp(jsonspec):
+        if TkgUtil.isEnvTkgs_wcp(jsonspec):
             avi_cert = jsonspec['tkgsComponentSpec']['aviComponents']['aviCertPath']
             avi_key = jsonspec['tkgsComponentSpec']['aviComponents']['aviCertKeyPath']
             license_key = ""
@@ -1023,7 +1023,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
             logger.info("Deploying avi controller..")
             govc_client.deploy_library_ova(location=controller_ova_location, name=vm_name,
                                            options=deploy_options)
-            if TkgUtil.isEnvTkgs_wcp(jsonspec):
+            if TkgUtil.TkgUtil.isEnvTkgs_wcp(jsonspec):
                 avi_size = jsonspec['tkgsComponentSpec']['aviComponents']['aviSize']
             else:
                 avi_size = jsonspec['tkgComponentSpec']['aviComponents']['aviSize']
@@ -1074,9 +1074,9 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
         logger.debug("Error: {}".format(json.dumps(d['msg'])))
         return False
     avi_version = deployed_avi_version[0]
-    if isEnvTkgs_wcp(jsonspec) and verifyVcenterVersion(Versions.VCENTER_UPDATE_THREE):
+    if TkgUtil.isEnvTkgs_wcp(jsonspec) and verifyVcenterVersion(Versions.VCENTER_UPDATE_THREE):
         avi_required = Avi_Version.AVI_VERSION_UPDATE_THREE
-    elif isEnvTkgs_wcp(jsonspec) and not verifyVcenterVersion(Versions.VCENTER_UPDATE_THREE):
+    elif TkgUtil.isEnvTkgs_wcp(jsonspec) and not verifyVcenterVersion(Versions.VCENTER_UPDATE_THREE):
         avi_required = Avi_Version.AVI_VERSION_UPDATE_TWO
     else:
         avi_required = Avi_Version.VSPHERE_AVI_VERSION
@@ -1104,7 +1104,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
         if csrf == "SUCCESS":
             logger.info("Password of appliance already changed")
         else:
-            if isEnvTkgs_wcp(jsonspec):
+            if TkgUtil.isEnvTkgs_wcp(jsonspec):
                 avienc_pass = jsonspec['tkgsComponentSpec']['aviComponents']['aviPasswordBase64']
             else:
                 avienc_pass = jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64']
@@ -1117,7 +1117,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
                 }
                 logger.debug("Error: {}".format(json.dumps(d['msg'])))
                 return False
-        if isEnvTkgs_wcp(jsonspec):
+        if TkgUtil.isEnvTkgs_wcp(jsonspec):
             avienc_pass = jsonspec['tkgsComponentSpec']['aviComponents']['aviPasswordBase64']
         else:
             avienc_pass = jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64']
@@ -1190,7 +1190,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
         else:
             logger.info("Got backup configuration successfully")
         logger.info("Set backup pass phrase")
-        if isEnvTkgs_wcp(jsonspec):
+        if TkgUtil.isEnvTkgs_wcp(jsonspec):
             avi_backup_phrase = jsonspec['tkgsComponentSpec']['aviComponents']['aviBackupPassphraseBase64']
         else:
             avi_backup_phrase = jsonspec['tkgComponentSpec']['aviComponents']['aviBackupPassphraseBase64']

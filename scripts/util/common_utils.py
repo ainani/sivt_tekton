@@ -29,6 +29,7 @@ import yaml
 from ruamel import yaml as ryaml
 from datetime import datetime
 from util.vcenter_operations import createResourcePool, create_folder
+from util.tkg_util import TkgUtil
 import subprocess
 import pathlib
 import tarfile
@@ -55,30 +56,6 @@ def checkenv(jsonspec):
         return check_connection
     except Exception:
         return None
-
-def isEnvTkgs_wcp(jsonspec) -> bool:
-    """
-    Method to check if TKGs environment is TKGs_wcp or not
-     - In TKGs it's WCP --> Workload Control Plane
-    :return: boolean
-    """
-    env_type = jsonspec["envSpec"]["envType"]
-    if "tkgs-wcp" in env_type:
-        return True
-    else:
-        return False
-
-def isEnvTkgs_ns(jsonspec) -> bool:
-    """
-    Method to check if TKGs environment is TKGs_ns or not
-     - In TKGs it's NS --> NameSpace Workload
-    :return: boolean
-    """
-    env_type = jsonspec["envSpec"]["envType"]
-    if "tkgs-ns" in env_type:
-        return True
-    else:
-        return False
 
 def createSubscribedLibrary(vcenter_ip, vcenter_username, password, jsonspec):
     try:
@@ -2048,7 +2025,7 @@ def installCertManagerAndContour(env, cluster_name, repo_address, service_name, 
             "ERROR_CODE": 500
         }
         return json.dumps(d), 500
-    if isEnvTkgs_ns(jsonspec) or isEnvTkgs_wcp(jsonspec):
+    if TkgUtil.isEnvTkgs_ns(jsonspec) or TkgUtil.isEnvTkgs_wcp(jsonspec):
         mgmt = jsonspec['envSpec']["saasEndpoints"]['tmcDetails']['tmcSupervisorClusterName']
     else:
         mgmt = getManagementCluster()
@@ -2071,7 +2048,7 @@ def installCertManagerAndContour(env, cluster_name, repo_address, service_name, 
             }
             return json.dumps(d), 500
     else:
-        if isEnvTkgs_ns(jsonspec):
+        if TkgUtil.isEnvTkgs_ns(jsonspec):
             name_space = jsonspec['tkgsComponentSpec']["tkgsVsphereNamespaceSpec"][
                 'tkgsVsphereWorkloadClusterSpec']['tkgsVsphereNamespaceName']
             commands_shared = ["tanzu", "cluster", "kubeconfig", "get", cluster_name, "--admin", "-n", name_space]
@@ -2314,7 +2291,7 @@ def deploy_fluent_bit(end_point, cluster, jsonspec):
 
 
 def fluent_bit_enabled(env, jsonspec):
-    if isEnvTkgs_ns(jsonspec) or env == Env.VSPHERE or env == Env.VMC:
+    if TkgUtil.isEnvTkgs_ns(jsonspec) or env == Env.VSPHERE or env == Env.VMC:
         if check_fluent_bit_splunk_endpoint_endpoint_enabled():
             return True, Tkg_Extention_names.FLUENT_BIT_SPLUNK
         elif check_fluent_bit_http_endpoint_enabled():

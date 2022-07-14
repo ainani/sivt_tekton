@@ -16,7 +16,8 @@ from util.logger_helper import LoggerHelper
 from util.ShellHelper import  runShellCommandAndReturnOutputAsList, verifyPodsAreRunning, grabPipeOutput
 from constants.constants import Paths, ControllerLocation, KubernetesOva, MarketPlaceUrl, VrfType, \
     RegexPattern, AppName, Env
-from util.common_utils import isEnvTkgs_ns, isEnvTkgs_wcp, switchToManagementContext, switchToContext
+from util.common_utils import switchToManagementContext, switchToContext
+from util.tkg_util import TkgUtil
 
 from util.logger_helper import LoggerHelper, log
 
@@ -25,7 +26,7 @@ logger = LoggerHelper.get_logger(Path(__file__).stem)
 
 def checkEnableIdentityManagement(env, jsonspec):
     try:
-        if not isEnvTkgs_ns(jsonspec) and not isEnvTkgs_wcp(jsonspec):
+        if not TkgUtil.isEnvTkgs_ns(jsonspec) and not TkgUtil.isEnvTkgs_wcp(jsonspec):
             if env == Env.VMC:
                 idm = jsonspec["componentSpec"]["identityManagementSpec"]["identityManagementType"]
             elif env == Env.VSPHERE or env == Env.VCF:

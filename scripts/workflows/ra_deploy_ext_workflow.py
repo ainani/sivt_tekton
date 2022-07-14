@@ -14,7 +14,7 @@ from extensions.tkgs_extensions import deploy_tkgs_extensions
 from constants.constants import Tkg_version, Tkg_Extention_names
 from util.extensions_helper import checkTanzuExtensionEnabled, check_fluent_bit_splunk_endpoint_endpoint_enabled, \
     check_fluent_bit_kafka_endpoint_endpoint_enabled, check_fluent_bit_syslog_endpoint_enabled, \
-    check_fluent_bit_elastic_search_endpoint_enabled, check_fluent_bit_http_endpoint_enabled, checkPromethusEnabled, \
+    check_fluent_bit_elastic_search_endpoint_enabled, check_fluent_bit_http_endpoint_enabled, checkPromethusEnabled
     
 from constants.constants import Tkg_Extention_names, Paths 
 from util.common_utils import checkenv
