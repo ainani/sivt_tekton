@@ -18,8 +18,9 @@ from constants.constants import Paths, ControllerLocation, KubernetesOva, Market
     RegexPattern, AppName, Env
 from util.common_utils import isEnvTkgs_ns, isEnvTkgs_wcp, switchToManagementContext, switchToContext
 
-logger = LoggerHelper.get_logger('common_utils')
-logging.getLogger("paramiko").setLevel(logging.WARNING)
+from util.logger_helper import LoggerHelper, log
+
+logger = LoggerHelper.get_logger(Path(__file__).stem)
 
 
 def checkEnableIdentityManagement(env, jsonspec):

@@ -20,6 +20,7 @@ from util.logger_helper import LoggerHelper, log
 from pathlib import Path
 import urllib3
 from constants.constants import SegmentsName
+from flask import current_app
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -734,3 +735,15 @@ def getDvPortGroupId(vcenterIp, vcenterUser, vcenterPassword, networkName, vc_da
     except Exception as e:
         logger.error(str(e))
         return None
+
+def verifyVcenterVersion(version):
+    vCenter = current_app.config['VC_IP']
+    vCenter_user = current_app.config['VC_USER']
+    VC_PASSWORD = current_app.config['VC_PASSWORD']
+    si = connect.SmartConnectNoSSL(host=vCenter, user=vCenter_user, pwd=VC_PASSWORD)
+    content = si.RetrieveContent()
+    vcVersion = content.about.version
+    if vcVersion.startswith(version):
+        return True
+    else:
+        return False

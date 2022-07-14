@@ -33,6 +33,7 @@ spec:
           value: "$(params.branch)"
         - name: imagepullpolicy
           value: "$(params.imagepullpolicy)"
+
     - name: start-avi
       taskRef:
         name: avi-setup-task
@@ -47,37 +48,23 @@ spec:
       runAfter:
           - start-prep-workspace
 
-    - name: start-mgmt-create
-      taskRef:
-        name: dind-mgmt-create
-      workspaces:
-        - name: task-shared-data
-          workspace: pipeline-shared-data
-      params:
-        - name: imagename
-          value: "$(params.imagename)"
-        - name: imagepullpolicy
-          value: "$(params.imagepullpolicy)"
-      runAfter:
-            - start-avi
-
-    - name: start-shared-cluster-create
-      taskRef:
-        name: dind-sharedcluster-create
-      workspaces:
-        - name: task-shared-data
-          workspace: pipeline-shared-data
-      params:
-        - name: imagename
-          value: "$(params.imagename)"
-        - name: imagepullpolicy
-          value: "$(params.imagepullpolicy)"
-      runAfter:
-            - start-mgmt-create
-
     - name: start-workload-cluster
       taskRef:
         name: dind-wld-create
+      workspaces:
+          - name: task-shared-data
+            workspace: pipeline-shared-data
+      params:
+        - name: imagename
+          value: "$(params.imagename)"
+        - name: imagepullpolicy
+          value: "$(params.imagepullpolicy)"
+      runAfter:
+            - start-shared-cluster-create
+    
+    - name: start-extns-deploy
+      taskRef:
+        name: dind-extns-setup
       workspaces:
           - name: task-shared-data
             workspace: pipeline-shared-data

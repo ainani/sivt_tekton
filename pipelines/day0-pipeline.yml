@@ -88,7 +88,20 @@ spec:
           value: "$(params.imagepullpolicy)"
       runAfter:
             - start-shared-cluster-create
-
+            
+    - name: start-extns-deploy
+      taskRef:
+        name: dind-extns-setup
+      workspaces:
+          - name: task-shared-data
+            workspace: pipeline-shared-data
+      params:
+        - name: imagename
+          value: "$(params.imagename)"
+        - name: imagepullpolicy
+          value: "$(params.imagepullpolicy)"
+      runAfter:
+            - start-shared-cluster-create
   finally:
       - name: gitcommit
         taskRef:
@@ -103,4 +116,3 @@ spec:
             value: "$(params.imagepullpolicy)"
           - name: branch
             value: "$(params.branch)"
-

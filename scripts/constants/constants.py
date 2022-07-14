@@ -20,6 +20,10 @@ CLUSTER_PLAN = ["dev", "prod"]
 
 
 class Paths(str, Enum):
+    #check the below two vars
+    VSPHERE_FLUENT_BIT_YAML = './common/template/fluent_bit_data_values.yaml'
+    CLUSTER_PATH = "/opt/vmware/arcas/tanzu-clusters/"
+
     MASTER_SPEC_PATH = "config/deployment-config.json"
     TKGS_WCP_MASTER_SPEC_PATH = "config/deployment-config-wcp.json"
     TKGS_NS_MASTER_SPEC_PATH = "config/deployment-config-ns.json"
@@ -730,14 +734,57 @@ class AppName:
     AKO = "ako"
     HARBOR = "harbor"
     FLUENT_BIT = "fluent-bit"
-    PROMETHUS = "prometheus"
+    PROMETHEUS = "prometheus"
     GRAFANA = "grafana"
     CERT_MANAGER = "cert-manager"
     CONTOUR = "contour"
-
+    PINNIPED = "pinniped"
 
 class Avi_Version:
     VSPHERE_AVI_VERSION = "21.1.4"
     VMC_AVI_VERSION = "21.1.4"
     AVI_VERSION_UPDATE_THREE = "21.1.4"
     AVI_VERSION_UPDATE_TWO = "21.1.4"
+
+class Tkg_version:
+    TKG_VERSION = "1.5"
+    TAG = "v1.5.4"
+
+class Extentions:
+    TKG_EXTENTION_LOCATION = "/root/tkg-extensions-v1.3.1+vmware.1/"
+    CONTOUR_LOCATION = TKG_EXTENTION_LOCATION + "extensions/ingress/contour"
+    HARBOR_LOCATION = TKG_EXTENTION_LOCATION + "extensions/registry/harbor"
+    FLUENT_BIT_LOCATION = TKG_EXTENTION_LOCATION + "extensions/logging/fluent-bit"
+    PROMETHUS_LOCATION = TKG_EXTENTION_LOCATION + "extensions/monitoring/prometheus"
+    GRAFANA_LOCATION = TKG_EXTENTION_LOCATION + "extensions/monitoring/grafana"
+    CERT_MANAGER_LOCATION = TKG_EXTENTION_LOCATION + "cert-manager"
+    CERT_MANAGER_CA_INJECTOR = "cert-manager-cainjector:v0.16.1_vmware.1"
+    CERT_MANAGER_CONTROLLER = "cert-manager-controller:v0.16.1_vmware.1"
+    CERT_MANAGER_WEB_HOOK = "cert-manager-webhook:v0.16.1_vmware.1"
+    APP_EXTENTION = "tkg-extensions-templates:v1.3.1_vmware.1"
+    BOM_LOCATION = "/root/.tanzu/tkg/bom/tkg-bom-v1.3.1.yaml"
+    BOM_LOCATION_14 = "/root/.config/tanzu/tkg/bom/tkg-bom-v1.5.4.yaml"
+
+class Tkg_Extention_names:
+    FLUENT_BIT_SYSLOG = "FluentBitSysLog"
+    FLUENT_BIT_HTTP = "FluentBitHttp"
+    FLUENT_BIT_ELASTIC = "FluentBitElastic"
+    FLUENT_BIT_KAFKA = "FluentBitKafka"
+    FLUENT_BIT_SPLUNK = "FluentBitSplunk"
+    GRAFANA = "Grafana"
+    LOGGING = "Logging"
+    PROMETHEUS = "Prometheus"
+    FLUENT_BIT = "Fluent-bit"
+
+class Tkgs_Extension_Details:
+    ROLE_NAME = "arcas-automation-authenticated-user-privileged-binding"
+    PACKAGE_REPO_URL = "projects.registry.vmware.com/tkg/packages/standard/repo:v1.5.0"
+    SUPPORTED_VERSIONS_U3 = ["v1.20.7+vmware.1-tkg.1.7fb9067", "v1.20.9+vmware.1-tkg.1.a4cee5b", "v1.20.12+vmware.1-tkg.1.b9a42f3",
+                          "v1.21.2+vmware.1-tkg.1.ee25d55", "v1.21.6+vmware.1-tkg.1.b3d708a", "v1.21.6+vmware.1-tkg.1"]
+    SUPPORTED_VERSIONS_U2 = ["v1.20.12+vmware.1-tkg.1.b9a42f3", "v1.19.7+vmware.1-tkg.1.fc82c41"]
+
+class TKG_Package_Details:
+    REPO_NAME = "tanzu-standard"
+    STANDARD_PACKAGE_URL = "projects.registry.vmware.com/tkg/packages/standard/repo"
+    REPOSITORY_URL = "projects.registry.vmware.com/tkg/packages/standard/repo:v1.5.4-update.1"
+    NAMESPACE = "tanzu-package-repo-global"
