@@ -19,6 +19,7 @@ from util.govc_client import GovcClient
 from util.replace_value import replaceValueSysConfig, replaceCertConfig
 from util.vcenter_operations import verifyVcenterVersion
 from util.tkg_util import TkgUtil
+from util.vcenter_operations import verifyVcenterVersion
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -1023,7 +1024,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
             logger.info("Deploying avi controller..")
             govc_client.deploy_library_ova(location=controller_ova_location, name=vm_name,
                                            options=deploy_options)
-            if TkgUtil.isEnvTkgs_wcp:
+            if TkgUtil.isEnvTkgs_wcp(jsonspec):
                 avi_size = jsonspec['tkgsComponentSpec']['aviComponents']['aviSize']
             else:
                 avi_size = jsonspec['tkgComponentSpec']['aviComponents']['aviSize']
