@@ -12,10 +12,9 @@ from util.ShellHelper import runShellCommandAndReturnOutputAsList, \
 
 from constants.constants import Tkgs_Extension_Details, RegexPattern, Tkg_Extention_names, Repo, Extentions, \
     AppName, Paths
-from util.common_utils import getVersionOfPackage, loadBomFile, checkAirGappedIsEnabled, preChecks, envCheck, \
-    waitForProcess, installCertManagerAndContour, deployExtention, getManagementCluster, verifyCluster, \
-    switchToManagementContext, checkToEnabled, installExtentionFor14, checkRepositoryAdded, loadBomFile, \
-    checkTmcEnabled, waitForGrepProcessWithoutChangeDir, getClusterID, connect_to_workload, isWcpEnabled, isClusterRunning, \
+from util.common_utils import getVersionOfPackage, loadBomFile,\
+     checkToEnabled, installExtentionFor14, checkRepositoryAdded, loadBomFile, \
+    checkTmcEnabled, waitForGrepProcessWithoutChangeDir, connect_to_workload, isClusterRunning, \
      deploy_fluent_bit, checkFluentBitInstalled, fluent_bit_enabled
 
 

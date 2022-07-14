@@ -30,7 +30,7 @@ from workflows.cluster_common_workflow import ClusterCommonWorkflow
 import subprocess
 import shutil
 import traceback
-from util.common_utils import createSubscribedLibrary, downloadAndPushKubernetesOvaMarketPlace, \
+from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, \
     getCloudStatus, seperateNetmaskAndIp, getSECloudStatus, getSeNewBody, getVrfAndNextRoutId, \
     addStaticRoute, getVipNetworkIpNetMask, getClusterStatusOnTanzu, runSsh, checkenv, \
     switchToManagementContext
