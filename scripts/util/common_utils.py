@@ -33,7 +33,6 @@ from util.tkg_util import TkgUtil
 import subprocess
 import pathlib
 import tarfile
-from flask import current_app, request
 from pyVim import connect
 
 

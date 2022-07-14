@@ -1074,9 +1074,9 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
         logger.debug("Error: {}".format(json.dumps(d['msg'])))
         return False
     avi_version = deployed_avi_version[0]
-    if TkgUtil.isEnvTkgs_wcp(jsonspec) and verifyVcenterVersion(Versions.VCENTER_UPDATE_THREE):
+    if TkgUtil.isEnvTkgs_wcp(jsonspec) and verifyVcenterVersion(Versions.VCENTER_UPDATE_THREE, jsonspec):
         avi_required = Avi_Version.AVI_VERSION_UPDATE_THREE
-    elif TkgUtil.isEnvTkgs_wcp(jsonspec) and not verifyVcenterVersion(Versions.VCENTER_UPDATE_THREE):
+    elif TkgUtil.isEnvTkgs_wcp(jsonspec) and not verifyVcenterVersion(Versions.VCENTER_UPDATE_THREE, jsonspec):
         avi_required = Avi_Version.AVI_VERSION_UPDATE_TWO
     else:
         avi_required = Avi_Version.VSPHERE_AVI_VERSION
