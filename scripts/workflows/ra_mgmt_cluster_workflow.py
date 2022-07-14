@@ -33,7 +33,7 @@ import traceback
 from util.common_utils import createSubscribedLibrary, downloadAndPushKubernetesOvaMarketPlace, \
     getCloudStatus, seperateNetmaskAndIp, getSECloudStatus, getSeNewBody, getVrfAndNextRoutId, \
     addStaticRoute, getVipNetworkIpNetMask, getClusterStatusOnTanzu, runSsh, checkenv, \
-    switchToManagementContext,
+    switchToManagementContext
 from util.replace_value import generateVsphereConfiguredSubnets, replaceValueSysConfig
 from util.vcenter_operations import createResourcePool, create_folder
 from util.ShellHelper import runProcess, runShellCommandAndReturnOutputAsList, verifyPodsAreRunning

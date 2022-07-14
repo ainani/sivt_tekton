@@ -15,9 +15,9 @@ from constants.constants import Tkg_version, Tkg_Extention_names
 from util.extensions_helper import checkTanzuExtensionEnabled, check_fluent_bit_splunk_endpoint_endpoint_enabled, \
     check_fluent_bit_kafka_endpoint_endpoint_enabled, check_fluent_bit_syslog_endpoint_enabled, \
     check_fluent_bit_elastic_search_endpoint_enabled, check_fluent_bit_http_endpoint_enabled, checkPromethusEnabled, \
-    envCheck
+    
 from constants.constants import Tkg_Extention_names, Paths 
-from util.common_utils import checkenv, RunConfig
+from util.common_utils import checkenv
 from util.tkg_util import TkgUtil
 
 logger = LoggerHelper.get_logger(name='ra_deploy_ext_workflow.py')
@@ -46,8 +46,8 @@ class RaDeployExtWorkflow:
             msg = "Failed to connect to VC. Possible connection to VC is not available or " \
                   "incorrect spec provided."
             raise Exception(msg)
-        self.isEnvTkgs_wcp = isEnvTkgs_wcp(self.jsonspec)
-        self.isEnvTkgs_ns = isEnvTkgs_ns(self.jsonspec)
+        self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
+        self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
 
     def deploy_tkg_extensions(self):
         try:

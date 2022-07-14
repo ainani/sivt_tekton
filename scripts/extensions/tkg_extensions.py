@@ -19,12 +19,12 @@ from ruamel import yaml
 #from model.extensions import extensions_types, deploy_extensions
 from constants.constants import Tkg_Extention_names, Repo, RegexPattern, Extentions, AppName, Paths 
 import json, requests
-from util.common_utils import checkenv, RunConfig, getVersionOfPackage, switchToContext, loadBomFile, \
+from util.common_utils import getVersionOfPackage, switchToContext, loadBomFile, \
      checkAirGappedIsEnabled, installCertManagerAndContour, getManagementCluster, verifyCluster, \
      checkToEnabled, checkFluentBitInstalled, deploy_fluent_bit
 from util.ShellHelper import runShellCommandAndReturnOutputAsList, \
-    verifyPodsAreRunning, runShellCommandAndReturnOutput, \
-    grabPipeOutput
+    verifyPodsAreRunning, runShellCommandAndReturnOutput \
+    
 #from exts.tkg_extensions import getBomMap, generateYamlWithoutCert, getRepo
 from util.logger_helper import LoggerHelper, log
 

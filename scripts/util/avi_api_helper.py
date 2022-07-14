@@ -17,7 +17,6 @@ from util.cmd_helper import CmdHelper
 from util.logger_helper import LoggerHelper
 from util.govc_client import GovcClient
 from util.replace_value import replaceValueSysConfig, replaceCertConfig
-from util.common_utils import isEnvTkgs_wcp, isEnvTkgs_ns
 from util.vcenter_operations import verifyVcenterVersion
 from util.tkg_util import TkgUtil
 
