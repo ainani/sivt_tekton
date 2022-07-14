@@ -22,8 +22,9 @@ from jinja2 import Template
 from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
 from util.vcenter_operations import checkforIpAddress, getSi
-from util.common_utils import checkenv, isEnvTkgs_wcp, isEnvTkgs_ns
+from util.common_utils import checkenv
 from util.vcenter_operations import create_folder, createResourcePool
+from util.tkg_util import TkgUtil
 
 logger = LoggerHelper.get_logger(name='alb_workflow')
 
@@ -50,8 +51,8 @@ class RALBWorkflow:
             msg = "Failed to connect to VC. Possible connection to VC is not available or " \
                   "incorrect spec provided."
             raise Exception(msg)
-        self.isEnvTkgs_wcp = isEnvTkgs_wcp(self.jsonspec)
-        self.isEnvTkgs_ns = isEnvTkgs_ns(self.jsonspec)
+        self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
+        self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
 
     @log("Setting up AVI Certificate")
     def aviCertManagement_vsphere(self):

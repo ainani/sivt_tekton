@@ -435,7 +435,7 @@ def get_system_configuration_and_set_values(ip, second_csrf, avi_version, jsonsp
                           ntp)
     replaceValueSysConfig("./systemConfig1.json", "dns_configuration", "search_domain",
                           search_domain)
-    if TkgUtil.TkgUtil.isEnvTkgs_ns(jsonspec):
+    if TkgUtil.isEnvTkgs_ns(jsonspec):
         replaceValueSysConfig("./systemConfig1.json", "portal_configuration", "allow_basic_authentication",
                               "true")
     return "SUCCESS"
@@ -472,7 +472,7 @@ def obtain_avi_version(ip, jsonspec):
         "Accept": "application/json",
         "Content-Type": "application/json"
     }
-    if TkgUtil.TkgUtil.isEnvTkgs_wcp(jsonspec):
+    if TkgUtil.isEnvTkgs_wcp(jsonspec):
         str_enc_avi = str(jsonspec['tkgsComponentSpec']['aviComponents']['aviPasswordBase64'])
     else:
         str_enc_avi = str(jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64'])
@@ -557,7 +557,7 @@ def get_avi_cluster_info(ip, csrf2, aviVersion):
         return None, str(e)
 
 def form_avi_ha_cluster(ip, jsonspec, aviVersion):
-    if TkgUtil.TkgUtil.isEnvTkgs_wcp(jsonspec):
+    if TkgUtil.isEnvTkgs_wcp(jsonspec):
         avienc_pass = str(jsonspec['tkgsComponentSpec']['aviComponents']['aviPasswordBase64'])
     else:
         avienc_pass = str(jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64'])
@@ -1023,7 +1023,7 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
             logger.info("Deploying avi controller..")
             govc_client.deploy_library_ova(location=controller_ova_location, name=vm_name,
                                            options=deploy_options)
-            if TkgUtil.TkgUtil.isEnvTkgs_wcp(jsonspec):
+            if TkgUtil.isEnvTkgs_wcp(jsonspec):
                 avi_size = jsonspec['tkgsComponentSpec']['aviComponents']['aviSize']
             else:
                 avi_size = jsonspec['tkgComponentSpec']['aviComponents']['aviSize']
