@@ -17,10 +17,10 @@ from pyVim import connect
 from pyVim.connect import Disconnect
 import atexit
 from util.logger_helper import LoggerHelper, log
+from util.cmd_helper import CmdHelper
 from pathlib import Path
 import urllib3
 from constants.constants import SegmentsName
-from flask import current_app, jsonify, request
 from pyVim import connect
 
 from util.cmd_helper import CmdHelper
@@ -739,17 +739,15 @@ def getDvPortGroupId(vcenterIp, vcenterUser, vcenterPassword, networkName, vc_da
         return None
 
 def verifyVcenterVersion(version, jsonspec):
-    # vCenter = current_app.config['VC_IP']
-    # vCenter_user = current_app.config['VC_USER']
-    # VC_PASSWORD = current_app.config['VC_PASSWORD']
     vcpass_base64 = jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
-    password = CmdHelper.decode_base64(vcpass_base64)
+    vcenter_password = CmdHelper.decode_base64(vcpass_base64)
     vcenter_username = jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
     vcenter_ip = jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
-    si = connect.SmartConnectNoSSL(host=vcenter_ip, user=vcenter_username, pwd=password)
+    si = connect.SmartConnectNoSSL(host=vcenter_ip, user=vcenter_username, pwd=vcenter_password)
     content = si.RetrieveContent()
     vcVersion = content.about.version
     if vcVersion.startswith(version):
         return True
     else:
         return False
+

@@ -3,6 +3,7 @@
 
 import os, sys
 import re
+import ipaddress
 import traceback
 import json
 from util import cmd_runner
@@ -34,6 +35,8 @@ import subprocess
 import pathlib
 import tarfile
 from pyVim import connect
+from util.tkg_util import TkgUtil
+
 
 
 logger = LoggerHelper.get_logger('common_utils')
@@ -338,12 +341,18 @@ def downloadAndPushToVCMarketPlace(file, datacenter, datastore, networkName, clu
 def downloadAndPushKubernetesOvaMarketPlace(jsonspec, version, baseOS, upgrade=False):
     try:
         rcmd = cmd_runner.RunCmd()
-        networkName = str(jsonspec["tkgComponentSpec"]["tkgMgmtComponents"]["tkgMgmtNetworkName"])
+        if TkgUtil.isEnvTkgs_wcp(jsonspec):
+            networkName = str(jsonspec["tkgsComponentSpec"]["tkgMgmtComponents"]["tkgMgmtNetworkName"])
+        else:
+            networkName = str(jsonspec["tkgComponentSpec"]["tkgMgmtComponents"]["tkgMgmtNetworkName"])
         data_store = str(jsonspec['envSpec']['vcenterDetails']['vcenterDatastore'])
         vCenter_datacenter = jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
         vCenter_cluster = jsonspec['envSpec']['vcenterDetails']['vcenterCluster']
         refToken = jsonspec['envSpec']['marketplaceSpec']['refreshToken']
         if not upgrade:
+            if TkgUtil.isEnvTkgs_wcp(jsonspec):
+                baseOS = "photon"
+                version = KubernetesOva.KUBERNETES_OVA_LATEST_VERSION
             if baseOS == "photon":
                 file = KubernetesOva.MARKETPLACE_PHOTON_KUBERNETES_FILE_NAME + "-" + version
                 template = KubernetesOva.MARKETPLACE_PHOTON_KUBERNETES_FILE_NAME + "-" + version
@@ -1305,7 +1314,7 @@ def installExtentionFor14():
     return json.dumps(d), 200
 
 
-def getClusterID(vCenter, vCenter_user, VC_PASSWORD, cluster):
+def getClusterID(vCenter, vCenter_user, VC_PASSWORD, cluster, jsonspec):
     url = "https://" + vCenter + "/"
     try:
         sess = requests.post(url + "rest/com/vmware/cis/session", auth=(vCenter_user, VC_PASSWORD), verify=False)
@@ -1318,6 +1327,21 @@ def getClusterID(vCenter, vCenter_user, VC_PASSWORD, cluster):
             return json.dumps(d), 500
         else:
             session_id = sess.json()['value']
+
+        vcenter_datacenter = jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
+
+        datcenter_resp = requests.get(url + "api/vcenter/datacenter?names=" + vcenter_datacenter, verify=False,
+                                      headers={"vmware-api-session-id": session_id})
+        if datcenter_resp.status_code != 200:
+            logger.error(datcenter_resp.json())
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to fetch datacenter ID for datacenter - " + vcenter_datacenter,
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+        datacenter_id = datcenter_resp.json()[0]['datacenter']
 
         clusterID_resp = requests.get(url + "api/vcenter/cluster?names=" + cluster, verify=False, headers={
             "vmware-api-session-id": session_id
@@ -1340,6 +1364,136 @@ def getClusterID(vCenter, vCenter_user, VC_PASSWORD, cluster):
             "ERROR_CODE": 500
         }
         return json.dumps(d), 500
+
+def getStoragePolicies(vCenter, vCenter_user, VC_PASSWORD):
+    url = "https://" + vCenter + "/"
+    try:
+        sess = requests.post(url + "rest/com/vmware/cis/session", auth=(vCenter_user, VC_PASSWORD), verify=False)
+        if sess.status_code != 200:
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to fetch session ID for vCenter - " + vCenter,
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        else:
+            vc_session = sess.json()['value']
+
+        header = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "vmware-api-session-id": vc_session
+        }
+        storage_policies = requests.request("GET", url + "api/vcenter/storage/policies", headers=header, verify=False)
+        if storage_policies.status_code != 200:
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to fetch storage policies",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+        return storage_policies.json(), 200
+
+    except Exception as e:
+        logger.error(e)
+        d = {
+            "responseType": "ERROR",
+            "msg": "Exception occurred while fetching storage policies",
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+
+def getPolicyID(policyname, vcenter, vc_user, vc_password):
+    try:
+        policies = getStoragePolicies(vcenter, vc_user, vc_password)
+        for policy in policies[0]:
+            if policy["name"] == policyname:
+                return policy['policy'], 200
+        else:
+            logger.error("Provided policy not found - " + policyname)
+            return None, 500
+    except Exception as e:
+        logger.error(e)
+        return None, 500
+
+def convertStringToCommaSeperated(strA):
+    strA = strA.split(",")
+    list = []
+    for s in strA:
+        list.append(s.replace(" ", ""))
+    return list
+
+def cidr_to_netmask(cidr):
+    try:
+        return str(ipaddress.IPv4Network(cidr, False).netmask)
+    except Exception as e:
+        logger.error(e)
+        return None
+
+def getCountOfIpAdress(gatewayCidr, start, end):
+    from ipaddress import ip_network, ip_interface
+
+    list1 = list(ip_network(gatewayCidr, False).hosts())
+    count = 0
+    for l in list1:
+        if ip_interface(l) > ip_interface(end):
+            break
+        if ip_interface(l) >= ip_interface(start):
+            count = count + 1
+    return count
+
+def getDvPortGroupId(vcenterIp, vcenterUser, vcenterPassword, networkName, vc_data_center):
+    try:
+        si = connect.SmartConnectNoSSL(host=vcenterIp, user=vcenterUser, pwd=vcenterPassword)
+        try:
+            datacenter = get_dc(si, vc_data_center)
+        except Exception as e:
+            logger.error(str(e))
+            return None
+        network = getNetwork(datacenter, networkName)
+        switch = network.config.distributedVirtualSwitch
+        for portgroup in switch.portgroup:
+            if portgroup.name == networkName:
+                return portgroup.config.key
+        return None
+    except Exception as e:
+        logger.error(str(e))
+        return None
+
+def getLibraryId(vcenter, vcenterUser, vcenterPassword, libName):
+    os.putenv("GOVC_URL", "https://" + vcenter + "/sdk")
+    os.putenv("GOVC_USERNAME", vcenterUser)
+    os.putenv("GOVC_PASSWORD", vcenterPassword)
+    os.putenv("GOVC_INSECURE", "true")
+    list1 = ["govc", "library.info", "/" + libName]
+    list2 = ["grep", "-w", "ID"]
+    libId = grabPipeOutput(list1, list2)
+    if libId[1] != 0:
+        logger.error(libId[0])
+        return None
+    return libId[0].replace("ID:", "").strip()
+
+def getAviCertificate(ip, csrf2, certName, aviVersion):
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": csrf2[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": aviVersion,
+        "x-csrftoken": csrf2[0]
+    }
+    body = {}
+    url = "https://" + ip + "/api/sslkeyandcertificate"
+    response_csrf = requests.request("GET", url, headers=headers, data=body, verify=False)
+    if response_csrf.status_code != 200:
+        logger.error("Failed to get certificate " + response_csrf.text)
+        return None, response_csrf.text
+    else:
+        for re in response_csrf.json()["results"]:
+            if re['name'] == certName:
+                return re["certificate"]["certificate"], "SUCCESS"
+    return "NOT_FOUND", "FAILED"
 
 def switchToContext(clusterName):
 

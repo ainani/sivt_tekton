@@ -11,7 +11,7 @@ import requests
 from tqdm import tqdm
 import base64
 from constants.constants import Constants, Paths, TKGCommands, ComponentPrefix, AkoType, \
-    ControllerLocation, KubernetesOva, Cloud, VrfType, ResourcePoolAndFolderName, RegexPattern
+    ControllerLocation, KubernetesOva, Cloud, VrfType, ResourcePoolAndFolderName, RegexPattern, CertName
 from lib.tkg_cli_client import TkgCliClient
 from model.run_config import RunConfig
 from model.spec import Bootstrap
@@ -33,22 +33,34 @@ import traceback
 from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, \
     getCloudStatus, seperateNetmaskAndIp, getSECloudStatus, getSeNewBody, getVrfAndNextRoutId, \
     addStaticRoute, getVipNetworkIpNetMask, getClusterStatusOnTanzu, runSsh, checkenv, \
-    switchToManagementContext
+    switchToManagementContext, getClusterID, getPolicyID, \
+    convertStringToCommaSeperated, cidr_to_netmask, getCountOfIpAdress, getDvPortGroupId, getLibraryId, getAviCertificate
 from util.replace_value import generateVsphereConfiguredSubnets, replaceValueSysConfig
 from util.vcenter_operations import createResourcePool, create_folder
 from util.ShellHelper import runProcess, runShellCommandAndReturnOutputAsList, verifyPodsAreRunning
 from util.oidc_helper import checkEnableIdentityManagement, checkPinnipedInstalled, checkPinnipedServiceStatus, \
     checkPinnipedDexServiceStatus, createRbacUsers
+from util.tkg_util import TkgUtil
+
 
 # logger = LoggerHelper.get_logger(Path(__file__).stem)
 logger = LoggerHelper.get_logger(name='ra_mgmt_cluster_workflow')
+
 
 class RaMgmtClusterWorkflow:
     def __init__(self, run_config: RunConfig):
         self.run_config = run_config
         logger.info ("Current deployment state: %s", self.run_config.state)
-        jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
-        with open(jsonpath) as f:
+        self.tkg_type = ''.join([attr for attr in dir(self.run_config.desired_state.version) if "tkg" in attr])
+        if "tkgs" in self.tkg_type:
+            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_WCP_MASTER_SPEC_PATH)
+            # self.ns_jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_NS_MASTER_SPEC_PATH)
+        elif "tkg" in self.tkg_type:
+            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
+        else:
+            raise Exception(f"Could not find supported TKG version: {self.tkg_type}")
+
+        with open(self.jsonpath) as f:
             self.jsonspec = json.load(f)
         self.env = "vsphere"
         check_env_output = checkenv(self.jsonspec)
@@ -56,6 +68,27 @@ class RaMgmtClusterWorkflow:
             msg = "Failed to connect to VC. Possible connection to VC is not available or " \
                   "incorrect spec provided."
             raise Exception(msg)
+        self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
+        self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
+        self.get_vcenter_details()
+
+    def get_vcenter_details(self):
+        """
+        Method to get vCenter Details from JSON file
+        :return:
+        """
+        self.vcenter_dict = {}
+        self.vcenter_dict.update({'vcenter_ip': self.jsonspec['envSpec']['vcenterDetails']['vcenterAddress'],
+                                  'vcenter_password': CmdHelper.decode_base64(
+                                      self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']),
+                                  'vcenter_username': self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser'],
+                                  'vcenter_cluster_name': self.jsonspec['envSpec']['vcenterDetails']['vcenterCluster'],
+                                  'vcenter_datacenter': self.jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter'],
+                                  'vcenter_data_store': self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore'],
+                                  'vcenter_parent_resourcepool': self.jsonspec['envSpec']['vcenterDetails'][
+                                      'resourcePoolName']
+                                  })
+
     @log("Preparing to deploy Management cluster")
     def create_mgmt_cluster(self):
         config_cloud = self.configCloud()
@@ -1160,7 +1193,6 @@ class RaMgmtClusterWorkflow:
 
     @log("Configuring cloud")
     def configCloud(self):
-
         aviVersion = ControllerLocation.VSPHERE_AVI_VERSION
         vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
         password = CmdHelper.decode_base64(vcpass_base64)
@@ -1172,33 +1204,41 @@ class RaMgmtClusterWorkflow:
         refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
         req = True
         if refToken:
-            kubernetes_ova_os = \
-                self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"][
-                    "tkgMgmtBaseOs"]
-            kubernetes_ova_version = KubernetesOva.KUBERNETES_OVA_LATEST_VERSION
-            logger.info("Kubernetes OVA configs for management cluster")
-            down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec,
-                                                                  kubernetes_ova_version,
-                                                                  kubernetes_ova_os)
-            if down_status[0] is None:
-                logger.error(down_status[1])
-                d = {
-                    "responseType": "ERROR",
-                    "msg": down_status[1],
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
+            if not (self.isEnvTkgs_wcp or self.isEnvTkgs_ns):
+                kubernetes_ova_os = \
+                    self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"][
+                        "tkgMgmtBaseOs"]
+                kubernetes_ova_version = KubernetesOva.KUBERNETES_OVA_LATEST_VERSION
+                logger.info("Kubernetes OVA configs for management cluster")
+                down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec,
+                                                                      kubernetes_ova_version,
+                                                                      kubernetes_ova_os)
+                if down_status[0] is None:
+                    logger.error(down_status[1])
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": down_status[1],
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
         else:
             logger.info("MarketPlace refresh token is not provided, "
                         "skipping the download of kubernetes ova")
-        avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']
-        aviClusterFqdn = self.jsonspec['tkgComponentSpec']['aviComponents'][
-                'aviClusterFqdn']
+        if self.isEnvTkgs_wcp:
+            avi_fqdn = self.jsonspec['tkgsComponentSpec']['aviComponents']['aviController01Fqdn']
+            aviClusterFqdn = self.jsonspec['tkgsComponentSpec']['aviComponents']['aviClusterFqdn']
+        else:
+            avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']
+            aviClusterFqdn = self.jsonspec['tkgComponentSpec']['aviComponents'][
+                    'aviClusterFqdn']
         if not avi_fqdn:
             controller_name = ControllerLocation.CONTROLLER_NAME_VSPHERE
         else:
             controller_name = avi_fqdn
-        ha_field = self.jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
+        if self.isEnvTkgs_wcp:
+            ha_field = self.jsonspec['tkgsComponentSpec']['aviComponents']['enableAviHa']
+        else:
+            ha_field = self.jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
         if isAviHaEnabled(ha_field):
             ip = aviClusterFqdn
         else:
@@ -1230,321 +1270,308 @@ class RaMgmtClusterWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        get_cloud = getCloudStatus(ip, csrf2, aviVersion, Cloud.CLOUD_NAME_VSPHERE)
-        if get_cloud[0] is None:
-            logger.error("Failed to get cloud status " + str(get_cloud[1]))
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to get cloud status " + str(get_cloud[1]),
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
+        if self.isEnvTkgs_wcp:
+            configTkgs = self.configTkgsCloud(ip, csrf2, aviVersion)
+            if configTkgs[0] is None:
+                logger.error("Failed to config tkgs " + str(configTkgs[1]))
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to config tkgs " + str(configTkgs[1]),
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+        else:
+            get_cloud = getCloudStatus(ip, csrf2, aviVersion, Cloud.CLOUD_NAME_VSPHERE)
+            if get_cloud[0] is None:
+                logger.error("Failed to get cloud status " + str(get_cloud[1]))
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to get cloud status " + str(get_cloud[1]),
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
 
-        isGen = False
-        if get_cloud[0] == "NOT_FOUND":
-            if req:
+            isGen = False
+            if get_cloud[0] == "NOT_FOUND":
+                if req:
+                    for i in tqdm(range(60), desc="Waiting…", ascii=False, ncols=75):
+                        time.sleep(1)
+                isGen = True
+                logger.info("Creating New cloud " + Cloud.CLOUD_NAME_VSPHERE)
+                cloud = self.createNewCloud(ip, csrf2, aviVersion)
+                if cloud[0] is None:
+                    logger.error("Failed to create cloud " + str(cloud[1]))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to create cloud " + str(cloud[1]),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+                cloud_url = cloud[0]
+            else:
+                cloud_url = get_cloud[0]
+                isGen = True
+            if isGen:
                 for i in tqdm(range(60), desc="Waiting…", ascii=False, ncols=75):
                     time.sleep(1)
-            isGen = True
-            logger.info("Creating New cloud " + Cloud.CLOUD_NAME_VSPHERE)
-            cloud = self.createNewCloud(ip, csrf2, aviVersion)
-            if cloud[0] is None:
-                logger.error("Failed to create cloud " + str(cloud[1]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to create cloud " + str(cloud[1]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            cloud_url = cloud[0]
-        else:
-            cloud_url = get_cloud[0]
-            isGen = True
-        if isGen:
-            for i in tqdm(range(60), desc="Waiting…", ascii=False, ncols=75):
-                time.sleep(1)
-            mgmt_pg = self.jsonspec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkName']
-            get_management = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion)
-            if get_management[0] is None:
-                logger.error("Failed to get management network " + str(get_management[1]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to get management network " + str(get_management[1]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            startIp = self.jsonspec["tkgComponentSpec"]["aviMgmtNetwork"][
-                "aviMgmtServiceIpStartRange"]
-            endIp = self.jsonspec["tkgComponentSpec"]["aviMgmtNetwork"][
-                "aviMgmtServiceIpEndRange"]
-            prefixIpNetmask = seperateNetmaskAndIp(self.jsonspec["tkgComponentSpec"]
-                                                   ["aviMgmtNetwork"]["aviMgmtNetworkGatewayCidr"])
-            getManagementDetails = self.getNetworkDetails(ip, csrf2, get_management[0], startIp,
-                                                          endIp, prefixIpNetmask[0],
-                                                          prefixIpNetmask[1], aviVersion)
-            if getManagementDetails[0] is None:
-                logger.error(
-                    "Failed to get management network details " + str(getManagementDetails[2]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to get management network details " + str(
-                        getManagementDetails[2]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            if getManagementDetails[0] == "AlreadyConfigured":
-                logger.info("Ip pools are already configured.")
-                vim_ref = getManagementDetails[2]["vim_ref"]
-                ip_pre = getManagementDetails[2]["subnet_ip"]
-                mask = getManagementDetails[2]["subnet_mask"]
-            else:
-                update_resp = self.updateNetworkWithIpPools(ip, csrf2, get_management[0],
-                                                            "managementNetworkDetails.json",
-                                                            aviVersion)
-                if update_resp[0] != 200:
+                mgmt_pg = self.jsonspec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkName']
+                get_management = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion)
+                if get_management[0] is None:
+                    logger.error("Failed to get management network " + str(get_management[1]))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to get management network " + str(get_management[1]),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+                startIp = self.jsonspec["tkgComponentSpec"]["aviMgmtNetwork"][
+                    "aviMgmtServiceIpStartRange"]
+                endIp = self.jsonspec["tkgComponentSpec"]["aviMgmtNetwork"][
+                    "aviMgmtServiceIpEndRange"]
+                prefixIpNetmask = seperateNetmaskAndIp(self.jsonspec["tkgComponentSpec"]
+                                                       ["aviMgmtNetwork"]["aviMgmtNetworkGatewayCidr"])
+                getManagementDetails = self.getNetworkDetails(ip, csrf2, get_management[0], startIp,
+                                                              endIp, prefixIpNetmask[0],
+                                                              prefixIpNetmask[1], aviVersion)
+                if getManagementDetails[0] is None:
                     logger.error(
-                        "Failed to update management network ip pools " + str(update_resp[1]))
+                        "Failed to get management network details " + str(getManagementDetails[2]))
                     d = {
                         "responseType": "ERROR",
-                        "msg": "Failed to update management network ip pools " + str(
-                            update_resp[1]),
+                        "msg": "Failed to get management network details " + str(
+                            getManagementDetails[2]),
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
-                vim_ref = update_resp[2]["vimref"]
-                mask = update_resp[2]["subnet_mask"]
-                ip_pre = update_resp[2]["subnet_ip"]
-            new_cloud_status = self.getDetailsOfNewCloud(ip, csrf2, cloud_url, vim_ref, ip_pre,
-                                                         mask, aviVersion)
-            if new_cloud_status[0] is None:
-                logger.error(
-                    "Failed to get new cloud details" + str(new_cloud_status[1]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to get new cloud details " + str(new_cloud_status[1]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            updateNewCloudStatus = self.updateNewCloud(ip, csrf2, cloud_url, aviVersion)
-            if updateNewCloudStatus[0] is None:
-                logger.error("Failed to update cloud " + str(updateNewCloudStatus[1]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to update cloud " + str(updateNewCloudStatus[1]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            mgmt_data_pg = self.jsonspec['tkgMgmtDataNetwork']['tkgMgmtDataNetworkName']
-            get_management_data_pg = self.getNetworkUrl(ip, csrf2, mgmt_data_pg, aviVersion)
-            if get_management_data_pg[0] is None:
-                logger.error("Failed to get management data network details " +
-                             str(get_management_data_pg[1]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to get management data network details " + str(
-                        get_management_data_pg[1]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            startIp = self.jsonspec["tkgMgmtDataNetwork"]["tkgMgmtAviServiceIpStartRange"]
-            endIp = self.jsonspec["tkgMgmtDataNetwork"]["tkgMgmtAviServiceIpEndRange"]
-            prefixIpNetmask = seperateNetmaskAndIp(self.jsonspec["tkgMgmtDataNetwork"]
-                                                   ["tkgMgmtDataNetworkGatewayCidr"])
-            getManagementDetails_data_pg = self.getNetworkDetails(ip, csrf2,
-                                                                  get_management_data_pg[0],
-                                                                  startIp, endIp,
-                                                                  prefixIpNetmask[0],
-                                                                  prefixIpNetmask[1],
-                                                                  aviVersion)
-            if getManagementDetails_data_pg[0] is None:
-                logger.error(
-                    "Failed to get management data network details " +
-                    str(getManagementDetails_data_pg[2]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to get management data network details " + str(
-                        getManagementDetails_data_pg[2]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            if getManagementDetails_data_pg[0] == "AlreadyConfigured":
-                logger.info("Ip pools are already configured.")
-            else:
-                update_resp = self.updateNetworkWithIpPools(ip, csrf2, get_management_data_pg[0],
-                                                            "managementNetworkDetails.json",
-                                                            aviVersion)
-                if update_resp[0] != 200:
-                    logger.error(
-                        "Failed to update management network details " + str(update_resp[1]))
-                    d = {
-                        "responseType": "ERROR",
-                        "msg": "Failed to update management network details " + str(update_resp[1]),
-                        "ERROR_CODE": 500
-                    }
-                    return json.dumps(d), 500
-            mgmt_pg = self.jsonspec['tkgComponentSpec']['tkgClusterVipNetwork'][
-                'tkgClusterVipNetworkName']
-            get_vip = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion)
-            if get_vip[0] is None:
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to get vip network " + str(get_vip[1]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            vip_pool = self.updateVipNetworkIpPools(ip, csrf2, get_vip, aviVersion)
-            if vip_pool[1] != 200:
-                logger.error(str(vip_pool[0].json['msg']))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": str(vip_pool[0].json['msg']),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-
-            get_ipam = self.getIpam(ip, csrf2, Cloud.IPAM_NAME_VSPHERE, aviVersion)
-            if get_ipam[0] is None:
-                logger.error("Failed to get se Ipam " + str(get_ipam[1]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to get ipam " + str(get_ipam[1]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-
-            isGen = False
-            if get_ipam[0] == "NOT_FOUND":
-                isGen = True
-                logger.info("Creating IPAM " + Cloud.IPAM_NAME_VSPHERE)
-                ipam = self.createIpam(ip, csrf2, get_management[0], get_management_data_pg[0],
-                                       get_vip[0], Cloud.IPAM_NAME_VSPHERE, aviVersion)
-                if ipam[0] is None:
-                    logger.error("Failed to create ipam " + str(ipam[1]))
-                    d = {
-                        "responseType": "ERROR",
-                        "msg": "Failed to create  ipam " + str(ipam[1]),
-                        "ERROR_CODE": 500
-                    }
-                    return json.dumps(d), 500
-                ipam_url = ipam[0]
-            else:
-                ipam_url = get_ipam[0]
-
-            new_cloud_status = self.getDetailsOfNewCloudAddIpam(ip, csrf2, cloud_url, ipam_url,
+                if getManagementDetails[0] == "AlreadyConfigured":
+                    logger.info("Ip pools are already configured.")
+                    vim_ref = getManagementDetails[2]["vim_ref"]
+                    ip_pre = getManagementDetails[2]["subnet_ip"]
+                    mask = getManagementDetails[2]["subnet_mask"]
+                else:
+                    update_resp = self.updateNetworkWithIpPools(ip, csrf2, get_management[0],
+                                                                "managementNetworkDetails.json",
                                                                 aviVersion)
-            if new_cloud_status[0] is None:
-                logger.error(
-                    "Failed to get new cloud details" + str(new_cloud_status[1]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to get new cloud details " + str(new_cloud_status[1]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            updateIpam_re = self.updateIpam(ip, csrf2, cloud_url, aviVersion)
-            if updateIpam_re[0] is None:
-                logger.error("Failed to update ipam to cloud " + str(updateIpam_re[1]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to update ipam to cloud " + str(updateIpam_re[1]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            cluster_name = self.jsonspec["envSpec"]["vcenterDetails"]["vcenterCluster"]
-            cluster_status = self.getClusterUrl(ip, csrf2, cluster_name, aviVersion)
-            if cluster_status[0] is None:
-                logger.error("Failed to get cluster details" + str(cluster_status[1]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to get cluster details " + str(cluster_status[1]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            if cluster_status[0] == "NOT_FOUND":
-                logger.error("Failed to get cluster details" + str(cluster_status[1]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to get cluster details " + str(cluster_status[1]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            get_se_cloud = getSECloudStatus(ip, csrf2, aviVersion, Cloud.SE_GROUP_NAME_VSPHERE)
-            if get_se_cloud[0] is None:
-                logger.error("Failed to get se cloud status " + str(get_se_cloud[1]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to get se cloud status " + str(get_se_cloud[1]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-
-            isGen = False
-            if get_se_cloud[0] == "NOT_FOUND":
-                isGen = True
-                logger.info("Creating New se cloud " + Cloud.SE_GROUP_NAME_VSPHERE)
-                cloud_se = self.createSECloud(ip, csrf2, cloud_url, Cloud.SE_GROUP_NAME_VSPHERE,
-                                              cluster_status[0], data_store,
-                                              aviVersion)
-                if cloud_se[0] is None:
-                    logger.error("Failed to create se cloud " + str(cloud_se[1]))
+                    if update_resp[0] != 200:
+                        logger.error(
+                            "Failed to update management network ip pools " + str(update_resp[1]))
+                        d = {
+                            "responseType": "ERROR",
+                            "msg": "Failed to update management network ip pools " + str(
+                                update_resp[1]),
+                            "ERROR_CODE": 500
+                        }
+                        return json.dumps(d), 500
+                    vim_ref = update_resp[2]["vimref"]
+                    mask = update_resp[2]["subnet_mask"]
+                    ip_pre = update_resp[2]["subnet_ip"]
+                new_cloud_status = self.getDetailsOfNewCloud(ip, csrf2, cloud_url, vim_ref, ip_pre,
+                                                             mask, aviVersion)
+                if new_cloud_status[0] is None:
+                    logger.error(
+                        "Failed to get new cloud details" + str(new_cloud_status[1]))
                     d = {
                         "responseType": "ERROR",
-                        "msg": "Failed to create  se cloud " + str(cloud_se[1]),
+                        "msg": "Failed to get new cloud details " + str(new_cloud_status[1]),
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
-                se_cloud_url = cloud_se[0]
-            else:
-                se_cloud_url = get_se_cloud[0]
-            mgmt_name = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"]["tkgMgmtNetworkName"]
-            dhcp = self.enableDhcpForManagementNetwork(ip, csrf2, mgmt_name, aviVersion)
-            if dhcp[0] is None:
-                logger.error("Failed to enable dhcp " + str(dhcp[1]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to enable dhcp " + str(dhcp[1]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-
-            with open("./newCloudInfo.json", 'r') as file2:
-                new_cloud_json = json.load(file2)
-            uuid = None
-            try:
-                uuid = new_cloud_json["uuid"]
-            except:
-                for re in new_cloud_json["results"]:
-                    if re["name"] == Cloud.CLOUD_NAME_VSPHERE:
-                        uuid = re["uuid"]
-            if uuid is None:
-                return None, "NOT_FOUND"
-            ipNetMask = seperateNetmaskAndIp(
-                self.jsonspec["tkgComponentSpec"]["aviMgmtNetwork"]["aviMgmtNetworkGatewayCidr"])
-            vrf = getVrfAndNextRoutId(ip, csrf2, uuid, VrfType.MANAGEMENT, ipNetMask[0], aviVersion)
-            if vrf[0] is None or vrf[1] == "NOT_FOUND":
-                logger.error("Vrf not found " + str(vrf[1]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Vrf not found " + str(vrf[1]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            if vrf[1] != "Already_Configured":
-                ad = addStaticRoute(ip, csrf2, vrf[0], ipNetMask[0], vrf[1], aviVersion)
-                if ad[0] is None:
-                    logger.error("Failed to add static route " + str(ad[1]))
+                updateNewCloudStatus = self.updateNewCloud(ip, csrf2, cloud_url, aviVersion)
+                if updateNewCloudStatus[0] is None:
+                    logger.error("Failed to update cloud " + str(updateNewCloudStatus[1]))
                     d = {
                         "responseType": "ERROR",
-                        "msg": "Vrf not found " + str(ad[1]),
+                        "msg": "Failed to update cloud " + str(updateNewCloudStatus[1]),
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
-            prefixIpNetmask_vip = seperateNetmaskAndIp(
-                self.jsonspec['tkgComponentSpec']["tkgClusterVipNetwork"][
-                    "tkgClusterVipNetworkGatewayCidr"])
-            list_ = [prefixIpNetmask[0], prefixIpNetmask_vip[0]]
-            for l in list_:
-                vrf = getVrfAndNextRoutId(ip, csrf2, uuid, VrfType.GLOBAL, l, aviVersion)
+                mgmt_data_pg = self.jsonspec['tkgMgmtDataNetwork']['tkgMgmtDataNetworkName']
+                get_management_data_pg = self.getNetworkUrl(ip, csrf2, mgmt_data_pg, aviVersion)
+                if get_management_data_pg[0] is None:
+                    logger.error("Failed to get management data network details " +
+                                 str(get_management_data_pg[1]))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to get management data network details " + str(
+                            get_management_data_pg[1]),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+                startIp = self.jsonspec["tkgMgmtDataNetwork"]["tkgMgmtAviServiceIpStartRange"]
+                endIp = self.jsonspec["tkgMgmtDataNetwork"]["tkgMgmtAviServiceIpEndRange"]
+                prefixIpNetmask = seperateNetmaskAndIp(self.jsonspec["tkgMgmtDataNetwork"]
+                                                       ["tkgMgmtDataNetworkGatewayCidr"])
+                getManagementDetails_data_pg = self.getNetworkDetails(ip, csrf2,
+                                                                      get_management_data_pg[0],
+                                                                      startIp, endIp,
+                                                                      prefixIpNetmask[0],
+                                                                      prefixIpNetmask[1],
+                                                                      aviVersion)
+                if getManagementDetails_data_pg[0] is None:
+                    logger.error(
+                        "Failed to get management data network details " +
+                        str(getManagementDetails_data_pg[2]))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to get management data network details " + str(
+                            getManagementDetails_data_pg[2]),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+                if getManagementDetails_data_pg[0] == "AlreadyConfigured":
+                    logger.info("Ip pools are already configured.")
+                else:
+                    update_resp = self.updateNetworkWithIpPools(ip, csrf2, get_management_data_pg[0],
+                                                                "managementNetworkDetails.json",
+                                                                aviVersion)
+                    if update_resp[0] != 200:
+                        logger.error(
+                            "Failed to update management network details " + str(update_resp[1]))
+                        d = {
+                            "responseType": "ERROR",
+                            "msg": "Failed to update management network details " + str(update_resp[1]),
+                            "ERROR_CODE": 500
+                        }
+                        return json.dumps(d), 500
+                mgmt_pg = self.jsonspec['tkgComponentSpec']['tkgClusterVipNetwork'][
+                    'tkgClusterVipNetworkName']
+                get_vip = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion)
+                if get_vip[0] is None:
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to get vip network " + str(get_vip[1]),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+                vip_pool = self.updateVipNetworkIpPools(ip, csrf2, get_vip, aviVersion)
+                if vip_pool[1] != 200:
+                    logger.error(str(vip_pool[0].json['msg']))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": str(vip_pool[0].json['msg']),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+
+                get_ipam = self.getIpam(ip, csrf2, Cloud.IPAM_NAME_VSPHERE, aviVersion)
+                if get_ipam[0] is None:
+                    logger.error("Failed to get se Ipam " + str(get_ipam[1]))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to get ipam " + str(get_ipam[1]),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+
+                isGen = False
+                if get_ipam[0] == "NOT_FOUND":
+                    isGen = True
+                    logger.info("Creating IPAM " + Cloud.IPAM_NAME_VSPHERE)
+                    ipam = self.createIpam(ip, csrf2, get_management[0], get_management_data_pg[0],
+                                           get_vip[0], Cloud.IPAM_NAME_VSPHERE, aviVersion)
+                    if ipam[0] is None:
+                        logger.error("Failed to create ipam " + str(ipam[1]))
+                        d = {
+                            "responseType": "ERROR",
+                            "msg": "Failed to create  ipam " + str(ipam[1]),
+                            "ERROR_CODE": 500
+                        }
+                        return json.dumps(d), 500
+                    ipam_url = ipam[0]
+                else:
+                    ipam_url = get_ipam[0]
+
+                new_cloud_status = self.getDetailsOfNewCloudAddIpam(ip, csrf2, cloud_url, ipam_url,
+                                                                    aviVersion)
+                if new_cloud_status[0] is None:
+                    logger.error(
+                        "Failed to get new cloud details" + str(new_cloud_status[1]))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to get new cloud details " + str(new_cloud_status[1]),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+                updateIpam_re = self.updateIpam(ip, csrf2, cloud_url, aviVersion)
+                if updateIpam_re[0] is None:
+                    logger.error("Failed to update ipam to cloud " + str(updateIpam_re[1]))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to update ipam to cloud " + str(updateIpam_re[1]),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+                cluster_name = self.jsonspec["envSpec"]["vcenterDetails"]["vcenterCluster"]
+                cluster_status = self.getClusterUrl(ip, csrf2, cluster_name, aviVersion)
+                if cluster_status[0] is None:
+                    logger.error("Failed to get cluster details" + str(cluster_status[1]))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to get cluster details " + str(cluster_status[1]),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+                if cluster_status[0] == "NOT_FOUND":
+                    logger.error("Failed to get cluster details" + str(cluster_status[1]))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to get cluster details " + str(cluster_status[1]),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+                get_se_cloud = getSECloudStatus(ip, csrf2, aviVersion, Cloud.SE_GROUP_NAME_VSPHERE)
+                if get_se_cloud[0] is None:
+                    logger.error("Failed to get se cloud status " + str(get_se_cloud[1]))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to get se cloud status " + str(get_se_cloud[1]),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+
+                isGen = False
+                if get_se_cloud[0] == "NOT_FOUND":
+                    isGen = True
+                    logger.info("Creating New se cloud " + Cloud.SE_GROUP_NAME_VSPHERE)
+                    cloud_se = self.createSECloud(ip, csrf2, cloud_url, Cloud.SE_GROUP_NAME_VSPHERE,
+                                                  cluster_status[0], data_store,
+                                                  aviVersion)
+                    if cloud_se[0] is None:
+                        logger.error("Failed to create se cloud " + str(cloud_se[1]))
+                        d = {
+                            "responseType": "ERROR",
+                            "msg": "Failed to create  se cloud " + str(cloud_se[1]),
+                            "ERROR_CODE": 500
+                        }
+                        return json.dumps(d), 500
+                    se_cloud_url = cloud_se[0]
+                else:
+                    se_cloud_url = get_se_cloud[0]
+                mgmt_name = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"]["tkgMgmtNetworkName"]
+                dhcp = self.enableDhcpForManagementNetwork(ip, csrf2, mgmt_name, aviVersion)
+                if dhcp[0] is None:
+                    logger.error("Failed to enable dhcp " + str(dhcp[1]))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to enable dhcp " + str(dhcp[1]),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+
+                with open("./newCloudInfo.json", 'r') as file2:
+                    new_cloud_json = json.load(file2)
+                uuid = None
+                try:
+                    uuid = new_cloud_json["uuid"]
+                except:
+                    for re in new_cloud_json["results"]:
+                        if re["name"] == Cloud.CLOUD_NAME_VSPHERE:
+                            uuid = re["uuid"]
+                if uuid is None:
+                    return None, "NOT_FOUND"
+                ipNetMask = seperateNetmaskAndIp(
+                    self.jsonspec["tkgComponentSpec"]["aviMgmtNetwork"]["aviMgmtNetworkGatewayCidr"])
+                vrf = getVrfAndNextRoutId(ip, csrf2, uuid, VrfType.MANAGEMENT, ipNetMask[0], aviVersion)
                 if vrf[0] is None or vrf[1] == "NOT_FOUND":
                     logger.error("Vrf not found " + str(vrf[1]))
                     d = {
@@ -1554,7 +1581,7 @@ class RaMgmtClusterWorkflow:
                     }
                     return json.dumps(d), 500
                 if vrf[1] != "Already_Configured":
-                    ad = addStaticRoute(ip, csrf2, vrf[0], l, vrf[1], aviVersion)
+                    ad = addStaticRoute(ip, csrf2, vrf[0], ipNetMask[0], vrf[1], aviVersion)
                     if ad[0] is None:
                         logger.error("Failed to add static route " + str(ad[1]))
                         d = {
@@ -1563,6 +1590,30 @@ class RaMgmtClusterWorkflow:
                             "ERROR_CODE": 500
                         }
                         return json.dumps(d), 500
+                prefixIpNetmask_vip = seperateNetmaskAndIp(
+                    self.jsonspec['tkgComponentSpec']["tkgClusterVipNetwork"][
+                        "tkgClusterVipNetworkGatewayCidr"])
+                list_ = [prefixIpNetmask[0], prefixIpNetmask_vip[0]]
+                for l in list_:
+                    vrf = getVrfAndNextRoutId(ip, csrf2, uuid, VrfType.GLOBAL, l, aviVersion)
+                    if vrf[0] is None or vrf[1] == "NOT_FOUND":
+                        logger.error("Vrf not found " + str(vrf[1]))
+                        d = {
+                            "responseType": "ERROR",
+                            "msg": "Vrf not found " + str(vrf[1]),
+                            "ERROR_CODE": 500
+                        }
+                        return json.dumps(d), 500
+                    if vrf[1] != "Already_Configured":
+                        ad = addStaticRoute(ip, csrf2, vrf[0], l, vrf[1], aviVersion)
+                        if ad[0] is None:
+                            logger.error("Failed to add static route " + str(ad[1]))
+                            d = {
+                                "responseType": "ERROR",
+                                "msg": "Vrf not found " + str(ad[1]),
+                                "ERROR_CODE": 500
+                            }
+                            return json.dumps(d), 500
         logger.info("Configured management cluster cloud successfully")
         d = {
             "responseType": "SUCCESS",
@@ -1571,4 +1622,445 @@ class RaMgmtClusterWorkflow:
         }
         return json.dumps(d), 200
 
+    def configTkgsCloud(self, ip, csrf2, aviVersion):
+        try:
+            get_cloud = getCloudStatus(ip, csrf2, aviVersion, Cloud.DEFAULT_CLOUD_NAME_VSPHERE)
+            if get_cloud[0] is None:
+                return None, str(get_cloud[1])
+            cloud_url = get_cloud[0]
+            headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "Cookie": csrf2[1],
+                "referer": "https://" + ip + "/login",
+                "x-avi-version": aviVersion,
+                "x-csrftoken": csrf2[0]
+            }
+            with open("./newCloudInfo.json", 'r') as file2:
+                new_cloud_json = json.load(file2)
+            try:
+                for result in new_cloud_json['results']:
+                    if result['name'] == Cloud.DEFAULT_CLOUD_NAME_VSPHERE:
+                        vcenter_config = result["vcenter_configuration"]["vcenter_url"]
+                        break
+                logger.info(
+                    " vcenter details are already updated to cloud " + Cloud.DEFAULT_CLOUD_NAME_VSPHERE)
+            except:
+                logger.info("Updating vcenter details to cloud " + Cloud.DEFAULT_CLOUD_NAME_VSPHERE)
+                vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
+                vcenter_password = CmdHelper.decode_base64(vcpass_base64)
+                vcenter_username = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
+                vcenter_ip = self.jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
+                vcenter_datacenter = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
+                body = {
+                    "name": Cloud.DEFAULT_CLOUD_NAME_VSPHERE,
+                    "vtype": "CLOUD_VCENTER",
+                    "vcenter_configuration": {
+                        "privilege": "WRITE_ACCESS",
+                        "deactivate_vm_discovery": False,
+                        "vcenter_url": vcenter_ip,
+                        "username": vcenter_username,
+                        "password": vcenter_password,
+                        "datacenter": vcenter_datacenter
+                    }
+                }
+                json_object = json.dumps(body, indent=4)
+                url = cloud_url
+                logger.info("Waiting for 1 min status == ready")
+                time.sleep(60)
+                response_csrf = requests.request("PUT", url, headers=headers, data=json_object, verify=False)
+                if response_csrf.status_code != 200:
+                    return None, response_csrf.text
+                else:
+                    os.system("rm -rf newCloudInfo.json")
+                    with open("./newCloudInfo.json", "w") as outfile:
+                        json.dump(response_csrf.json(), outfile)
+            mgmt_pg = self.jsonspec['tkgsComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkName']
+            get_management = self.getNetworkUrl(ip, csrf2, mgmt_pg, Cloud.DEFAULT_CLOUD_NAME_VSPHERE, aviVersion)
+            if get_management[0] is None:
+                return None, "Failed to get avi management network " + str(get_management[1])
+            startIp = self.jsonspec["tkgsComponentSpec"]["aviMgmtNetwork"][
+                "aviMgmtServiceIpStartRange"]
+            endIp = self.jsonspec["tkgsComponentSpec"]["aviMgmtNetwork"]["aviMgmtServiceIpEndRange"]
+            prefixIpNetmask = seperateNetmaskAndIp(
+                self.jsonspec["tkgsComponentSpec"]["aviMgmtNetwork"]["aviMgmtNetworkGatewayCidr"])
+            getManagementDetails = self.getNetworkDetails(ip, csrf2, get_management[0], startIp, endIp, prefixIpNetmask[0],
+                                                     prefixIpNetmask[1], True, aviVersion)
+            if getManagementDetails[0] is None:
+                logger.error("Failed to get management network details " + str(getManagementDetails[2]))
+                return None, str(getManagementDetails[2])
+            if getManagementDetails[0] == "AlreadyConfigured":
+                logger.info("Ip pools are already configured.")
+                vim_ref = getManagementDetails[2]["vim_ref"]
+                ip_pre = getManagementDetails[2]["subnet_ip"]
+                mask = getManagementDetails[2]["subnet_mask"]
+            else:
+                update_resp = self.updateNetworkWithIpPools(ip, csrf2, get_management[0], "managementNetworkDetails.json",
+                                                       aviVersion)
+                if update_resp[0] != 200:
+                    return None, str(update_resp[1])
+                vim_ref = update_resp[2]["vimref"]
+                mask = update_resp[2]["subnet_mask"]
+                ip_pre = update_resp[2]["subnet_ip"]
+            new_cloud_status = self.getDetailsOfNewCloud(ip, csrf2, cloud_url, vim_ref, ip_pre, mask, aviVersion)
+            if new_cloud_status[0] is None:
+                return None, str(new_cloud_status[1])
+            updateNewCloudStatus = self.updateNewCloud(ip, csrf2, cloud_url, aviVersion)
+            if updateNewCloudStatus[0] is None:
+                logger.error("Failed to update cloud " + str(updateNewCloudStatus[1]))
+                return None, str(updateNewCloudStatus[1])
+            with open("./newCloudInfo.json", 'r') as file2:
+                new_cloud_json = json.load(file2)
+            uuid = None
+            try:
+                uuid = new_cloud_json["uuid"]
+            except:
+                for re in new_cloud_json["results"]:
+                    if re["name"] == Cloud.DEFAULT_CLOUD_NAME_VSPHERE:
+                        uuid = re["uuid"]
+            if uuid is None:
+                logger.error(Cloud.DEFAULT_CLOUD_NAME_VSPHERE + " cloud not found")
+                return None, "NOT_FOUND"
+            ipNetMask = seperateNetmaskAndIp(
+                self.jsonspec["tkgsComponentSpec"]["aviMgmtNetwork"]["aviMgmtNetworkGatewayCidr"])
+            vrf = getVrfAndNextRoutId(ip, csrf2, uuid, VrfType.MANAGEMENT, ipNetMask[0], aviVersion)
+            if vrf[0] is None or vrf[1] == "NOT_FOUND":
+                logger.error("Vrf not found " + str(vrf[1]))
+                return None, str(vrf[1])
+            if vrf[1] != "Already_Configured":
+                ad = addStaticRoute(ip, csrf2, vrf[0], ipNetMask[0], vrf[1], aviVersion)
+                if ad[0] is None:
+                    logger.error("Failed to add static route " + str(ad[1]))
+                    return None, str(ad[1])
+            ##########################################################
+            vip_pg = self.jsonspec['tkgsComponentSpec']['tkgsVipNetwork']['tkgsVipNetworkName']
+            get_vip = self.getNetworkUrl(ip, csrf2, vip_pg, Cloud.DEFAULT_CLOUD_NAME_VSPHERE, aviVersion)
+            if get_vip[0] is None:
+                return None, "Failed to get tkgs vip network " + str(get_vip[1])
+            startIp_vip = self.jsonspec["tkgsComponentSpec"]["tkgsVipNetwork"]["tkgsVipIpStartRange"]
+            endIp_vip = self.jsonspec["tkgsComponentSpec"]["tkgsVipNetwork"]["tkgsVipIpEndRange"]
+            prefixIpNetmask_vip = seperateNetmaskAndIp(
+                self.jsonspec["tkgsComponentSpec"]["tkgsVipNetwork"]["tkgsVipNetworkGatewayCidr"])
+            getManagementDetails_vip = self.getNetworkDetails(ip, csrf2, get_vip[0], startIp_vip, endIp_vip,
+                                                         prefixIpNetmask_vip[0],
+                                                         prefixIpNetmask_vip[1], False, aviVersion)
+            if getManagementDetails_vip[0] is None:
+                logger.error("Failed to get tkgs vip network details " + str(getManagementDetails_vip[2]))
+                return None, str(getManagementDetails_vip[2])
+            if getManagementDetails_vip[0] == "AlreadyConfigured":
+                logger.info("Ip pools are already configured for tkgs vip.")
+            else:
+                update_resp = self.updateNetworkWithIpPools(ip, csrf2, get_vip[0], "managementNetworkDetails.json",
+                                                       aviVersion)
+                if update_resp[0] != 200:
+                    logger.error("Failed to update tkgs vip details to cloud " + str(update_resp[1]))
+                    return None, str(update_resp[1])
+            get_ipam = self.getIpam(ip, csrf2, Cloud.IPAM_NAME_VSPHERE, aviVersion)
+            if get_ipam[0] is None:
+                logger.error("Failed to get se Ipam " + str(get_ipam[1]))
+                return None, str(get_ipam[1])
+
+            isGen = False
+            if get_ipam[0] == "NOT_FOUND":
+                isGen = True
+                logger.info("Creating IPam " + Cloud.IPAM_NAME_VSPHERE)
+                ipam = self.createIpam(ip, csrf2, get_management[0], get_vip[0], Cloud.IPAM_NAME_VSPHERE,
+                                  aviVersion)
+                if ipam[0] is None:
+                    logger.error("Failed to create ipam " + str(ipam[1]))
+                    return None, str(ipam[1])
+                ipam_url = ipam[0]
+            else:
+                ipam_url = get_ipam[0]
+
+            new_cloud_status = self.getDetailsOfNewCloudAddIpam(ip, csrf2, cloud_url, ipam_url, aviVersion)
+            if new_cloud_status[0] is None:
+                logger.error("Failed to get new cloud details" + str(new_cloud_status[1]))
+                return None, str(new_cloud_status[1])
+            updateIpam_re = self.updateIpam(ip, csrf2, cloud_url, aviVersion)
+            if updateIpam_re[0] is None:
+                logger.error("Failed to update ipam to cloud " + str(updateIpam_re[1]))
+                return None, str(updateIpam_re[1])
+            cluster_name = self.jsonspec["envSpec"]["vcenterDetails"]["vcenterCluster"]
+            cluster_status = self.getClusterUrl(ip, csrf2, cluster_name, aviVersion)
+            if cluster_status[0] is None:
+                logger.error("Failed to get cluster details" + str(cluster_status[1]))
+                return None, str(cluster_status[1])
+            if cluster_status[0] == "NOT_FOUND":
+                logger.error("Failed to get cluster details" + str(cluster_status[1]))
+                return None, str(cluster_status[1])
+            get_se_cloud = getSECloudStatus(ip, csrf2, aviVersion, Cloud.DEFAULT_SE_GROUP_NAME_VSPHERE)
+            if get_se_cloud[0] is None:
+                logger.error("Failed to get se cloud status " + str(get_se_cloud[1]))
+                return None, str(get_se_cloud[1])
+            se_engine_url = get_se_cloud[0]
+            update = self.updateSeEngineDetails(ip, csrf2, se_engine_url, cluster_status[0], aviVersion)
+            if update[0] is None:
+                return None, update[1]
+            ipNetMask_vip = prefixIpNetmask_vip
+            vrf_vip = getVrfAndNextRoutId(ip, csrf2, uuid, VrfType.GLOBAL, ipNetMask_vip[0], aviVersion)
+            if vrf_vip[0] is None or vrf_vip[1] == "NOT_FOUND":
+                logger.error("Vrf not found " + str(vrf_vip[1]))
+                return None, str(vrf_vip[1])
+            if vrf_vip[1] != "Already_Configured":
+                ad = addStaticRoute(ip, csrf2, vrf_vip[0], ipNetMask_vip[0], vrf_vip[1], aviVersion)
+                if ad[0] is None:
+                    logger.error("Failed to add static route " + str(ad[1]))
+                    return None, str(ad[1])
+            return "SUCCESS", "CONFIGURED_TKGS_CLOUD"
+        except Exception as e:
+            return None, str(e)
+
+    def updateSeEngineDetails(self, ip, csrf2, seUrl, clusterUrl, aviVersion):
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Cookie": csrf2[1],
+            "referer": "https://" + ip + "/login",
+            "x-avi-version": aviVersion,
+            "x-csrftoken": csrf2[0]
+        }
+        body = {
+            "name": Cloud.DEFAULT_SE_GROUP_NAME_VSPHERE,
+            "vcpus_per_se": 2,
+            "memory_per_se": 4096,
+            "vcenter_datastores_include": True,
+            "vcenter_datastore_mode": "VCENTER_DATASTORE_SHARED",
+            "vcenter_clusters": {
+                "include": True,
+                "cluster_refs": [clusterUrl]
+            }
+        }
+        json_object = json.dumps(body, indent=4)
+        response_csrf = requests.request("PUT", seUrl, headers=headers, data=json_object, verify=False)
+        if response_csrf.status_code != 200:
+            return None, response_csrf.text
+        else:
+            return response_csrf.json()["url"], "SUCCESS"
+
+    def enableWCP(self, ip, csrf2, aviVersion):
+        try:
+            vCenter = self.vcenter_dict["vcenter_ip"]
+            vc_user = self.vcenter_dict["vcenter_username"]
+            vc_password = self.vcenter_dict["vcenter_password"]
+            vc_data_center = self.vcenter_dict["vcenter_datacenter"]
+            sess = requests.post("https://" + vCenter + "/rest/com/vmware/cis/session", auth=(vc_user, vc_password),
+                                 verify=False)
+            if sess.status_code != 200:
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to fetch session ID for vCenter - " + vCenter,
+                    "ERROR_CODE": 500
+                }
+                logger.error(f"Error occurred: [ {d} ]")
+                return False
+            else:
+                vc_session = sess.json()['value']
+
+            header = {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "vmware-api-session-id": vc_session
+            }
+            cluster_name = self.jsonspec["envSpec"]["vcenterDetails"]["vcenterCluster"]
+            id = getClusterID(vCenter, vc_user, vc_password, cluster_name, self.jsonspec)
+            if id[1] != 200:
+                return None, id[0]
+            url = "https://" + vCenter + "/api/vcenter/namespace-management/clusters/" + str(id[0])
+            response_csrf = requests.request("GET", url, headers=header, verify=False)
+            endpoint_ip = None
+            isRuning = False
+            if response_csrf.status_code != 200:
+                if response_csrf.status_code == 400:
+                    if response_csrf.json()["messages"][0]["default_message"] == "Cluster with identifier " + str(
+                            id[0]) + " does " \
+                                     "not have Workloads enabled.":
+                        pass
+                    else:
+                        return None, response_csrf.text
+                else:
+                    return None, response_csrf.text
+            else:
+                try:
+                    if response_csrf.json()["config_status"] == "RUNNING":
+                        endpoint_ip = response_csrf.json()["api_server_cluster_endpoint"]
+                        isRuning = True
+                    else:
+                        isRuning = False
+                    if response_csrf.json()["config_status"] == "ERROR":
+                        return None, "WCP is enabled but in ERROR state"
+                except:
+                    isRuning = False
+
+            if isRuning:
+                logger.info("Wcp is already enabled")
+            else:
+                logger.info("Enabling Wcp..")
+                control_plane_size = self.jsonspec["tkgsComponentSpec"]["controlPlaneSize"]
+                allowed_tkgs_size = ["TINY", "SMALL", "MEDIUM", "LARGE"]
+                if not control_plane_size.upper() in allowed_tkgs_size:
+                    return None, \
+                           "Allowed Control plane sizes [tkgsComponentSpec][controlPlaneSize] are TINY, SMALL, MEDIUM, LARGE"
+                image_storage_policy_name = self.jsonspec["tkgsComponentSpec"]["tkgsStoragePolicySpec"][
+                    "imageStoragePolicy"]
+                image_storage_policyId = getPolicyID(image_storage_policy_name, vCenter, vc_user, vc_password)
+                if image_storage_policyId[0] is None:
+                    return None, image_storage_policyId[1]
+                ephemeral_storage_policy_name = \
+                    self.jsonspec["tkgsComponentSpec"]["tkgsStoragePolicySpec"][
+                        "ephemeralStoragePolicy"]
+                ephemeral_storage_policyId = getPolicyID(ephemeral_storage_policy_name, vCenter, vc_user, vc_password)
+                if ephemeral_storage_policyId[0] is None:
+                    return None, ephemeral_storage_policyId[1]
+                master_storage_policy_name = \
+                    self.jsonspec["tkgsComponentSpec"]["tkgsStoragePolicySpec"][
+                        "masterStoragePolicy"]
+                master_storage_policyId = getPolicyID(master_storage_policy_name, vCenter, vc_user, vc_password)
+                if master_storage_policyId[0] is None:
+                    return None, master_storage_policyId[1]
+                str_enc_avi = str(
+                    self.jsonspec['tkgsComponentSpec']['aviComponents']['aviPasswordBase64'])
+                base64_bytes_avi = str_enc_avi.encode('ascii')
+                enc_bytes_avi = base64.b64decode(base64_bytes_avi)
+                password_avi = enc_bytes_avi.decode('ascii').rstrip("\n")
+                avi_fqdn = self.jsonspec['tkgsComponentSpec']['aviComponents']['aviController01Fqdn']
+                master_dnsServers = self.jsonspec['tkgsComponentSpec']['tkgsMgmtNetworkSpec'][
+                    'tkgsMgmtNetworkDnsServers']
+                master_search_domains = self.jsonspec['tkgsComponentSpec']['tkgsMgmtNetworkSpec'][
+                    'tkgsMgmtNetworkSearchDomains']
+                master_ntp_servers = self.jsonspec['tkgsComponentSpec']['tkgsMgmtNetworkSpec'][
+                    'tkgsMgmtNetworkNtpServers']
+                worker_dns = self.jsonspec['tkgsComponentSpec']['tkgsPrimaryWorkloadNetwork'][
+                    'tkgsWorkloadDnsServers']
+                worker_ntps = self.jsonspec['tkgsComponentSpec']['tkgsPrimaryWorkloadNetwork'][
+                    'tkgsWorkloadNtpServers']
+                worker_cidr = self.jsonspec['tkgsComponentSpec']['tkgsPrimaryWorkloadNetwork'][
+                    'tkgsPrimaryWorkloadNetworkGatewayCidr']
+                start = self.jsonspec['tkgsComponentSpec']['tkgsPrimaryWorkloadNetwork'][
+                    'tkgsPrimaryWorkloadNetworkStartRange']
+                end = self.jsonspec['tkgsComponentSpec']['tkgsPrimaryWorkloadNetwork'][
+                    'tkgsPrimaryWorkloadNetworkEndRange']
+                ip_cidr = seperateNetmaskAndIp(worker_cidr)
+                count_of_ip = getCountOfIpAdress(worker_cidr, start, end)
+                service_cidr = self.jsonspec['tkgsComponentSpec']['tkgsPrimaryWorkloadNetwork'][
+                    'tkgsWorkloadServiceCidr']
+                service_cidr_split = seperateNetmaskAndIp(service_cidr)
+                worker_network_name = self.jsonspec['tkgsComponentSpec']['tkgsPrimaryWorkloadNetwork'][
+                    'tkgsPrimaryWorkloadPortgroupName']
+                workload_network_name = self.jsonspec['tkgsComponentSpec']['tkgsPrimaryWorkloadNetwork'][
+                    'tkgsPrimaryWorkloadNetworkName']
+                worker_network_id = getDvPortGroupId(vCenter, vc_user, vc_password, worker_network_name, vc_data_center)
+                if worker_network_id is None:
+                    return None, "Failed to get worker dv port id"
+                ###################################################
+                master_management = self.jsonspec['tkgsComponentSpec']['tkgsMgmtNetworkSpec'][
+                    'tkgsMgmtNetworkGatewayCidr']
+                master_management_start = self.jsonspec['tkgsComponentSpec']['tkgsMgmtNetworkSpec'][
+                    'tkgsMgmtNetworkStartingIp']
+                master_management_ip_netmask = seperateNetmaskAndIp(master_management)
+                mgmt_network_name = self.jsonspec['tkgsComponentSpec']['tkgsMgmtNetworkSpec'][
+                    'tkgsMgmtNetworkName']
+                mgmt_network_id = getDvPortGroupId(vCenter, vc_user, vc_password, mgmt_network_name, vc_data_center)
+                if mgmt_network_id is None:
+                    return None, "Failed to get management dv port id"
+                lib = getLibraryId(vCenter, vc_user, vc_password, ControllerLocation.SUBSCRIBED_CONTENT_LIBRARY)
+                if lib is None:
+                    return None, "Failed to get subscribed lib id"
+                cert = getAviCertificate(ip, csrf2, CertName.VSPHERE_CERT_NAME, aviVersion)
+                if cert[0] is None or cert[0] == "NOT_FOUND":
+                    return None, "Avi certificate not found"
+                body = {
+                    "default_kubernetes_service_content_library": lib,
+                    "image_storage": {
+                        "storage_policy": image_storage_policyId[0]
+                    },
+                    "ephemeral_storage_policy": ephemeral_storage_policyId[0],
+                    "master_storage_policy": master_storage_policyId[0],
+                    "load_balancer_config_spec": {
+                        "address_ranges": [],
+                        "avi_config_create_spec": {
+                            "certificate_authority_chain": cert[0],
+                            "password": password_avi,
+                            "server": {
+                                "host": avi_fqdn,
+                                "port": 443
+                            },
+                            "username": "admin"
+                        },
+                        "id": "tkgs-avi01",
+                        "provider": "AVI"
+                    },
+                    "master_DNS": convertStringToCommaSeperated(master_dnsServers),
+                    "master_DNS_search_domains": convertStringToCommaSeperated(master_search_domains),
+                    "master_NTP_servers": convertStringToCommaSeperated(master_ntp_servers),
+                    "master_management_network": {
+                        "address_range": {
+                            "address_count": 5,
+                            "gateway": master_management_ip_netmask[0],
+                            "starting_address": master_management_start,
+                            "subnet_mask": cidr_to_netmask(master_management)
+                        },
+                        "mode": "STATICRANGE",
+                        "network": mgmt_network_id
+                    },
+                    "network_provider": "VSPHERE_NETWORK",
+                    "service_cidr": {
+                        "address": service_cidr_split[0],
+                        "prefix": int(service_cidr_split[1])
+                    },
+                    "size_hint": control_plane_size.upper(),
+                    "worker_DNS": convertStringToCommaSeperated(worker_dns),
+                    "worker_ntp_servers": convertStringToCommaSeperated(worker_ntps),
+                    "workload_networks_spec": {
+                        "supervisor_primary_workload_network": {
+                            "network": workload_network_name,
+                            "network_provider": "VSPHERE_NETWORK",
+                            "vsphere_network": {
+                                "address_ranges": [{
+                                    "address": start,
+                                    "count": count_of_ip
+                                }],
+                                "gateway": ip_cidr[0],
+                                "portgroup": worker_network_id,
+                                "subnet_mask": cidr_to_netmask(worker_cidr)
+                            }
+                        }
+                    }
+                }
+                url1 = "https://" + vCenter + "/api/vcenter/namespace-management/clusters/" + str(
+                    id[0]) + "?action=enable"
+                json_object = json.dumps(body, indent=4)
+                response_csrf = requests.request("POST", url1, headers=header, data=json_object, verify=False)
+                if response_csrf.status_code != 204:
+                    return None, response_csrf.text
+                count = 0
+                found = False
+                while count < 135:
+                    response_csrf = requests.request("GET", url, headers=header, verify=False)
+                    try:
+                        if response_csrf.json()["config_status"] == "RUNNING":
+                            endpoint_ip = response_csrf.json()["api_server_cluster_endpoint"]
+                            found = True
+                            break
+                        else:
+                            if response_csrf.json()["config_status"] == "ERROR":
+                                return None, "WCP status in ERROR"
+                            logger.info("Cluster config status " + response_csrf.json()["config_status"])
+                    except:
+                        pass
+                    time.sleep(20)
+                    count = count + 1
+                    logger.info("Waited " + str(count * 20) + "s, retrying")
+                if not found:
+                    logger.error("Cluster is not running on waiting " + str(count * 20))
+                    return None, "Failed"
+            '''if endpoint_ip is not None:
+                logger.info("Setting up kubectl vsphere")
+                time.sleep(30)
+                configure_kubectl = configureKubectl(endpoint_ip)
+                if configure_kubectl[1] != 200:
+                    return configure_kubectl[0], 500'''
+            return "SUCCESS", "WCP_ENABLED"
+        except Exception as e:
+            return None, str(e)
 

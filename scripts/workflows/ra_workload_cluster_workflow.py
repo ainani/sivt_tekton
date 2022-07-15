@@ -31,6 +31,7 @@ from util.ShellHelper import grabKubectlCommand, runShellCommandAndReturnOutputA
 import ruamel
 import requests
 from model.vsphereSpec import VsphereMasterSpec
+from util.tkg_util import TkgUtil
 
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
@@ -52,8 +53,16 @@ class RaWorkloadClusterWorkflow:
         self.prev_version = None
         self.prev_extensions_root = None
         self.prev_extensions_dir = None
-        jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
-        with open(jsonpath) as f:
+        self.tkg_type = ''.join([attr for attr in dir(self.run_config.desired_state.version) if "tkg" in attr])
+        if "tkgs" in self.tkg_type:
+            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_WCP_MASTER_SPEC_PATH)
+            # self.ns_jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_NS_MASTER_SPEC_PATH)
+        elif "tkg" in self.tkg_type:
+            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
+        else:
+            raise Exception(f"Could not find supported TKG version: {self.tkg_type}")
+        #jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
+        with open(self.jsonpath) as f:
             self.jsonspec = json.load(f)
         self.rcmd = RunCmd()
         self.clusterops = RaMgmtClusterWorkflow(self.run_config)
@@ -63,6 +72,8 @@ class RaWorkloadClusterWorkflow:
             msg = "Failed to connect to VC. Possible connection to VC is not available or " \
                   "incorrect spec provided."
             raise Exception(msg)
+        self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
+        self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
 
     def createAkoFile(self, ip, wipCidr, tkgMgmtDataPg):
 
@@ -167,21 +178,23 @@ class RaWorkloadClusterWorkflow:
         data_center = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
         data_store = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
         refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
-        kubernetes_ova_os = self.jsonspec["tkgWorkloadComponents"]["tkgWorkloadBaseOs"]
-        kubernetes_ova_version = self.jsonspec["tkgWorkloadComponents"]["tkgWorkloadKubeVersion"]
         if refToken:
-            logger.info("Kubernetes OVA configs for workload cluster")
-            down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec,
-                                                                  kubernetes_ova_version,
-                                                                  kubernetes_ova_os)
-            if down_status[0] is None:
-                logger.error(down_status[1])
-                d = {
-                    "responseType": "ERROR",
-                    "msg": down_status[1],
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
+            if not (self.isEnvTkgs_wcp or self.isEnvTkgs_ns):
+                logger.info("Kubernetes OVA configs for workload cluster")
+                kubernetes_ova_os = self.jsonspec["tkgWorkloadComponents"]["tkgWorkloadBaseOs"]
+                kubernetes_ova_version = self.jsonspec["tkgWorkloadComponents"]["tkgWorkloadKubeVersion"]
+                logger.info("Kubernetes OVA configs for management cluster")
+                down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec,
+                                                                      kubernetes_ova_version,
+                                                                      kubernetes_ova_os)
+                if down_status[0] is None:
+                    logger.error(down_status[1])
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": down_status[1],
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
         else:
             logger.info( "MarketPlace refresh token is not provided, skipping the download "
                          "of kubernetes ova")
