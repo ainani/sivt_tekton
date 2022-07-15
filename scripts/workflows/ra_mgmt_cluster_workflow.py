@@ -345,7 +345,7 @@ class RaMgmtClusterWorkflow:
                     "msg": management_cluster + " is not deployed",
                     "ERROR_CODE": 500
                 }
-                return json.dunps(d), 500
+                return json.dumps(d), 500
             switch = switchToManagementContext(management_cluster)
             if switch[1] != 200:
                 logger.info(switch[0].json['msg'])
@@ -355,7 +355,7 @@ class RaMgmtClusterWorkflow:
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
-            if checkEnableIdentityManagement(self.env):
+            if checkEnableIdentityManagement(self.env, self.jsonspec):
                 logger.info("Validating pinniped installation status")
                 check_pinniped = checkPinnipedInstalled()
                 if check_pinniped[1] != 200:
@@ -366,7 +366,7 @@ class RaMgmtClusterWorkflow:
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
-                    logger.info("Validating pinniped service status")
+                logger.info("Validating pinniped service status")
                 check_pinniped_svc = checkPinnipedServiceStatus()
                 if check_pinniped_svc[1] != 200:
                     logger.error(check_pinniped_svc[0])
