@@ -1443,24 +1443,6 @@ def getCountOfIpAdress(gatewayCidr, start, end):
             count = count + 1
     return count
 
-def getDvPortGroupId(vcenterIp, vcenterUser, vcenterPassword, networkName, vc_data_center):
-    try:
-        si = connect.SmartConnectNoSSL(host=vcenterIp, user=vcenterUser, pwd=vcenterPassword)
-        try:
-            datacenter = get_dc(si, vc_data_center)
-        except Exception as e:
-            logger.error(str(e))
-            return None
-        network = getNetwork(datacenter, networkName)
-        switch = network.config.distributedVirtualSwitch
-        for portgroup in switch.portgroup:
-            if portgroup.name == networkName:
-                return portgroup.config.key
-        return None
-    except Exception as e:
-        logger.error(str(e))
-        return None
-
 def getLibraryId(vcenter, vcenterUser, vcenterPassword, libName):
     os.putenv("GOVC_URL", "https://" + vcenter + "/sdk")
     os.putenv("GOVC_USERNAME", vcenterUser)
@@ -1566,9 +1548,9 @@ def isSasRegistred(clusterName, management, provisoner, pr, sasType):
             logger.error(str(e))
         return False
 
-def checkTmcEnabled(tmc_state):
-
-    if tmc_state.lower() == "true":
+def checkTmcEnabled(jsonspec):
+    tmc_required = jsonspec['envSpec']["saasEndpoints"]['tmcDetails']['tmcAvailability']
+    if tmc_required.lower() == "true":
         return True
     else:
         return False
@@ -2474,3 +2456,213 @@ def checkFluentBitInstalled():
         return True, output[0].split()[3] + " " + output[0].split()[4]
     else:
         return False, None
+
+def checkNameSpaceRunningStatus(url, header, name_space, cluster_id):
+    response_csrf = requests.request("GET", url, headers=header, verify=False)
+    if response_csrf.status_code != 200:
+        return None, "Failed to get namespace list " + str(response_csrf.text)
+    found = False
+    if len(response_csrf.json()) < 1:
+        logger.info("No name space is created")
+        return None, "NOT_FOUND_INITIAL"
+    else:
+        for name in response_csrf.json():
+            if name['cluster'] == cluster_id:
+                if name['namespace'] == name_space:
+                    found = True
+                    break
+    if found:
+        running = False
+        logger.info(name_space + " name space  is already created")
+        logger.info("Checking Running status")
+        for name in response_csrf.json():
+            if name['cluster'] == cluster_id:
+                if name['namespace'] == name_space:
+                    if name['config_status'] == "RUNNING":
+                        running = True
+                        break
+        if running:
+            logger.info(name_space + " name space  is running")
+            return "SUCCESS", "RUNNING"
+        else:
+            logger.info(name_space + " name space  is not running")
+            return None, "NOT_RUNNING"
+    else:
+        return None, "NOT_FOUND"
+
+def getBodyResourceSpec(cpu_limit, memory_limit, storage_limit):
+    resource_spec = dict()
+    if cpu_limit:
+        resource_spec.update({"cpu_limit": cpu_limit})
+    if memory_limit:
+        resource_spec.update({"memory_limit": memory_limit})
+    if storage_limit:
+        resource_spec.update({"storage_request_limit": storage_limit})
+    return resource_spec
+
+def configureKubectl(clusterIp):
+    os.system("mkdir tempDir")
+    url = "https://" + clusterIp + "/wcp/plugin/linux-amd64/vsphere-plugin.zip"
+    response = requests.get(url, verify=False)
+    if response.status_code != 200:
+        logger.error("vsphere-plugin.zip download failed")
+        return None, response.text
+    with open(r'/tmp/vsphere-plugin.zip', 'wb') as f:
+        f.write(response.content)
+    create_command = ["unzip", "/tmp/vsphere-plugin.zip", "-d", "tempDir"]
+    output = runShellCommandAndReturnOutputAsList(create_command)
+    if output[1] != 0:
+        return None, "Failed to unzip vsphere-plugin.zip"
+    os.system("mv -f /opt/vmware/arcas/src/tempDir/bin/* /usr/local/bin/")
+    os.system("chmod +x /usr/local/bin/kubectl-vsphere")
+    return "SUCCESS", 200
+
+def deleteConfigServer(cluster_endpoint):
+    list_config = ["tanzu", "config", "server", "list"]
+    list_output = runShellCommandAndReturnOutputAsList(list_config)
+    if list_output[1] != 0:
+        return " Failed to use  context " + str(list_output[0]), 500
+
+    if str(list_output[0]).__contains__(cluster_endpoint):
+        delete_config = ["tanzu", "config", "server", "delete", cluster_endpoint, "-y"]
+        delete_output = runShellCommandAndReturnOutputAsList(delete_config)
+        if delete_output[1] != 0:
+            return " Failed to use  context " + str(delete_output[0]), 500
+        return "Cluster config deleted successfully", 200
+    else:
+        return "Cluster config not added", 200
+
+def supervisorTMC(vcenter_user, VC_PASSWORD, cluster_ip):
+    command = ["tanzu", "config", "server", "list"]
+    server_list = runShellCommandAndReturnOutputAsList(command)
+    if server_list[1] != 0:
+        return " Failed to get list of logins " + str(server_list[0]), 500
+    if str(server_list[0]).__contains__(cluster_ip):
+        delete_response = deleteConfigServer(cluster_ip)
+        if delete_response[1] != 200:
+            logger.info("Server config delete failed")
+            return "Server config delete failed", 500
+    logger.info("Logging in to cluster " + cluster_ip)
+    os.putenv("KUBECTL_VSPHERE_PASSWORD", VC_PASSWORD)
+    connect_command = ["kubectl", "vsphere", "login", "--server=" + cluster_ip, "--vsphere-username=" + vcenter_user,
+                       "--insecure-skip-tls-verify"]
+    output = runShellCommandAndReturnOutputAsList(connect_command)
+    if output[1] != 0:
+        return " Failed while connecting to Supervisor Cluster", 500
+    switch_context = ["kubectl", "config", "use-context", cluster_ip]
+    output = runShellCommandAndReturnOutputAsList(switch_context)
+    if output[1] != 0:
+        return " Failed to use  context " + str(output[0]), 500
+
+    switch_context = ["tanzu", "login", "--name", cluster_ip, "--kubeconfig", "/root/.kube/config", "--context",
+                      cluster_ip]
+    output = runShellCommandAndReturnOutputAsList(switch_context)
+    if output[1] != 0:
+        return " Failed to switch context to Supervisor Cluster " + str(output[0]), 500
+    return "SUCCESS", 200
+
+def get_alias_name(storage_id):
+    command = ["kubectl", "describe", "sc"]
+    policy_list = runShellCommandAndReturnOutput(command)
+    if policy_list[1] != 0:
+        return None, "Failed to get list of policies " + str(policy_list[0]), 500
+    ss = str(policy_list[0]).split("\n")
+    for s in range(len(ss)):
+        if ss[s].__contains__("storagePolicyID=" + storage_id):
+            alias = ss[s - 4].replace("Name:", "").strip()
+            logger.info("Alias name " + alias)
+            return alias, "SUCCESS"
+    return None, "NOT_FOUND"
+
+
+def getClusterVersionsFullList(vCenter, vcenter_username, password, cluster, jsonspec):
+    try:
+        cluster_id = getClusterID(vCenter, vcenter_username, password, cluster, jsonspec)
+        if cluster_id[1] != 200:
+            logger.error(cluster_id[0])
+            d = {
+                "responseType": "ERROR",
+                "msg": cluster_id[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+        cluster_id = cluster_id[0]
+
+        wcp_status = isWcpEnabled(cluster_id, jsonspec)
+        if wcp_status[0]:
+            endpoint_ip = wcp_status[1]['api_server_cluster_endpoint']
+        else:
+            logger.error("WCP not enabled on given cluster - " + cluster)
+
+        logger.info("Setting up kubectl vsphere plugin...")
+        configure_kubectl = configureKubectl(endpoint_ip)
+        if configure_kubectl[1] != 200:
+            d = {
+                "responseType": "ERROR",
+                "msg": configure_kubectl[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+        logger.info("logging into cluster - " + endpoint_ip)
+        os.putenv("KUBECTL_VSPHERE_PASSWORD", password)
+        connect_command = ["kubectl", "vsphere", "login", "--server=" + endpoint_ip,
+                           "--vsphere-username=" + vcenter_username,
+                           "--insecure-skip-tls-verify"]
+        output = runShellCommandAndReturnOutputAsList(connect_command)
+        if output[1] != 0:
+            logger.error("Failed while connecting to Supervisor Cluster ")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed while connecting to Supervisor Cluster",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        switch_context = ["kubectl", "config", "use-context", endpoint_ip]
+        output = runShellCommandAndReturnOutputAsList(switch_context)
+        if output[1] != 0:
+            logger.error("Failed to use context " + str(output[0]))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to use context " + str(output[0]),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+        get_versions_command = ["kubectl", "get", "tkr"]
+        versions_output = runShellCommandAndReturnOutputAsList(get_versions_command)
+        if versions_output[1] != 0:
+            logger.error("Failed to fetch cluster versions " + str(versions_output[0]))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to fetch cluster versions " + str(versions_output[0]),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+        return versions_output[0], 200
+    except Exception as e:
+        logger.error("Exception occurred while fetching cluster versions list - " + str(e))
+        d = {
+            "responseType": "ERROR",
+            "msg": "Exception occurred while fetching cluster versions list- " + str(e),
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+
+
+def checkClusterVersionCompatibility(vc_ip, vc_user, vc_password, cluster_name, version, jsonspec):
+    cluster_versions = getClusterVersionsFullList(vc_ip, vc_user, vc_password, cluster_name, jsonspec)
+    if cluster_versions[1] != 200:
+        return False, cluster_versions[0]
+    else:
+        for entry in cluster_versions[0]:
+            value_list = entry.split()
+            if value_list[1] == version[1:]:
+                if (value_list[2] and value_list[3]) == "True":
+                    return True, "VERSION_FOUND"
+                else:
+                    return False, "Incompatible cluster version provided for workload creation - " + version
+        else:
+            return False, "Provided version not found in cluster versions list - " + version

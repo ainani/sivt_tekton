@@ -34,9 +34,9 @@ from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, \
     getCloudStatus, seperateNetmaskAndIp, getSECloudStatus, getSeNewBody, getVrfAndNextRoutId, \
     addStaticRoute, getVipNetworkIpNetMask, getClusterStatusOnTanzu, runSsh, checkenv, \
     switchToManagementContext, getClusterID, getPolicyID, \
-    convertStringToCommaSeperated, cidr_to_netmask, getCountOfIpAdress, getDvPortGroupId, getLibraryId, getAviCertificate
+    convertStringToCommaSeperated, cidr_to_netmask, getCountOfIpAdress, getLibraryId, getAviCertificate
 from util.replace_value import generateVsphereConfiguredSubnets, replaceValueSysConfig
-from util.vcenter_operations import createResourcePool, create_folder
+from util.vcenter_operations import createResourcePool, create_folder, getDvPortGroupId
 from util.ShellHelper import runProcess, runShellCommandAndReturnOutputAsList, verifyPodsAreRunning
 from util.oidc_helper import checkEnableIdentityManagement, checkPinnipedInstalled, checkPinnipedServiceStatus, \
     checkPinnipedDexServiceStatus, createRbacUsers
