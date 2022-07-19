@@ -26,7 +26,8 @@ from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, getCloudS
     installCertManagerAndContour, runSsh, checkenv, checkNameSpaceRunningStatus, getClusterID, getPolicyID, \
     getLibraryId, getBodyResourceSpec, cidr_to_netmask, getCountOfIpAdress, seperateNetmaskAndIp, configureKubectl, \
     createClusterFolder, supervisorTMC, checkTmcEnabled, get_alias_name, convertStringToCommaSeperated, \
-    checkClusterVersionCompatibility
+    checkClusterVersionCompatibility, checkToEnabled, checkTSMEnabled, checkDataProtectionEnabled, \
+    enable_data_protection
 from util.ShellHelper import runShellCommandAndReturnOutput
 from util.avi_api_helper import isAviHaEnabled, obtain_second_csrf
 from workflows.ra_mgmt_cluster_workflow import RaMgmtClusterWorkflow
@@ -83,6 +84,24 @@ class RaWorkloadClusterWorkflow:
             raise Exception(msg)
         self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
         self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
+        self.get_vcenter_details()
+
+    def get_vcenter_details(self):
+        """
+        Method to get vCenter Details from JSON file
+        :return:
+        """
+        self.vcenter_dict = {}
+        self.vcenter_dict.update({'vcenter_ip': self.jsonspec['envSpec']['vcenterDetails']['vcenterAddress'],
+                                  'vcenter_password': CmdHelper.decode_base64(
+                                      self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']),
+                                  'vcenter_username': self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser'],
+                                  'vcenter_cluster_name': self.jsonspec['envSpec']['vcenterDetails']['vcenterCluster'],
+                                  'vcenter_datacenter': self.jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter'],
+                                  'vcenter_data_store': self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore'],
+                                  'vcenter_parent_resourcepool': self.jsonspec['envSpec']['vcenterDetails'][
+                                      'resourcePoolName']
+                                  })
 
     def get_desired_state_tkg_version(self):
         """
@@ -874,10 +893,10 @@ class RaWorkloadClusterWorkflow:
                 return json.dumps(d), 500
 
         logger.info('Starting Tanzu Observability Integration if enabled')
-        to_enable = self.jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"][
-            "tanzuObservabilityAvailability"]
+        # to_enable = self.jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"][
+        #     "tanzuObservabilityAvailability"]
         size = str(self.jsonspec['tkgWorkloadComponents']['tkgWorkloadSize'])
-        to = registerTanzuObservability(workload_cluster_name, to_enable, size, self.jsonspec)
+        to = registerTanzuObservability(workload_cluster_name, size, self.jsonspec)
         if to[1] != 200:
             logger.error(to[0].json['msg'])
             d = {
@@ -1104,6 +1123,128 @@ class RaWorkloadClusterWorkflow:
         }
 
         logger.info("Workload cluster configured Successfully")
+        return json.dumps(d), 200
+
+    # TKGs Code
+    def create_workload(self):
+        #pre = preChecks()
+        # if pre[1] != 200:
+        #     current_app.logger.error(pre[0].json['msg'])
+        #     d = {
+        #         "responseType": "ERROR",
+        #         "msg": pre[0].json['msg'],
+        #         "ERROR_CODE": 500
+        #     }
+        #     return jsonify(d), 500
+        # env = envCheck()
+        # if env[1] != 200:
+        #     current_app.logger.error("Wrong env provided " + env[0])
+        #     d = {
+        #         "responseType": "ERROR",
+        #         "msg": "Wrong env provided " + env[0],
+        #         "ERROR_CODE": 500
+        #     }
+        #     return jsonify(d), 500
+        # env = env[0]
+        vcenter_ip = self.vcenter_dict["vcenter_ip"]
+        vcenter_username = self.vcenter_dict["vcenter_username"]
+        password = self.vcenter_dict["vcenter_password"]
+        name_space = self.createTkgWorkloadCluster(vcenter_ip, vcenter_username, password)
+        if name_space[0] is None:
+            logger.error("Failed to create workload cluster " + str(name_space[1]))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to create workload cluster " + str(name_space[1]),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        logger.info("Successfully created workload cluster")
+        if checkTmcEnabled(self.jsonspec):
+            logger.info("Initiating TKGs SAAS integration")
+            size = self.jsonspec['tkgsComponentSpec']["tkgsVsphereNamespaceSpec"][
+                'tkgsVsphereWorkloadClusterSpec']['workerNodeCount']
+            workload_cluster_name = self.jsonspec['tkgsComponentSpec']["tkgsVsphereNamespaceSpec"][
+                'tkgsVsphereWorkloadClusterSpec']['tkgsVsphereWorkloadClusterName']
+            if checkToEnabled(self.jsonspec):
+                to = registerTanzuObservability(workload_cluster_name, size, self.jsonspec)
+                if to[1] != 200:
+                    logger.error(to[0])
+                    d = {
+                        "responseType": "SUCCESS",
+                        "msg": "TO registration failed for workload cluster",
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+            else:
+                logger.info("Tanzu Observability not enabled")
+            if checkTSMEnabled(self.jsonspec, self.isEnvTkgs_ns):
+                cluster_version = self.jsonspec['tkgsComponentSpec']["tkgsVsphereNamespaceSpec"][
+                    'tkgsVsphereWorkloadClusterSpec']['tkgsVsphereWorkloadClusterVersion']
+                if not cluster_version.startswith('v'):
+                    cluster_version = 'v' + cluster_version
+                if not cluster_version.startswith("v1.18.19+vmware.1"):
+                    logger.warn(
+                        "On vSphere with Tanzu platform, TSM supports the Kubernetes version 1.18.19+vmware.1")
+                    logger.warn("For latest updates please check - "
+                                            "https://docs.vmware.com/en/VMware-Tanzu-Service-Mesh/services/tanzu-service-mesh-environment-requirements-and-supported-platforms/GUID-D0B939BE-474E-4075-9A65-3D72B5B9F237.html")
+                tsm = registerTSM(workload_cluster_name, self.jsonspec, size)
+                if tsm[1] != 200:
+                    logger.error("TSM registration failed for workload cluster")
+                    d = {
+                        "responseType": "SUCCESS",
+                        "msg": "TSM registration failed for workload cluster",
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+            else:
+                logger.info("TSM not enabled")
+
+            if checkDataProtectionEnabled(self.jsonspec, "workload", self.isEnvTkgs_ns):
+                supervisor_cluster = self.jsonspec['envSpec']["saasEndpoints"]['tmcDetails'][
+                    'tmcSupervisorClusterName']
+                is_enabled = enable_data_protection(self.jsonspec, workload_cluster_name, supervisor_cluster,
+                                                    self.isEnvTkgs_ns)
+                if not is_enabled[0]:
+                    logger.error(is_enabled[1])
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": is_enabled[1],
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+                logger.info(is_enabled[1])
+            else:
+                logger.info("Data Protection is not enabled for cluster " + workload_cluster_name)
+        else:
+            logger.info("TMC not enabled.")
+
+        d = {
+            "responseType": "SUCCESS",
+            "msg": "Successfully created workload cluster",
+            "ERROR_CODE": 200
+        }
+        return json.dumps(d), 200
+
+    def create_name_space(self):
+        vcenter_ip = self.vcenter_dict["vcenter_ip"]
+        vcenter_username = self.vcenter_dict["vcenter_username"]
+        password = self.vcenter_dict["vcenter_password"]
+
+        name_space = self.createNameSpace(vcenter_ip, vcenter_username, password)
+        if name_space[0] is None:
+            logger.error("Failed to create name space " + str(name_space[1]))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to create name space " + str(name_space[1]),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        logger.info("Successfully created name space")
+        d = {
+            "responseType": "SUCCESS",
+            "msg": "Successfully created name space",
+            "ERROR_CODE": 200
+        }
         return json.dumps(d), 200
 
     def createTkgWorkloadCluster(self, vc_ip, vc_user, vc_password):

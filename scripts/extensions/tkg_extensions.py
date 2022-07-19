@@ -308,7 +308,7 @@ def monitoringDeployment(monitoringType, jsonspec):
                 return json.dumps(d), 500
             """
             env = "vsphere"
-            if checkToEnabled(env, jsonspec):
+            if checkToEnabled(jsonspec):
                 logger.info("Tanzu observability is enabled, skipping prometheus and grafana deployment")
                 d = {
                     "responseType": "SUCCESS",

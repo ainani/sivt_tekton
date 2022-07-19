@@ -48,19 +48,19 @@ spec:
       runAfter:
           - start-prep-workspace
 
-    - name: star-avi_wcp_configuration
-        taskRef:
-          name: dind-mgmt-create
-        workspaces:
-          - name: task-shared-data
-            workspace: pipeline-shared-data
-        params:
-          - name: imagename
-            value: "$(params.imagename)"
-          - name: imagepullpolicy
-            value: "$(params.imagepullpolicy)"
-        runAfter:
-          - start-avi
+    - name: star-avi-wcp-configuration
+      taskRef:
+        name: dind-mgmt-create
+      workspaces:
+        - name: task-shared-data
+          workspace: pipeline-shared-data
+      params:
+        - name: imagename
+          value: "$(params.imagename)"
+        - name: imagepullpolicy
+          value: "$(params.imagepullpolicy)"
+      runAfter:
+        - start-avi
 
     - name: start-enable-wcp
       taskRef:

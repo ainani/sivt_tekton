@@ -788,3 +788,13 @@ class TKG_Package_Details:
     STANDARD_PACKAGE_URL = "projects.registry.vmware.com/tkg/packages/standard/repo"
     REPOSITORY_URL = "projects.registry.vmware.com/tkg/packages/standard/repo:v1.5.4-update.1"
     NAMESPACE = "tanzu-package-repo-global"
+
+class VeleroAPI:
+    GET_ACCESS_TOKEN = "https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize?refresh_token={tmc_token}"
+    LIST_CLUSTER_GROUPS = "{tmc_url}v1alpha1/clustergroups"
+    LIST_CREDENTIALS = "{tmc_url}v1alpha1/account/credentials?search_scope.capability=DATA_PROTECTION"
+    LIST_BACKUP_LOCATIONS = "{tmc_url}v1alpha1/dataprotection/providers/tmc/backuplocations"
+    GET_LOCATION_INFO = "{tmc_url}v1alpha1/dataprotection/providers/tmc/backuplocations/{location}"
+    GET_CRED_INFO = "{tmc_url}v1alpha1/account/credentials/{credential}"
+    GET_CLUSTER_INFO = "{tmc_url}v1alpha1/clusters/{cluster}"
+    ENABLE_DP = "{tmc_url}v1alpha1/clusters/{cluster}/dataprotection"

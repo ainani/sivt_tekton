@@ -477,8 +477,8 @@ class RaSharedClusterWorkflow:
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
-        to_enable = self.jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"]["tanzuObservabilityAvailability"]
-        to = registerTanzuObservability(shared_cluster_name, to_enable, size, self.jsonspec)
+        #to_enable = self.jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"]["tanzuObservabilityAvailability"]
+        to = registerTanzuObservability(shared_cluster_name, size, self.jsonspec)
         if to[1] != 200:
             logger.error(to[0].json['msg'])
             return to[0], to[1]

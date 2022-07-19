@@ -383,8 +383,8 @@ def deploy_extensions(env, cluster_name, jsonspec):
             else:
                 logger.info(state[0].json['msg'])
 
-        to_enable = jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"]["tanzuObservabilityAvailability"]
-        if checkToEnabled(to_enable):
+        #to_enable = jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"]["tanzuObservabilityAvailability"]
+        if checkToEnabled(jsonspec):
             logger.info("Tanzu observability is enabled, skipping prometheus and grafana deployment")
             '''d = {
                 "responseType": "ERROR",

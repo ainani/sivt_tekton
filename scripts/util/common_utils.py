@@ -12,7 +12,7 @@ import base64
 import logging
 from constants.constants import Paths, ControllerLocation, KubernetesOva, MarketPlaceUrl, VrfType, \
     ClusterType, TmcUser, RegexPattern, SAS, AppName, UpgradeVersions, Repo, Env, Extentions, Tkg_Extention_names, \
-    Tkg_version, TKG_Package_Details, TKGCommands
+    Tkg_version, TKG_Package_Details, TKGCommands, VeleroAPI
 from util.extensions_helper import check_fluent_bit_http_endpoint_enabled, check_fluent_bit_splunk_endpoint_endpoint_enabled, \
     check_fluent_bit_syslog_endpoint_enabled, check_fluent_bit_elastic_search_endpoint_enabled, check_fluent_bit_kafka_endpoint_endpoint_enabled
 from util.logger_helper import LoggerHelper
@@ -1038,6 +1038,270 @@ def checkTmcRegister(cluster, ifManagement):
     except:
         return False
 
+def checkToEnabled(jsonspec):
+    to = jsonspec["saasEndpoints"]["tanzuObservabilityDetails"][
+        "tanzuObservabilityAvailability"]
+    if str(to).lower() == "true":
+        return True
+    else:
+        return False
+
+def checkTSMEnabled(jsonspec, isEnvTkgs_ns):
+    try:
+        if isEnvTkgs_ns:
+            isTsm = jsonspec['tkgsComponentSpec']["tkgsVsphereNamespaceSpec"]["tkgsVsphereWorkloadClusterSpec"]["tkgWorkloadTsmIntegration"]
+        else:
+            isTsm = jsonspec['tkgWorkloadComponents']['tkgWorkloadTsmIntegration']
+        if isTsm.lower() == "true":
+            return True
+        else:
+            return False
+    except Exception as e:
+        return False
+
+def checkDataProtectionEnabled(jsonspec, type, isEnvTkgs_ns):
+    """
+    Method supports only TKGs deployment.
+    """
+    is_enabled = "false"
+    if type == "shared":
+        is_enabled = jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                'tkgSharedserviceEnableDataProtection']
+    elif type == "workload":
+        if isEnvTkgs_ns:
+            is_enabled = jsonspec["tkgsComponentSpec"]["tkgsVsphereNamespaceSpec"][
+                "tkgsVsphereWorkloadClusterSpec"]["tkgsWorkloadEnableDataProtection"]
+    if is_enabled.lower() == "true":
+        return True
+    else:
+        return False
+
+def fetchTMCHeaders(jsonspec):
+    refreshToken = jsonspec['envSpec']['saasEndpoints']['tmcDetails']['tmcRefreshToken']
+    tmc_url = jsonspec['envSpec']['saasEndpoints']['tmcDetails']['tmcInstanceURL']
+
+    if not tmc_url or not refreshToken:
+        return None, "TMC details missing"
+
+    if not tmc_url.endswith("/"):
+        tmc_url = tmc_url + "/"
+
+    url = VeleroAPI.GET_ACCESS_TOKEN.format(tmc_token=refreshToken)
+    headers = {}
+    payload = {}
+    response_login = requests.request("POST", url, headers=headers, data=payload, verify=False)
+    if response_login.status_code != 200:
+        logger.error("TMC login failed using Refresh_Token - %s" % refreshToken)
+        return None, "TMC Login failed using Refresh_Token " + refreshToken
+
+    access_token = response_login.json()["access_token"]
+
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': access_token
+    }
+
+    return headers, tmc_url
+
+def isDataprotectionEnabled(tmc_url, headers, payload, cluster):
+    url = VeleroAPI.ENABLE_DP.format(tmc_url=tmc_url, cluster=cluster)
+    status = requests.request("GET", url, headers=headers, data=payload, verify=False)
+    try:
+        if status.status_code == 200:
+            if status.json()["dataProtections"][0]["status"]["phase"] == "READY":
+                return True
+            elif status.json()["dataProtections"][0]["status"]["phase"] == "ERROR":
+                logger.error("Data protection is enabled but its status is ERROR")
+                return True
+        else:
+            return False
+    except Exception as e:
+        return False
+
+def enable_data_protection(jsonspec, cluster, mgmt_cluster, isEnvTkgs_ns):
+    try:
+        tmc_header = fetchTMCHeaders(jsonspec)
+        if tmc_header[0] is None:
+            return False, tmc_header[1]
+
+        headers = tmc_header[0]
+        tmc_url = tmc_header[1]
+
+        logger.info("Enabling data protection on cluster " + cluster)
+        url = VeleroAPI.GET_CLUSTER_INFO.format(tmc_url=tmc_url, cluster=cluster)
+
+        if isEnvTkgs_ns:
+            provisionerName = jsonspec['tkgsComponentSpec']["tkgsVsphereNamespaceSpec"][
+                'tkgsVsphereWorkloadClusterSpec']['tkgsVsphereNamespaceName']
+        else:
+            provisionerName = "default"
+
+        payload = {
+            "full_name.managementClusterName": mgmt_cluster,
+            "full_name.provisionerName": provisionerName
+        }
+
+        response = requests.request("GET", url, headers=headers, params=payload, verify=False)
+        if response.status_code != 200:
+            logger.error(response.json())
+            return False, "Failed to fetch cluster details to enable data protection"
+
+        orgId = response.json()["cluster"]["fullName"]["orgId"]
+        url = VeleroAPI.ENABLE_DP.format(tmc_url=tmc_url, cluster=cluster)
+
+        payload = {
+            "dataProtection": {
+                "fullName": {
+                    "orgId": orgId,
+                    "managementClusterName": mgmt_cluster,
+                    "provisionerName": provisionerName,
+                    "clusterName": cluster
+                },
+                "spec": {
+                }
+            }
+        }
+
+        json_payload = json.dumps(payload, indent=4)
+
+        if not isDataprotectionEnabled(tmc_url, headers, json_payload, cluster):
+
+            enable_response = requests.request("POST", url, headers=headers, data=json_payload, verify=False)
+            if enable_response.status_code != 200:
+                logger.error(enable_response.json())
+                return False, "Failed to enable data protection on cluster " + cluster
+
+            count = 0
+            enabled = False
+
+            status = requests.request("GET", url, headers=headers, data=json_payload, verify=False)
+            try:
+                if status.json()["dataProtections"][0]["status"]["phase"] == "READY":
+                    enabled = True
+                else:
+                    logger.info("Waiting for data protection enablement to complete...")
+            except:
+                pass
+
+            while count < 90 and not enabled:
+                status = requests.request("GET", url, headers=headers, data=json_payload, verify=False)
+                if status.json()["dataProtections"][0]["status"]["phase"] == "READY":
+                    enabled = True
+                    break
+                elif status.json()["dataProtections"][0]["status"]["phase"] == "ERROR":
+                    logger.error("Data protection is enabled but its status is ERROR")
+                    enabled = True
+                    break
+                else:
+                    logger.info("Data protection status "
+                                            + status.json()["dataProtections"][0]["status"]["phase"])
+                    logger.info("Waited for " + str(count * 10) + "s, retrying...")
+                    time.sleep(10)
+                    count = count + 1
+
+            if not enabled:
+                logger.error("Data protection not enabled even after " + str(count * 10) + "s wait")
+                return False, "Timed out waiting for data protection to be enabled"
+            else:
+                return True, "Data protection on cluster " + cluster + " enabled successfully"
+        else:
+            return True, "Data protection is already enabled on cluster " + cluster
+    except Exception as e:
+        logger.error(str(e))
+        return False, "Exception enabled while enabling data protection on cluster"
+
+def enable_data_protection(jsonspec, cluster, mgmt_cluster, isEnvTkgs_ns):
+    try:
+        tmc_header = fetchTMCHeaders(jsonspec)
+        if tmc_header[0] is None:
+            return False, tmc_header[1]
+
+        headers = tmc_header[0]
+        tmc_url = tmc_header[1]
+
+        logger.info("Enabling data protection on cluster " + cluster)
+        url = VeleroAPI.GET_CLUSTER_INFO.format(tmc_url=tmc_url, cluster=cluster)
+
+        if isEnvTkgs_ns:
+            provisionerName = jsonspec['tkgsComponentSpec']["tkgsVsphereNamespaceSpec"][
+                'tkgsVsphereWorkloadClusterSpec']['tkgsVsphereNamespaceName']
+        else:
+            provisionerName = "default"
+
+        payload = {
+            "full_name.managementClusterName": mgmt_cluster,
+            "full_name.provisionerName": provisionerName
+        }
+
+        response = requests.request("GET", url, headers=headers, params=payload, verify=False)
+        if response.status_code != 200:
+            logger.error(response.json())
+            return False, "Failed to fetch cluster details to enable data protection"
+
+        orgId = response.json()["cluster"]["fullName"]["orgId"]
+        url = VeleroAPI.ENABLE_DP.format(tmc_url=tmc_url, cluster=cluster)
+
+        payload = {
+            "dataProtection": {
+                "fullName": {
+                    "orgId": orgId,
+                    "managementClusterName": mgmt_cluster,
+                    "provisionerName": provisionerName,
+                    "clusterName": cluster
+                },
+                "spec": {
+                }
+            }
+        }
+
+        json_payload = json.dumps(payload, indent=4)
+
+        if not isDataprotectionEnabled(tmc_url, headers, json_payload, cluster):
+
+            enable_response = requests.request("POST", url, headers=headers, data=json_payload, verify=False)
+            if enable_response.status_code != 200:
+                logger.error(enable_response.json())
+                return False, "Failed to enable data protection on cluster " + cluster
+
+            count = 0
+            enabled = False
+
+            status = requests.request("GET", url, headers=headers, data=json_payload, verify=False)
+            try:
+                if status.json()["dataProtections"][0]["status"]["phase"] == "READY":
+                    enabled = True
+                else:
+                    logger.info("Waiting for data protection enablement to complete...")
+            except:
+                pass
+
+            while count < 90 and not enabled:
+                status = requests.request("GET", url, headers=headers, data=json_payload, verify=False)
+                if status.json()["dataProtections"][0]["status"]["phase"] == "READY":
+                    enabled = True
+                    break
+                elif status.json()["dataProtections"][0]["status"]["phase"] == "ERROR":
+                    logger.error("Data protection is enabled but its status is ERROR")
+                    enabled = True
+                    break
+                else:
+                    logger.info("Data protection status "
+                                            + status.json()["dataProtections"][0]["status"]["phase"])
+                    logger.info("Waited for " + str(count * 10) + "s, retrying...")
+                    time.sleep(10)
+                    count = count + 1
+
+            if not enabled:
+                logger.error("Data protection not enabled even after " + str(count * 10) + "s wait")
+                return False, "Timed out waiting for data protection to be enabled"
+            else:
+                return True, "Data protection on cluster " + cluster + " enabled successfully"
+        else:
+            return True, "Data protection is already enabled on cluster " + cluster
+    except Exception as e:
+        logger.error(str(e))
+        return False, "Exception enabled while enabling data protection on cluster"
+
 def registerWithTmcOnSharedAndWorkload(jsonspec, clusterName, cls_type):
     try:
 
@@ -1086,14 +1350,14 @@ def registerWithTmcOnSharedAndWorkload(jsonspec, clusterName, cls_type):
         }
         return json.dumps(d), 200
 
-def checkToEnabled(to_enable):
-    try:
-        if str(to_enable).lower() == "true":
-            return True
-        else:
-            return False
-    except:
-        return False
+# def checkToEnabled(to_enable):
+#     try:
+#         if str(to_enable).lower() == "true":
+#             return True
+#         else:
+#             return False
+#     except:
+#         return False
 
 def getManagementCluster():
     try:
@@ -1745,10 +2009,9 @@ def registerTSM(cluster_name, jsonspec, size):
         }
         return json.dumps(d), 500
 
-def registerTanzuObservability(cluster_name, to_enable, size, jsonspec):
+def registerTanzuObservability(cluster_name, size, jsonspec):
     try:
-
-        if checkToEnabled(to_enable):
+        if checkToEnabled(jsonspec):
             if size.lower() == "medium" or size.lower() == "small":
                 d = {
                     "responseType": "ERROR",

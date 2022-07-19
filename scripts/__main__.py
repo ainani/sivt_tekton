@@ -137,6 +137,17 @@ def wl_upgrade(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
     RaWorkloadUpgradeWorkflow(run_config).upgrade_workflow()
 
+@workload_clusters.command(name="tkgs_wl")
+@click.pass_context
+def tkgs_workload(ctx):
+    run_config = load_run_config(ctx.obj["ROOT_DIR"])
+    RaWorkloadClusterWorkflow(run_config).create_workload()
+
+@workload_clusters.command(name="tkgs_ns")
+@click.pass_context
+def tkgs_namespace(ctx):
+    run_config = load_run_config(ctx.obj["ROOT_DIR"])
+    RaWorkloadClusterWorkflow(run_config).create_name_space()
 
 @cli.group()
 @click.pass_context
