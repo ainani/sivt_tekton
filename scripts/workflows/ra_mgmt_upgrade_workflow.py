@@ -30,6 +30,21 @@ class RaMgmtUpgradeWorkflow:
             msg = "Failed to connect to VC. Possible connection to VC is not available or " \
                   "incorrect spec provided."
             raise Exception(msg)
+        self.desired_state_tkg_version = None
+        self.get_desired_state_tkg_version()
+
+    def get_desired_state_tkg_version(self):
+        """
+        Method to get desired state TKG version
+        """
+        desired_state_tkg_type = ''.join([attr for attr in dir(self.run_config.desired_state.version) if "tkg" in attr])
+        self.desired_state_tkg_version = None
+        if desired_state_tkg_type == "tkgm":
+            self.desired_state_tkg_version = self.run_config.desired_state.version.tkgm
+        elif desired_state_tkg_type == "tkgs":
+            self.desired_state_tkg_version = self.run_config.desired_state.version.tkgs
+        else:
+            raise f"Invalid TKG type in desired state YAML file: {desired_state_tkg_type}"
 
     def upgrade_workflow(self):
         try:
@@ -42,7 +57,7 @@ class RaMgmtUpgradeWorkflow:
             if not any(k in version for k in self.run_config.support_matrix["matrix"].keys()):
                 raise EnvironmentError(f"Tanzu cli version unsupported. \n{version}")
 
-            if self.run_config.desired_state.version.tkg not in version:
+            if self.desired_state_tkg_version not in version:
 
                 # Proceed to download the binaries.
                 refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']

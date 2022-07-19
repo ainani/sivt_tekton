@@ -33,6 +33,21 @@ class TanzuUtils:
         FileHelper.make_parent_dirs(self.repo_kube_tkg_config)
         FileHelper.make_parent_dirs(self.repo_tanzu_config)
         FileHelper.make_parent_dirs(self.repo_tanzu_config_new)
+        self.desired_state_tkg_version = None
+        self.get_desired_state_tkg_version()
+
+    def get_desired_state_tkg_version(self):
+        """
+        Method to get desired state TKG version
+        """
+        desired_state_tkg_type = ''.join([attr for attr in dir(self.desired_state.version) if "tkg" in attr])
+        self.desired_state_tkg_version = None
+        if desired_state_tkg_type == "tkgm":
+            self.desired_state_tkg_version = self.desired_state.version.tkgm
+        elif desired_state_tkg_type == "tkgs":
+            self.desired_state_tkg_version = self.desired_state.version.tkgs
+        else:
+            raise f"Invalid TKG type in desired state YAML file: {desired_state_tkg_type}"
 
     def pull_config(self):
 
@@ -61,7 +76,7 @@ class TanzuUtils:
         self.runcmd.local_file_copy(remote_kube_config, self.repo_kube_tkg_config)
 
     def pull_tanzu_config(self):
-        if self.desired_state.version.tkg >= '1.4.0':
+        if self.desired_state_tkg_version >= '1.4.0':
             remote_tanzu_config_new = Paths.REMOTE_TANZU_CONFIG_NEW
             try:
                 self.runcmd.run_cmd_only(f"ls {remote_tanzu_config_new}")
@@ -92,12 +107,12 @@ class TanzuUtils:
         self.runcmd.local_file_copy(self.repo_kube_config, Paths.REMOTE_KUBE_CONFIG)
         # cp_cmd = "cp {} {}".format(self.repo_kube_config, Paths.REMOTE_KUBE_CONFIG)
         # subprocess.run(cp_cmd)
-        if self.desired_state.version.tkg >= '1.4.0' and not self.state.shared_services.upgradedFrom:
+        if self.desired_state_tkg_version >= '1.4.0' and not self.state.shared_services.upgradedFrom:
             # cp_cmd = "cp {} {}".format(self.repo_tanzu_config_new, Paths.REMOTE_TANZU_CONFIG_NEW)
             self.runcmd.local_file_copy(self.repo_tanzu_config_new, Paths.REMOTE_TANZU_CONFIG_NEW)
             # subprocess.run(cp_cmd)
             # ssh.copy_file(self.repo_tanzu_config_new, Paths.REMOTE_TANZU_CONFIG_NEW)
-        # elif self.desired_state.version.tkg == '1.4.0':
+        # elif self.desired_state_tkg_version== '1.4.0':
         #     ssh.copy_file(self.repo_tanzu_config, Paths.REMOTE_TANZU_CONFIG_NEW)
         # else:
         #     # For versions 1.3.0 and 1.3.1

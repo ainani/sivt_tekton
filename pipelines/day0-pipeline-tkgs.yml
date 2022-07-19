@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: day0-pipeline
+  name: day0-pipeline-tkgs
 spec:
   description: >-
     The Pipline to run e2e TKG 1.4.x bringup on vSphere DVS Internet Lab.
@@ -48,9 +48,23 @@ spec:
       runAfter:
           - start-prep-workspace
 
-    - name: start-workload-cluster
+    - name: star-avi_wcp_configuration
+        taskRef:
+          name: dind-mgmt-create
+        workspaces:
+          - name: task-shared-data
+            workspace: pipeline-shared-data
+        params:
+          - name: imagename
+            value: "$(params.imagename)"
+          - name: imagepullpolicy
+            value: "$(params.imagepullpolicy)"
+        runAfter:
+          - start-avi
+
+    - name: start-enable-wcp
       taskRef:
-        name: dind-wld-create
+        name: enable-wcp
       workspaces:
           - name: task-shared-data
             workspace: pipeline-shared-data
@@ -60,7 +74,7 @@ spec:
         - name: imagepullpolicy
           value: "$(params.imagepullpolicy)"
       runAfter:
-            - start-shared-cluster-create
+            - start-mgmt-create
     
     - name: start-extns-deploy
       taskRef:

@@ -29,8 +29,23 @@ class EnvValidator:
             os.path.join(self.root_dir, Paths.DESIRED_STATE_PATH)
         )
         self.support_matrix = yaml.safe_load(FileHelper.read_resource(Paths.SUPPORT_MATRIX_FILE))
-        self.version_matrix = self.support_matrix["matrix"][self.desired_state.version.tkg]
         self.state: State = FileHelper.load_state(os.path.join(self.root_dir, Paths.STATE_PATH))
+        self.desired_state_tkg_version = None
+        self.get_desired_state_tkg_version()
+        self.version_matrix = self.support_matrix["matrix"][self.desired_state_tkg_version]
+
+    def get_desired_state_tkg_version(self):
+        """
+        Method to get desired state TKG version
+        """
+        desired_state_tkg_type = ''.join([attr for attr in dir(self.desired_state.version) if "tkg" in attr])
+        self.desired_state_tkg_version = None
+        if desired_state_tkg_type == "tkgm":
+            self.desired_state_tkg_version = self.desired_state.version.tkgm
+        elif desired_state_tkg_type == "tkgs":
+            self.desired_state_tkg_version = self.desired_state.version.tkgs
+        else:
+            raise f"Invalid TKG type in desired state YAML file: {desired_state_tkg_type}"
 
     def validate_all(self):
         with SshHelper(self.bootstrap.server, self.bootstrap.username,
@@ -48,9 +63,9 @@ class EnvValidator:
         if not any(k in version for k in self.support_matrix["matrix"].keys()):
             raise EnvironmentError(f"Tanzu cli version unsupported. \n{version}")
 
-        if self.desired_state.version.tkg not in version:
+        if self.desired_state_tkg_version not in version:
             raise ValueError(
-                f"Desired state version({self.desired_state.version.tkg}) and tanzu cli version  does not match"
+                f"Desired state version({self.desired_state_tkg_version}) and tanzu cli version  does not match"
             )
 
     def validate_tools(self, ssh: SshHelper):
@@ -58,7 +73,7 @@ class EnvValidator:
             self.get_tool_version(ssh, tool)
 
     def validate_extension_dir(self, ssh: SshHelper):
-        versions = [self.desired_state.version.tkg]
+        versions = [self.desired_state_tkg_version]
         if self.state.shared_services.deployed:
             versions.append(self.state.shared_services.version)
         for version in versions:
@@ -95,7 +110,7 @@ class EnvValidator:
         load_node_template(self.spec)
 
     def prepare_host_env(self):
-        tkg_version = self.desired_state.version.tkg
+        tkg_version = self.desired_state_tkg_version
         with SshHelper(self.bootstrap.server, self.bootstrap.username,
                        CmdHelper.decode_password(self.bootstrap.password),
                        self.spec.onDocker) as ssh:
@@ -146,7 +161,7 @@ class EnvValidator:
         logger.info("Completed environment cleanup and setup.")
 
     def prepare_docker_env(self):
-        tkg_version = self.desired_state.version.tkg
+        tkg_version = self.desired_state_tkg_version
         with SshHelper(self.bootstrap.server, self.bootstrap.username,
                        CmdHelper.decode_password(self.bootstrap.password),
                        self.spec.onDocker) as ssh:

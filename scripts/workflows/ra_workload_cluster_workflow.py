@@ -47,7 +47,9 @@ logger = LoggerHelper.get_logger(Path(__file__).stem)
 class RaWorkloadClusterWorkflow:
     def __init__(self, run_config: RunConfig):
         self.run_config = run_config
-        self.extensions_root = TKG_EXTENSIONS_ROOT[self.run_config.desired_state.version.tkg]
+        self.desired_state_tkg_version = None
+        self.get_desired_state_tkg_version()
+        self.extensions_root = TKG_EXTENSIONS_ROOT[self.desired_state_tkg_version]
         self.extensions_dir = Paths.TKG_EXTENSIONS_DIR.format(extensions_root=self.extensions_root)
         self.cluster_to_deploy = None
         self.tkg_cli_client = TkgCliClient()
@@ -81,6 +83,19 @@ class RaWorkloadClusterWorkflow:
             raise Exception(msg)
         self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
         self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
+
+    def get_desired_state_tkg_version(self):
+        """
+        Method to get desired state TKG version
+        """
+        desired_state_tkg_type = ''.join([attr for attr in dir(self.run_config.desired_state.version) if "tkg" in attr])
+        self.desired_state_tkg_version = None
+        if desired_state_tkg_type == "tkgm":
+            self.desired_state_tkg_version = self.run_config.desired_state.version.tkgm
+        elif desired_state_tkg_type == "tkgs":
+            self.desired_state_tkg_version = self.run_config.desired_state.version.tkgs
+        else:
+            raise f"Invalid TKG type in desired state YAML file: {desired_state_tkg_type}"
 
     def createAkoFile(self, ip, wipCidr, tkgMgmtDataPg):
 

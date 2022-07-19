@@ -39,7 +39,9 @@ logger = LoggerHelper.get_logger(Path(__file__).stem)
 class RaSharedClusterWorkflow:
     def __init__(self, run_config: RunConfig):
         self.run_config = run_config
-        self.extensions_root = TKG_EXTENSIONS_ROOT[self.run_config.desired_state.version.tkg]
+        self.desired_state_tkg_version = None
+        self.get_desired_state_tkg_version()
+        self.extensions_root = TKG_EXTENSIONS_ROOT[self.desired_state_tkg_version]
         self.extensions_dir = Paths.TKG_EXTENSIONS_DIR.format(extensions_root=self.extensions_root)
         # Specifies current running version as per state.yml
         self.current_version = self.run_config.state.shared_services.version
@@ -61,6 +63,19 @@ class RaSharedClusterWorkflow:
                   "incorrect spec provided."
             raise Exception(msg)
 
+    def get_desired_state_tkg_version(self):
+        """
+        Method to get desired state TKG version
+        """
+        desired_state_tkg_type = ''.join([attr for attr in dir(self.run_config.desired_state.version) if "tkg" in attr])
+        self.desired_state_tkg_version = None
+        if desired_state_tkg_type == "tkgm":
+            self.desired_state_tkg_version = self.run_config.desired_state.version.tkgm
+        elif desired_state_tkg_type == "tkgs":
+            self.desired_state_tkg_version = self.run_config.desired_state.version.tkgs
+        else:
+            raise f"Invalid TKG type in desired state YAML file: {desired_state_tkg_type}"
+
     def _template_deploy_yaml(self):
         deploy_yaml = FileHelper.read_resource(Paths.VSPHERE_SHARED_SERVICES_SPEC_J2)
         t = Template(deploy_yaml)
@@ -74,12 +89,12 @@ class RaSharedClusterWorkflow:
         if task == Task.DEPLOY_CLUSTER:
             state.shared_services.deployed = True
             state.shared_services.name = self.cluster_to_deploy
-            state.shared_services.version = self.run_config.desired_state.version.tkg
+            state.shared_services.version = self.desired_state_tkg_version
             state.shared_services.health = HealthEnum.UP
         elif task == Task.UPGRADE_CLUSTER:
             ext_state = ExtensionState(deployed=True, upgraded=False)
             state.shared_services.upgradedFrom = state.shared_services.version
-            state.shared_services.version = self.run_config.desired_state.version.tkg
+            state.shared_services.version = self.desired_state_tkg_version
             state.shared_services.name = self.cluster_to_deploy
             state.shared_services.health = HealthEnum.UP
             state.shared_services.extensions = SharedExtensionState(certManager=ext_state,
