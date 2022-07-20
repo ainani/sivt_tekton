@@ -296,6 +296,22 @@ function deploy_bringup() {
   fi
 
 
+function deploy_tkgs_bringup() {
+  echo "Checking path for bringup.."
+  DIRECTORY="resources"
+  if [ ! -d "$DIRECTORY" ]; then
+    echo "Unable to locate resource directory. Please execute script from tekton root directory"
+    exit 1
+
+  else
+    ytt -f templates/git-user-pass-template.yaml -f values.yaml > resources/secret.yaml
+    ytt -f templates/day0-pipeline-tkgs-run-template.yaml -f values.yaml > run/day0-bringup-tkgs.yml
+    echo -e "\nApplying resources and pipelines"
+    kubectl apply -f resources/ -f tasks/ -f pipelines/
+    echo -e "\nStarting the pipeline"
+    kubectl create -f run/day0-bringup-tkgs.yml
+  fi
+
 }
 function deploy_pipeline() {
   pipelineFiles=("${@}")
@@ -343,6 +359,10 @@ function main() {
         deployBringUp=true
         shift 1
         ;;
+      --exec-tkgs-day0)
+        deployTkgsBringUp=true
+        shift 1
+        ;;
       --exec-upgrade-mgmt)
         executeMgmtUpgrade=true
         shift 1
@@ -377,6 +397,9 @@ function main() {
   fi
   if [ "${deployBringUp}" == "true" ]; then
     deploy_bringup
+  fi
+  if [ "${deployTkgsBringUp}" == "true" ]; then
+    deploy_tkgs_bringup
   fi
   if [ "${executeUpgrade}" == "true" ]; then
     execute_upgrade

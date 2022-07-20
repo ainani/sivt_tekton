@@ -65,9 +65,8 @@ class RaWorkloadClusterWorkflow:
         self.prev_extensions_dir = None
         self.tkg_type = ''.join([attr for attr in dir(self.run_config.desired_state.version) if "tkg" in attr])
         if "tkgs" in self.tkg_type:
-            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_WCP_MASTER_SPEC_PATH)
-            # self.ns_jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_NS_MASTER_SPEC_PATH)
-        elif "tkg" in self.tkg_type:
+            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_NS_MASTER_SPEC_PATH)
+        elif "tkgm" in self.tkg_type:
             self.jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
         else:
             raise Exception(f"Could not find supported TKG version: {self.tkg_type}")
