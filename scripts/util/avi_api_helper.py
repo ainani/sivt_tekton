@@ -11,7 +11,7 @@ import requests
 import urllib3
 from util.ShellHelper import runProcess
 from constants.api_payloads import AlbPayload
-from constants.constants import ControllerLocation, MarketPlaceUrl, AviSize, CertName, Avi_Version, Versions
+from constants.constants import ControllerLocation, MarketPlaceUrl, AviSize, CertName, Avi_Version, Avi_Tkgs_Version, Versions
 from constants.alb_api_constants import AlbPayload, AlbEndpoint
 from util.cmd_helper import CmdHelper
 from util.logger_helper import LoggerHelper
@@ -1076,9 +1076,9 @@ def deployAndConfigureAvi(govc_client: GovcClient, vm_name, controller_ova_locat
         return False
     avi_version = deployed_avi_version[0]
     if TkgUtil.isEnvTkgs_wcp(jsonspec) and verifyVcenterVersion(Versions.VCENTER_UPDATE_THREE, jsonspec):
-        avi_required = Avi_Version.AVI_VERSION_UPDATE_THREE
+        avi_required = Avi_Tkgs_Version.AVI_VERSION_UPDATE_THREE
     elif TkgUtil.isEnvTkgs_wcp(jsonspec) and not verifyVcenterVersion(Versions.VCENTER_UPDATE_THREE, jsonspec):
-        avi_required = Avi_Version.AVI_VERSION_UPDATE_TWO
+        avi_required = Avi_Tkgs_Version.AVI_VERSION_UPDATE_TWO
     else:
         avi_required = Avi_Version.VSPHERE_AVI_VERSION
     if str(avi_version) != avi_required:

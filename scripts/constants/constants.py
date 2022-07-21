@@ -746,6 +746,12 @@ class Avi_Version:
     AVI_VERSION_UPDATE_THREE = "21.1.4"
     AVI_VERSION_UPDATE_TWO = "21.1.4"
 
+class Avi_Tkgs_Version:
+    VSPHERE_AVI_VERSION = "20.1.7"
+    VMC_AVI_VERSION = "20.1.7"
+    AVI_VERSION_UPDATE_THREE = "20.1.7"
+    AVI_VERSION_UPDATE_TWO = "20.1.7"
+
 class Tkg_version:
     TKG_VERSION = "1.5"
     TAG = "v1.5.4"
