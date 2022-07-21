@@ -35,9 +35,9 @@ from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, \
     addStaticRoute, getVipNetworkIpNetMask, getClusterStatusOnTanzu, runSsh, checkenv, \
     switchToManagementContext, getClusterID, getPolicyID, \
     convertStringToCommaSeperated, cidr_to_netmask, getCountOfIpAdress, getLibraryId, getAviCertificate, \
-    checkTmcEnabled, createSubscribedLibrary, checkAndWaitForAllTheServiceEngineIsUp, configureKubectl
+    checkTmcEnabled, createSubscribedLibrary, checkAndWaitForAllTheServiceEngineIsUp, configureKubectl, registerTMCTKGs
 from util.replace_value import generateVsphereConfiguredSubnets, replaceValueSysConfig, \
-    generateVsphereConfiguredSubnetsForSe, registerTMCTKGs
+    generateVsphereConfiguredSubnetsForSe
 from util.vcenter_operations import createResourcePool, create_folder, getDvPortGroupId, checkforIpAddress, getSi
 from util.ShellHelper import runProcess, runShellCommandAndReturnOutputAsList, verifyPodsAreRunning
 from util.oidc_helper import checkEnableIdentityManagement, checkPinnipedInstalled, checkPinnipedServiceStatus, \
