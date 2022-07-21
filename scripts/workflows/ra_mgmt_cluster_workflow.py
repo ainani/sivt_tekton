@@ -22,7 +22,7 @@ from util.file_helper import FileHelper
 from util.git_helper import Git
 from util.govc_helper import get_alb_ip_address
 from util.logger_helper import LoggerHelper, log
-from util.avi_api_helper import isAviHaEnabled, obtain_second_csrf
+from util.avi_api_helper import isAviHaEnabled, obtain_second_csrf, obtain_avi_version
 from util.ssh_helper import SshHelper
 from util.ssl_helper import get_base64_cert
 from util.tanzu_utils import TanzuUtils
@@ -1270,6 +1270,16 @@ class RaMgmtClusterWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
+        deployed_avi_version = obtain_avi_version(ip, self.jsonspec)
+        if deployed_avi_version[0] is None:
+            logger.error("Failed to login and obtain avi version" + str(deployed_avi_version[1]))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to login and obtain avi version " + deployed_avi_version[1],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        aviVersion = deployed_avi_version[0]
         default = self.waitForCloudPlacementReady(ip, csrf2, "Default-Cloud", aviVersion)
         if default[0] is None:
             logger.error("Failed to get default cloud status")
@@ -1324,7 +1334,8 @@ class RaMgmtClusterWorkflow:
                 for i in tqdm(range(60), desc="Waiting…", ascii=False, ncols=75):
                     time.sleep(1)
                 mgmt_pg = self.jsonspec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkName']
-                get_management = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion)
+                get_management = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion,
+                                                    cloudName=Cloud.DEFAULT_CLOUD_NAME_VSPHERE)
                 if get_management[0] is None:
                     logger.error("Failed to get management network " + str(get_management[1]))
                     d = {
@@ -1444,7 +1455,7 @@ class RaMgmtClusterWorkflow:
                         return json.dumps(d), 500
                 mgmt_pg = self.jsonspec['tkgComponentSpec']['tkgClusterVipNetwork'][
                     'tkgClusterVipNetworkName']
-                get_vip = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion)
+                get_vip = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion, cloudName=Cloud.DEFAULT_CLOUD_NAME_VSPHERE)
                 if get_vip[0] is None:
                     d = {
                         "responseType": "ERROR",
