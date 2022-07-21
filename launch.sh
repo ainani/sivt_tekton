@@ -7,6 +7,7 @@ function usage() {
   echo "    --create-cluster    Create a cluster, using kind."
   echo "    --deploy-dashboard  Deploy the Tekton dashboard as well."
   echo "    --exec-day0         To trigger day0 pipline, bringup of TKGM"
+  echo "    --exec-tkgs-day0         To trigger day0 pipline, bringup of TKGS"
   echo "    --exec-upgrade-mgmt To trigger upgrade of mgmt cluster"
   echo "    --exec-upgrade-all To trigger upgrade of all clusters"
   echo "    <pipeline.yaml,...> The paths to Tekton pipeline files (can be a local files or URLs)"
@@ -294,7 +295,7 @@ function deploy_bringup() {
     echo -e "\nStarting the pipeline"
     kubectl create -f run/day0-bringup.yml
   fi
-
+}
 
 function deploy_tkgs_bringup() {
   echo "Checking path for bringup.."

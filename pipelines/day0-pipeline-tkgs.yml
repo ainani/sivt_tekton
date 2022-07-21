@@ -4,7 +4,7 @@ metadata:
   name: day0-pipeline-tkgs
 spec:
   description: >-
-    The Pipline to run e2e TKG 1.4.x bringup on vSphere DVS Internet Lab.
+    The Pipline to run e2e TKGs 1.4.x bringup on vSphere DVS Internet Lab.
   workspaces:
     - name: pipeline-shared-data
   params:
@@ -74,7 +74,7 @@ spec:
         - name: imagepullpolicy
           value: "$(params.imagepullpolicy)"
       runAfter:
-            - start-mgmt-create
+            - star-avi-wcp-configuration
     
     - name: start-extns-deploy
       taskRef:
@@ -88,7 +88,7 @@ spec:
         - name: imagepullpolicy
           value: "$(params.imagepullpolicy)"
       runAfter:
-            - start-shared-cluster-create
+            - start-enable-wcp
 
   finally:
       - name: gitcommit
