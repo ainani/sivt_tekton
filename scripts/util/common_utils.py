@@ -17,7 +17,7 @@ from util.extensions_helper import check_fluent_bit_http_endpoint_enabled, check
     check_fluent_bit_syslog_endpoint_enabled, check_fluent_bit_elastic_search_endpoint_enabled, check_fluent_bit_kafka_endpoint_endpoint_enabled
 from util.logger_helper import LoggerHelper
 import requests
-from util.avi_api_helper import getProductSlugId
+from util.avi_api_helper import getProductSlugId, obtain_second_csrf
 from util.replace_value import replaceValueSysConfig, replaceValue
 from util.file_helper import FileHelper
 from util.ShellHelper import runShellCommandAndReturnOutput, runShellCommandAndReturnOutputAsList,\
@@ -27,6 +27,7 @@ from util.cmd_runner import RunCmd
 import time
 from jinja2 import Template
 import yaml
+from yaml import SafeLoader
 from ruamel import yaml as ryaml
 from datetime import datetime
 from util.vcenter_operations import createResourcePool, create_folder
@@ -2929,3 +2930,193 @@ def checkClusterVersionCompatibility(vc_ip, vc_user, vc_password, cluster_name, 
                     return False, "Incompatible cluster version provided for workload creation - " + version
         else:
             return False, "Provided version not found in cluster versions list - " + version
+
+def checkAndWaitForAllTheServiceEngineIsUp(ip, clodName, jsonspec, aviVersion):
+    avienc_pass = str(jsonspec['tkgsComponentSpec']['aviComponents']['aviPasswordBase64'])
+    csrf2 = obtain_second_csrf(ip, avienc_pass)
+    if csrf2 is None:
+        logger.error("Failed to get csrf from new set password")
+        return None, "Failed to get csrf from new set password"
+    with open("./newCloudInfo.json", 'r') as file2:
+        new_cloud_json = json.load(file2)
+    uuid = None
+    try:
+        uuid = new_cloud_json["uuid"]
+    except:
+        for re in new_cloud_json["results"]:
+            if re["name"] == clodName:
+                uuid = re["uuid"]
+    if uuid is None:
+        return None, "Failed", "ERROR"
+    url = "https://" + ip + "/api/serviceengine-inventory/?cloud_ref.uuid=" + str(uuid)
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Cookie": csrf2[1],
+        "referer": "https://" + ip + "/login",
+        "x-avi-version": aviVersion,
+        "x-csrftoken": csrf2[0]
+    }
+    payload = {}
+    count = 0
+    seCount = 0
+    response_csrf = None
+    logger.info("Checking all service are up or not.")
+    while count < 60:
+        try:
+            logger.info("Waited for " + str(count * 10) + "s retrying")
+            response_csrf = requests.request("GET", url, headers=headers, data=payload, verify=False)
+            length = len(response_csrf.json()["results"])
+            if response_csrf.status_code == 200:
+                for se in response_csrf.json()["results"]:
+                    if str(se["runtime"]["se_connected"]).strip().lower() == "true":
+                        seCount = seCount + 1
+                        if seCount == length:
+                            break
+            if seCount == length:
+                break
+        except:
+            pass
+        count = count + 1
+        time.sleep(10)
+    if response_csrf is None:
+        logger.info("Waited for " + str(count * 10) + "s but service engine is not up")
+        return None, "Failed", "ERROR"
+    if response_csrf.status_code != 200:
+        return None, response_csrf.text
+    elif count >= 59:
+        return None, "NOT_FOUND", "TIME_OUT"
+    else:
+        logger.info("All service are up and running")
+        return "SUCCESS", "CHECKED", "UP"
+
+def registerTMCTKGs(vCenter, vCenter_user, VC_PASSWORD, jsonspec):
+    url = "https://" + vCenter + "/"
+    try:
+        sess = requests.post(url + "rest/com/vmware/cis/session", auth=(vCenter_user, VC_PASSWORD), verify=False)
+        if sess.status_code != 200:
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to fetch session ID for vCenter - " + vCenter,
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        else:
+            session_id = sess.json()['value']
+
+        header = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "vmware-api-session-id": session_id
+        }
+        cluster_name = jsonspec["envSpec"]["vcenterDetails"]["vcenterCluster"]
+        id = getClusterID(vCenter, vCenter_user, VC_PASSWORD, cluster_name, jsonspec)
+        if id[1] != 200:
+            return None, id[0]
+        clusterip_resp = requests.get(url + "api/vcenter/namespace-management/clusters/" + str(id[0]), verify=False,
+                                      headers=header)
+        if clusterip_resp.status_code != 200:
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to fetch API server cluster endpoint - " + vCenter,
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+        cluster_endpoint = clusterip_resp.json()["api_server_cluster_endpoint"]
+
+        configure_kubectl = configureKubectl(cluster_endpoint)
+        if configure_kubectl[1] != 200:
+            return configure_kubectl[0], 500
+
+        supervisor_tmc = supervisorTMC(vCenter_user, VC_PASSWORD, cluster_endpoint)
+        if supervisor_tmc[1] != 200:
+            return supervisor_tmc[0], 500
+        supervisor_cluster = jsonspec['envSpec']["saasEndpoints"]['tmcDetails'][
+            'tmcSupervisorClusterName']
+        if checkTmcRegister(supervisor_cluster, True):
+            logger.info(supervisor_cluster + " is already registered")
+        else:
+            clusterGroup = jsonspec['envSpec']["saasEndpoints"]['tmcDetails'][
+                'tmcSupervisorClusterGroupName']
+            if not clusterGroup:
+                clusterGroup = "default"
+            os.putenv("TMC_API_TOKEN",
+                      jsonspec['envSpec']["saasEndpoints"]['tmcDetails']['tmcRefreshToken'])
+            listOfCmdTmcLogin = ["tmc", "login", "--no-configure", "-name", "tkgvsphere-automation"]
+            runProcess(listOfCmdTmcLogin)
+            listOfCommandRegister = ["tmc", "managementcluster", "register", supervisor_cluster, "-c", clusterGroup,
+                                     "-p",
+                                     "TKGS"]
+            generateYaml = runShellCommandAndReturnOutput(listOfCommandRegister)
+            if generateYaml[1] != 0:
+                return " Failed to register Supervisor Cluster " + str(generateYaml[0]), 500
+            main_command = ["kubectl", "get", "ns"]
+            sub_command = ["grep", "svc-tmc"]
+            command_cert = grabPipeOutput(main_command, sub_command)
+            if command_cert[1] != 0:
+                return "Failed to get namespace details", 500
+            namespace = command_cert[0].split("\\s")[0].strip()
+            os.system("chmod +x ./common/injectValue.sh")
+            os.system("./common/injectValue.sh " + "k8s-register-manifest.yaml" + " inject_namespace " + namespace)
+            command = ["kubectl", "apply", "-f", "k8s-register-manifest.yaml"]
+            state = runShellCommandAndReturnOutputAsList(command)
+            if state[1] != 0:
+                return "Failed to apply k8s-register-manifest.yaml file", 500
+
+            logger.info("Waiting for TMC registration to complete... ")
+            time.sleep(300)
+            wait_status = waitForTMCRegistration(supervisor_cluster)
+            if wait_status[1] != 200:
+                logger.error(wait_status[0])
+                return wait_status[0], 500
+        return "TMC Register Successful", 200
+
+    except Exception as e:
+        logger.error(e)
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed to Register Supervisor Cluster to TMC",
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+
+def waitForTMCRegistration(super_cls):
+    registered = False
+    count = 0
+    register_status_command = ["tmc", "managementcluster", "get", super_cls]
+    register_status = runShellCommandAndReturnOutput(register_status_command)
+    if register_status[1] != 0:
+        return "Failed to obtain register status for TMC", 500
+    else:
+        yaml_ouptput = yaml.load(register_status[0], Loader=SafeLoader)
+        if yaml_ouptput["status"]["health"] == "HEALTHY" and \
+                yaml_ouptput["status"]["conditions"]["READY"]["status"].lower() == "true":
+            registered = True
+
+    while not registered and count < 30:
+        register_status_command = ["tmc", "managementcluster", "get", super_cls]
+        register_status = runShellCommandAndReturnOutput(register_status_command)
+        if register_status[1] != 0:
+            return "Failed to obtain register status for TMC", 500
+        else:
+            yaml_ouptput = yaml.load(register_status[0], Loader=SafeLoader)
+            if yaml_ouptput["status"]["health"] == "HEALTHY" and \
+                    yaml_ouptput["status"]["conditions"]["READY"]["status"].lower() == "true":
+                registered = True
+                break
+            else:
+                logger.info("Waited for  " + str(count * 30) + "s, retrying.")
+                count = count + 1
+                time.sleep(30)
+    if not registered:
+        logger.error("TMC registration still did not complete " + str(count * 30))
+        d = {
+            "responseType": "ERROR",
+            "msg": "TMC registration still did not complete " + str(count * 30),
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+    else:
+        return "TMC Registration successful", 200
+

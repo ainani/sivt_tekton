@@ -34,10 +34,11 @@ from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, \
     getCloudStatus, seperateNetmaskAndIp, getSECloudStatus, getSeNewBody, getVrfAndNextRoutId, \
     addStaticRoute, getVipNetworkIpNetMask, getClusterStatusOnTanzu, runSsh, checkenv, \
     switchToManagementContext, getClusterID, getPolicyID, \
-    convertStringToCommaSeperated, cidr_to_netmask, getCountOfIpAdress, getLibraryId, getAviCertificate
+    convertStringToCommaSeperated, cidr_to_netmask, getCountOfIpAdress, getLibraryId, getAviCertificate, \
+    checkTmcEnabled, createSubscribedLibrary, checkAndWaitForAllTheServiceEngineIsUp, configureKubectl
 from util.replace_value import generateVsphereConfiguredSubnets, replaceValueSysConfig, \
-    generateVsphereConfiguredSubnetsForSe
-from util.vcenter_operations import createResourcePool, create_folder, getDvPortGroupId
+    generateVsphereConfiguredSubnetsForSe, registerTMCTKGs
+from util.vcenter_operations import createResourcePool, create_folder, getDvPortGroupId, checkforIpAddress, getSi
 from util.ShellHelper import runProcess, runShellCommandAndReturnOutputAsList, verifyPodsAreRunning
 from util.oidc_helper import checkEnableIdentityManagement, checkPinnipedInstalled, checkPinnipedServiceStatus, \
     checkPinnipedDexServiceStatus, createRbacUsers
@@ -2089,4 +2090,162 @@ class RaMgmtClusterWorkflow:
             return "SUCCESS", "WCP_ENABLED"
         except Exception as e:
             return None, str(e)
+
+    def enable_wcp(self):
+        if not self.isEnvTkgs_wcp:
+            logger.error("Wrong env provided wcp can  only be  enabled on TKGS")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Wrong env provided wcp can  only be  enabled on TKGS",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        password = self.vcenter_dict["vcenter_password"]
+        vcenter_username = self.vcenter_dict["vcenter_username"]
+        vcenter_ip = self.vcenter_dict["vcenter_ip"]
+        cLib = createSubscribedLibrary(vcenter_ip, vcenter_username, password, self.jsonspec)
+        if cLib[0] is None:
+            logger.error("Failed to create content library " + str(cLib[1]))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to create content library " + str(cLib[1]),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        avi_fqdn = self.jsonspec['tkgsComponentSpec']['aviComponents']['aviController01Fqdn']
+        if not avi_fqdn:
+            controller_name = ControllerLocation.CONTROLLER_NAME_VSPHERE
+        else:
+            controller_name = avi_fqdn
+        ha_field = self.jsonspec['tkgsComponentSpec']['aviComponents']['enableAviHa']
+        if isAviHaEnabled(ha_field):
+            ip = self.jsonspec['tkgsComponentSpec']['aviComponents']['aviClusterFqdn']
+        else:
+            ip = avi_fqdn
+        if ip is None:
+            logger.error("Failed to get ip of avi controller")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to get ip of avi controller",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        avienc_pass = str(self.jsonspec['tkgsComponentSpec']['aviComponents']['aviPasswordBase64'])
+        csrf2 = obtain_second_csrf(ip, avienc_pass)
+        if csrf2 is None:
+            logger.error("Failed to get csrf from new set password")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to get csrf from new set password",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+        avi_ip = checkforIpAddress(getSi(vcenter_ip, vcenter_username, password), avi_fqdn)
+        if avi_ip is None:
+            logger.error("Failed to get ip of avi controller")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to get ip of avi controller",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        deployed_avi_version = obtain_avi_version(avi_ip, self.jsonspec)
+        if deployed_avi_version[0] is None:
+            logger.error("Failed to login and obtain avi version" + str(deployed_avi_version[1]))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to login and obtain avi version " + deployed_avi_version[1],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        aviVersion = deployed_avi_version[0]
+
+        enable = self.enableWCP(ip, csrf2, aviVersion)
+        if enable[0] is None:
+            logger.error("Failed to enable wcp " + str(enable[1]))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to configure wcp " + str(enable[1]),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        isUp = checkAndWaitForAllTheServiceEngineIsUp(ip, Cloud.DEFAULT_CLOUD_NAME_VSPHERE, self.jsonspec, aviVersion)
+        if isUp[0] is None:
+            logger.error("All service engines are not up, check your network configuration " + str(isUp[1]))
+            d = {
+                "responseType": "ERROR",
+                "msg": "All service engines are not up, check your network configuration " + str(isUp[1]),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+        logger.info("Setting up kubectl vsphere plugin...")
+        url_ = "https://" + vcenter_ip + "/"
+        sess = requests.post(url_ + "rest/com/vmware/cis/session", auth=(vcenter_username, password), verify=False)
+        if sess.status_code != 200:
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to fetch session ID for vCenter - " + vcenter_ip,
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        else:
+            session_id = sess.json()['value']
+
+        header = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "vmware-api-session-id": session_id
+        }
+        cluster_name = self.jsonspec["envSpec"]["vcenterDetails"]["vcenterCluster"]
+        id = getClusterID(vcenter_ip, vcenter_username, password, cluster_name, self.jsonspec)
+        if id[1] != 200:
+            return None, id[0]
+        clusterip_resp = requests.get(url_ + "api/vcenter/namespace-management/clusters/" + str(id[0]), verify=False,
+                                      headers=header)
+        if clusterip_resp.status_code != 200:
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to fetch API server cluster endpoint - " + vcenter_ip,
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+        cluster_endpoint = clusterip_resp.json()["api_server_cluster_endpoint"]
+
+        configure_kubectl = configureKubectl(cluster_endpoint)
+        if configure_kubectl[1] != 200:
+            logger.error(configure_kubectl[0])
+            d = {
+                "responseType": "ERROR",
+                "msg": configure_kubectl[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+        logger.info("Configured Wcp successfully")
+
+        if checkTmcEnabled(self.jsonspec):
+            tmc_register_response = registerTMCTKGs(vcenter_ip, vcenter_username, password)
+            if tmc_register_response[1] != 200:
+                logger.error("Supervisor cluster TMC registration failed " + str(tmc_register_response[0]))
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Supervisor cluster TMC registration failed " + str(tmc_register_response[0]),
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+            else:
+                logger.info("TMC registration successful")
+        else:
+            logger.info("Skipping TMC registration, as tmcAvailability is set to False")
+        d = {
+            "responseType": "SUCCESS",
+            "msg": "Configured Wcp successfully",
+            "ERROR_CODE": 200
+        }
+        return json.dumps(d), 200
+
+
 
