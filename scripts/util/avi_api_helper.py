@@ -867,7 +867,10 @@ def configure_alb_licence(ip, csrf2, license_key, avi_version):
 
 def manage_avi_certificates(ip, avi_version, jsonspec, avi_fqdn, cert_name):
     rcmd = cmd_runner.RunCmd()
-    avienc_pass = jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64']
+    if TkgUtil.isEnvTkgs_wcp(jsonspec):
+        avienc_pass = str(jsonspec['tkgsComponentSpec']['aviComponents']['aviPasswordBase64'])
+    else:
+        avienc_pass = str(jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64'])
     csrf2 = obtain_second_csrf(ip, avienc_pass)
     if csrf2 is None:
         logger.error("Failed to get csrf from new set password")
