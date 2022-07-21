@@ -1696,7 +1696,8 @@ class RaMgmtClusterWorkflow:
                     with open("./newCloudInfo.json", "w") as outfile:
                         json.dump(response_csrf.json(), outfile)
             mgmt_pg = self.jsonspec['tkgsComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkName']
-            get_management = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion)
+            get_management = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion,
+                                                cloudName=Cloud.DEFAULT_CLOUD_NAME_VSPHERE)
             if get_management[0] is None:
                 return None, "Failed to get avi management network " + str(get_management[1])
             startIp = self.jsonspec["tkgsComponentSpec"]["aviMgmtNetwork"][
@@ -1754,7 +1755,7 @@ class RaMgmtClusterWorkflow:
                     return None, str(ad[1])
             ##########################################################
             vip_pg = self.jsonspec['tkgsComponentSpec']['tkgsVipNetwork']['tkgsVipNetworkName']
-            get_vip = self.getNetworkUrl(ip, csrf2, vip_pg, aviVersion)
+            get_vip = self.getNetworkUrl(ip, csrf2, vip_pg, aviVersion, cloudName=Cloud.DEFAULT_CLOUD_NAME_VSPHERE)
             if get_vip[0] is None:
                 return None, "Failed to get tkgs vip network " + str(get_vip[1])
             startIp_vip = self.jsonspec["tkgsComponentSpec"]["tkgsVipNetwork"]["tkgsVipIpStartRange"]
