@@ -528,7 +528,8 @@ class RaMgmtClusterWorkflow:
             return response_csrf.json()["url"], "SUCCESS"
 
     @log("Fetching Network url")
-    def getNetworkUrl(self, ip, csrf2, name, aviVersion):
+    def getNetworkUrl(self, ip, csrf2, name, aviVersion, cloudName=None):
+        cloudName = Cloud.CLOUD_NAME_VSPHERE if cloudName is None else cloudName
         with open("./newCloudInfo.json", 'r') as file2:
             new_cloud_json = json.load(file2)
         uuid = None
@@ -536,7 +537,7 @@ class RaMgmtClusterWorkflow:
             uuid = new_cloud_json["uuid"]
         except:
             for re in new_cloud_json["results"]:
-                if re["name"] == Cloud.CLOUD_NAME_VSPHERE:
+                if re["name"] == cloudName:
                     uuid = re["uuid"]
         if uuid is None:
             return None, "Failed", "ERROR"
@@ -1684,7 +1685,7 @@ class RaMgmtClusterWorkflow:
                     with open("./newCloudInfo.json", "w") as outfile:
                         json.dump(response_csrf.json(), outfile)
             mgmt_pg = self.jsonspec['tkgsComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkName']
-            get_management = self.getNetworkUrl(ip, csrf2, mgmt_pg, Cloud.DEFAULT_CLOUD_NAME_VSPHERE, aviVersion)
+            get_management = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion)
             if get_management[0] is None:
                 return None, "Failed to get avi management network " + str(get_management[1])
             startIp = self.jsonspec["tkgsComponentSpec"]["aviMgmtNetwork"][
@@ -1742,7 +1743,7 @@ class RaMgmtClusterWorkflow:
                     return None, str(ad[1])
             ##########################################################
             vip_pg = self.jsonspec['tkgsComponentSpec']['tkgsVipNetwork']['tkgsVipNetworkName']
-            get_vip = self.getNetworkUrl(ip, csrf2, vip_pg, Cloud.DEFAULT_CLOUD_NAME_VSPHERE, aviVersion)
+            get_vip = self.getNetworkUrl(ip, csrf2, vip_pg, aviVersion)
             if get_vip[0] is None:
                 return None, "Failed to get tkgs vip network " + str(get_vip[1])
             startIp_vip = self.jsonspec["tkgsComponentSpec"]["tkgsVipNetwork"]["tkgsVipIpStartRange"]
