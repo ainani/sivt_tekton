@@ -35,7 +35,8 @@ from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, \
     addStaticRoute, getVipNetworkIpNetMask, getClusterStatusOnTanzu, runSsh, checkenv, \
     switchToManagementContext, getClusterID, getPolicyID, \
     convertStringToCommaSeperated, cidr_to_netmask, getCountOfIpAdress, getLibraryId, getAviCertificate
-from util.replace_value import generateVsphereConfiguredSubnets, replaceValueSysConfig
+from util.replace_value import generateVsphereConfiguredSubnets, replaceValueSysConfig, \
+    generateVsphereConfiguredSubnetsForSe
 from util.vcenter_operations import createResourcePool, create_folder, getDvPortGroupId
 from util.ShellHelper import runProcess, runShellCommandAndReturnOutputAsList, verifyPodsAreRunning
 from util.oidc_helper import checkEnableIdentityManagement, checkPinnipedInstalled, checkPinnipedServiceStatus, \
@@ -592,7 +593,7 @@ class RaMgmtClusterWorkflow:
 
     @log("Fetching Network details")
     def getNetworkDetails(self, ip, csrf2, managementNetworkUrl, startIp, endIp, prefixIp, netmask,
-                          aviVersion):
+                          aviVersion, isSeRequired=False):
         url = managementNetworkUrl
         headers = {
             "Accept": "application/json",
@@ -620,8 +621,12 @@ class RaMgmtClusterWorkflow:
         os.system("rm -rf managementNetworkDetails.json")
         with open("./managementNetworkDetails.json", "w") as outfile:
             json.dump(response_csrf.json(), outfile)
-        generateVsphereConfiguredSubnets("managementNetworkDetails.json", startIp, endIp, prefixIp,
-                                         int(netmask))
+        if isSeRequired:
+            generateVsphereConfiguredSubnetsForSe("managementNetworkDetails.json", startIp, endIp, prefixIp,
+                                                  int(netmask))
+        else:
+            generateVsphereConfiguredSubnets("managementNetworkDetails.json", startIp, endIp, prefixIp,
+                                             int(netmask))
         return "SUCCESS", 200, details
 
     @log("Updating Network with IP Pools")
@@ -1706,7 +1711,7 @@ class RaMgmtClusterWorkflow:
             prefixIpNetmask = seperateNetmaskAndIp(
                 self.jsonspec["tkgsComponentSpec"]["aviMgmtNetwork"]["aviMgmtNetworkGatewayCidr"])
             getManagementDetails = self.getNetworkDetails(ip, csrf2, get_management[0], startIp, endIp, prefixIpNetmask[0],
-                                                     prefixIpNetmask[1], True, aviVersion)
+                                                     prefixIpNetmask[1], aviVersion, isSeRequired=True)
             if getManagementDetails[0] is None:
                 logger.error("Failed to get management network details " + str(getManagementDetails[2]))
                 return None, str(getManagementDetails[2])
@@ -1764,7 +1769,7 @@ class RaMgmtClusterWorkflow:
                 self.jsonspec["tkgsComponentSpec"]["tkgsVipNetwork"]["tkgsVipNetworkGatewayCidr"])
             getManagementDetails_vip = self.getNetworkDetails(ip, csrf2, get_vip[0], startIp_vip, endIp_vip,
                                                          prefixIpNetmask_vip[0],
-                                                         prefixIpNetmask_vip[1], False, aviVersion)
+                                                         prefixIpNetmask_vip[1], aviVersion, isSeRequired=False)
             if getManagementDetails_vip[0] is None:
                 logger.error("Failed to get tkgs vip network details " + str(getManagementDetails_vip[2]))
                 return None, str(getManagementDetails_vip[2])
