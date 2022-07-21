@@ -48,7 +48,7 @@ spec:
       runAfter:
           - start-prep-workspace
 
-    - name: star-avi-wcp-configuration
+    - name: start-avi-wcp-configuration
       taskRef:
         name: dind-mgmt-create
       workspaces:

@@ -104,21 +104,22 @@ class RaMgmtClusterWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        config_mgmt = self.configTkgMgmt()
-        if config_mgmt[1] != 200:
+        if not self.isEnvTkgs_wcp:
+            config_mgmt = self.configTkgMgmt()
+            if config_mgmt[1] != 200:
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to Config management cluster ",
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
             d = {
-                "responseType": "ERROR",
-                "msg": "Failed to Config management cluster ",
-                "ERROR_CODE": 500
+                "responseType": "SUCCESS",
+                "msg": "Management cluster configured Successfully",
+                "ERROR_CODE": 200
             }
-            return json.dumps(d), 500
-        d = {
-            "responseType": "SUCCESS",
-            "msg": "Management cluster configured Successfully",
-            "ERROR_CODE": 200
-        }
-        logger.info("Management cluster configured Successfully")
-        return json.dumps(d), 200
+            logger.info("Management cluster configured Successfully")
+            return json.dumps(d), 200
 
     @log("Template yaml deployment of management cluster in progress...")
     def templateMgmtDeployYaml(self, ip, datacenter, data_store, cluster_name, wpName, wipIpNetmask,
@@ -1305,6 +1306,14 @@ class RaMgmtClusterWorkflow:
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
+            else:
+                logger.info("Configured AVI Management Network for TKGs successfully")
+                d = {
+                    "responseType": "SUCCESS",
+                    "msg": "Configured AVI Management Network for TKGs successfully",
+                    "ERROR_CODE": 200
+                }
+                return json.dumps(d), 200
         else:
             get_cloud = getCloudStatus(ip, csrf2, aviVersion, Cloud.CLOUD_NAME_VSPHERE)
             if get_cloud[0] is None:
@@ -1640,13 +1649,15 @@ class RaMgmtClusterWorkflow:
                                 "ERROR_CODE": 500
                             }
                             return json.dumps(d), 500
-        logger.info("Configured management cluster cloud successfully")
-        d = {
-            "responseType": "SUCCESS",
-            "msg": "Configured management cluster cloud successfully",
-            "ERROR_CODE": 200
-        }
-        return json.dumps(d), 200
+            logger.info("Configured management cluster cloud successfully")
+            d = {
+                "responseType": "SUCCESS",
+                "msg": "Configured management cluster cloud successfully",
+                "ERROR_CODE": 200
+            }
+            return json.dumps(d), 200
+
+
 
     def configTkgsCloud(self, ip, csrf2, aviVersion):
         try:
