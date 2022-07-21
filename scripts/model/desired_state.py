@@ -8,7 +8,8 @@ from pydantic import BaseModel
 
 
 class Version(BaseModel):
-    tkg: str
+    tkgm: str = None
+    tkgs: str = None
 
 
 class DesiredState(BaseModel):
