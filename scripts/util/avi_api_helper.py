@@ -749,7 +749,10 @@ def create_imported_ssl_certificate(ip, csrf2, dic, cer, key, avi_version):
 def generate_ssl_certificate_vsphere(ip, csrf2, avi_fqdn, avi_version, jsonspec):
     common_name = avi_fqdn
     ips = [str(ip), common_name]
-    hafield = jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
+    if TkgUtil.isEnvTkgs_wcp(jsonspec):
+        hafield = jsonspec['tkgsComponentSpec']['aviComponents']['enableAviHa']
+    else:
+        hafield = jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
     if isAviHaEnabled(hafield):
         if TkgUtil.isEnvTkgs_wcp(jsonspec):
             avi_fqdn2 = jsonspec['tkgsComponentSpec']['aviComponents']['aviController02Fqdn']

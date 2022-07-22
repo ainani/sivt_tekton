@@ -97,7 +97,6 @@ class RaMgmtClusterWorkflow:
     def create_mgmt_cluster(self):
         config_cloud = self.configCloud()
         if config_cloud[1] != 200:
-
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to Config management cluster ",
@@ -120,6 +119,9 @@ class RaMgmtClusterWorkflow:
             }
             logger.info("Management cluster configured Successfully")
             return json.dumps(d), 200
+        else:
+            logger.info("Management cluster not required for TKGs")
+            return "Management cluster not required for TKGs", 200
 
     @log("Template yaml deployment of management cluster in progress...")
     def templateMgmtDeployYaml(self, ip, datacenter, data_store, cluster_name, wpName, wipIpNetmask,
