@@ -2765,7 +2765,8 @@ def getBodyResourceSpec(cpu_limit, memory_limit, storage_limit):
     return resource_spec
 
 def configureKubectl(clusterIp):
-    os.system("mkdir tempDir")
+    arcas_path_tempDir = "/opt/vmware/arcas/src/"
+    os.system(f"mkdir {arcas_path_tempDir}")
     url = "https://" + clusterIp + "/wcp/plugin/linux-amd64/vsphere-plugin.zip"
     response = requests.get(url, verify=False)
     if response.status_code != 200:
@@ -2773,11 +2774,11 @@ def configureKubectl(clusterIp):
         return None, response.text
     with open(r'/tmp/vsphere-plugin.zip', 'wb') as f:
         f.write(response.content)
-    create_command = ["unzip", "/tmp/vsphere-plugin.zip", "-d", "tempDir"]
+    create_command = ["unzip", "/tmp/vsphere-plugin.zip", "-d", arcas_path_tempDir]
     output = runShellCommandAndReturnOutputAsList(create_command)
     if output[1] != 0:
         return None, "Failed to unzip vsphere-plugin.zip"
-    os.system("mv -f /opt/vmware/arcas/src/tempDir/bin/* /usr/local/bin/")
+    os.system(f"mv -f {arcas_path_tempDir}/bin/* /usr/local/bin/")
     os.system("chmod +x /usr/local/bin/kubectl-vsphere")
     return "SUCCESS", 200
 
