@@ -12,7 +12,7 @@ spec:
       description: imagepullpolicy for operand image("Always", "IfNotPresent", "Never")
   steps:
     - image: $(params.imagename)
-      name: step-tkgs-mgmt-setup
+      name: tkgs-mgmt-create
       imagePullPolicy: $(params.imagepullpolicy)
       env:
       # Connect to the sidecar over TCP, with TLS.
