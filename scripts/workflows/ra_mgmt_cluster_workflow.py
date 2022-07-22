@@ -839,33 +839,59 @@ class RaMgmtClusterWorkflow:
             "x-avi-version": aviVersion,
             "x-csrftoken": csrf2[0]
         }
-        body = {
-            "name": name,
-            "internal_profile": {
-                "ttl": 30,
-                "usable_networks": [
-                    {
-                        "nw_ref": managementNetworkUrl
-                    },
-                    {
-                        "nw_ref": managementDataNetwork
-                    },
-                    {
-                        "nw_ref": vip_network
-                    }
-                ]
-            },
-            "allocate_ip_in_vrf": False,
-            "type": "IPAMDNS_TYPE_INTERNAL",
-            "gcp_profile": {
-                "match_se_group_subnet": False,
-                "use_gcp_network": False
-            },
-            "azure_profile": {
-                "use_enhanced_ha": False,
-                "use_standard_alb": False
+        if managementDataNetwork is not None:
+            body = {
+                "name": name,
+                "internal_profile": {
+                    "ttl": 30,
+                    "usable_networks": [
+                        {
+                            "nw_ref": managementNetworkUrl
+                        },
+                        {
+                            "nw_ref": managementDataNetwork
+                        },
+                        {
+                            "nw_ref": vip_network
+                        }
+                    ]
+                },
+                "allocate_ip_in_vrf": False,
+                "type": "IPAMDNS_TYPE_INTERNAL",
+                "gcp_profile": {
+                    "match_se_group_subnet": False,
+                    "use_gcp_network": False
+                },
+                "azure_profile": {
+                    "use_enhanced_ha": False,
+                    "use_standard_alb": False
+                }
             }
-        }
+        else:
+            body = {
+                "name": name,
+                "internal_profile": {
+                    "ttl": 30,
+                    "usable_networks": [
+                        {
+                            "nw_ref": managementNetworkUrl
+                        },
+                        {
+                            "nw_ref": vip_network
+                        }
+                    ]
+                },
+                "allocate_ip_in_vrf": False,
+                "type": "IPAMDNS_TYPE_INTERNAL",
+                "gcp_profile": {
+                    "match_se_group_subnet": False,
+                    "use_gcp_network": False
+                },
+                "azure_profile": {
+                    "use_enhanced_ha": False,
+                    "use_standard_alb": False
+                }
+            }
         json_object = json.dumps(body, indent=4)
         url = "https://" + ip + "/api/ipamdnsproviderprofile"
         response_csrf = requests.request("POST", url, headers=headers, data=json_object,
