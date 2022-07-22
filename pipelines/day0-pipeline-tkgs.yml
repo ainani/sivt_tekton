@@ -93,7 +93,7 @@ spec:
   finally:
       - name: gitcommit
         taskRef:
-            name: git-commit-task
+            name: tkgs-git-commit-task
         workspaces:
           - name: task-shared-data
             workspace: pipeline-shared-data
