@@ -50,7 +50,7 @@ spec:
 
     - name: start-avi-wcp-configuration
       taskRef:
-        name: dind-mgmt-create
+        name: tkgs-mgmt-create
       workspaces:
         - name: task-shared-data
           workspace: pipeline-shared-data
