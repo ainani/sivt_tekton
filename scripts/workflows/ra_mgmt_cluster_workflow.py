@@ -2266,7 +2266,7 @@ class RaMgmtClusterWorkflow:
         logger.info("Configured Wcp successfully")
 
         if checkTmcEnabled(self.jsonspec):
-            tmc_register_response = registerTMCTKGs(vcenter_ip, vcenter_username, password)
+            tmc_register_response = registerTMCTKGs(vcenter_ip, vcenter_username, password, self.jsonspec)
             if tmc_register_response[1] != 200:
                 logger.error("Supervisor cluster TMC registration failed " + str(tmc_register_response[0]))
                 d = {
