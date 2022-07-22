@@ -93,7 +93,7 @@ def mgmt_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
     RaMgmtClusterWorkflow(run_config).create_mgmt_cluster()
 
-@mgmt.command(name="enable_wcp")
+@mgmt.command(name="enable-wcp")
 @click.pass_context
 def enable_wcp(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
