@@ -829,8 +829,8 @@ class RaMgmtClusterWorkflow:
         return "NOT_FOUND", "SUCCESS"
 
     @log("Creating IPAM...")
-    def createIpam(self, ip, csrf2, managementNetworkUrl, managementDataNetwork, vip_network, name,
-                   aviVersion):
+    def createIpam(self, ip, csrf2, managementNetworkUrl, vip_network, name,
+                   aviVersion, managementDataNetwork=None):
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
@@ -1504,8 +1504,8 @@ class RaMgmtClusterWorkflow:
                 if get_ipam[0] == "NOT_FOUND":
                     isGen = True
                     logger.info("Creating IPAM " + Cloud.IPAM_NAME_VSPHERE)
-                    ipam = self.createIpam(ip, csrf2, get_management[0], get_management_data_pg[0],
-                                           get_vip[0], Cloud.IPAM_NAME_VSPHERE, aviVersion)
+                    ipam = self.createIpam(ip, csrf2, get_management[0], get_vip[0], Cloud.IPAM_NAME_VSPHERE,
+                                           aviVersion, get_management_data_pg[0])
                     if ipam[0] is None:
                         logger.error("Failed to create ipam " + str(ipam[1]))
                         d = {
