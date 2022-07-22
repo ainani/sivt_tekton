@@ -121,7 +121,7 @@ class RaMgmtClusterWorkflow:
             return json.dumps(d), 200
         else:
             logger.info("Management cluster not required for TKGs")
-            return "Management cluster not required for TKGs", 200
+            return True
 
     @log("Template yaml deployment of management cluster in progress...")
     def templateMgmtDeployYaml(self, ip, datacenter, data_store, cluster_name, wpName, wipIpNetmask,

@@ -74,7 +74,7 @@ spec:
         - name: imagepullpolicy
           value: "$(params.imagepullpolicy)"
       runAfter:
-            - star-avi-wcp-configuration
+            - start-avi-wcp-configuration
     
     - name: start-extns-deploy
       taskRef:
