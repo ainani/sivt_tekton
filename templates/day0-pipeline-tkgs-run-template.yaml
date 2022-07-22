@@ -3,7 +3,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: PipelineRun
 metadata:
-  generateName: tkgm-bringup-day0-
+  generateName: tkgs-bringup-day0-
 spec:
   pipelineRef:
     name: day0-pipeline-tkgs
