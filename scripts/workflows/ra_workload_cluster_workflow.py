@@ -48,6 +48,13 @@ logger = LoggerHelper.get_logger(Path(__file__).stem)
 class RaWorkloadClusterWorkflow:
     def __init__(self, run_config: RunConfig):
         self.run_config = run_config
+        self.tkg_type = ''.join([attr for attr in dir(self.run_config.desired_state.version) if "tkg" in attr])
+        if "tkgs" in self.tkg_type:
+            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_NS_MASTER_SPEC_PATH)
+        elif "tkgm" in self.tkg_type:
+            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
+        else:
+            raise Exception(f"Could not find supported TKG version: {self.tkg_type}")
         self.desired_state_tkg_version = None
         self.get_desired_state_tkg_version()
         self.extensions_root = TKG_EXTENSIONS_ROOT[self.desired_state_tkg_version]
@@ -63,14 +70,6 @@ class RaWorkloadClusterWorkflow:
         self.prev_version = None
         self.prev_extensions_root = None
         self.prev_extensions_dir = None
-        self.tkg_type = ''.join([attr for attr in dir(self.run_config.desired_state.version) if "tkg" in attr])
-        if "tkgs" in self.tkg_type:
-            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_NS_MASTER_SPEC_PATH)
-        elif "tkgm" in self.tkg_type:
-            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
-        else:
-            raise Exception(f"Could not find supported TKG version: {self.tkg_type}")
-        #jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
         with open(self.jsonpath) as f:
             self.jsonspec = json.load(f)
         self.rcmd = RunCmd()
@@ -106,14 +105,12 @@ class RaWorkloadClusterWorkflow:
         """
         Method to get desired state TKG version
         """
-        desired_state_tkg_type = ''.join([attr for attr in dir(self.run_config.desired_state.version) if "tkg" in attr])
-        self.desired_state_tkg_version = None
-        if desired_state_tkg_type == "tkgm":
+        if self.tkg_type == "tkgm":
             self.desired_state_tkg_version = self.run_config.desired_state.version.tkgm
-        elif desired_state_tkg_type == "tkgs":
+        elif self.tkg_type == "tkgs":
             self.desired_state_tkg_version = self.run_config.desired_state.version.tkgs
         else:
-            raise f"Invalid TKG type in desired state YAML file: {desired_state_tkg_type}"
+            raise f"Invalid TKG type in desired state YAML file: {self.tkg_type}"
 
     def createAkoFile(self, ip, wipCidr, tkgMgmtDataPg):
 
