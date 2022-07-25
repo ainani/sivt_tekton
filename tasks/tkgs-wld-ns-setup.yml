@@ -29,15 +29,6 @@ spec:
           ls -l
           cd /workspace/task-shared-data
           rm -rf /root/.config
-          cp -rf /workspace/task-shared-data/kubeconfig-repo/.kube /root/
-          cp -rf /workspace/task-shared-data/kubeconfig-repo/.kube-tkg /root/
-          cp -rf  /workspace/task-shared-data/kubeconfig-repo/.config /root/
-          echo -e "\n====== /root/.kube/config  \n"
-          cat /root/.kube/config
-          echo -e "\n====== /root/.kube-tkg/config  \n"
-          cat /root/.kube-tkg/config
-          echo -e "\n====== /root/.config/tanzu/config.yaml  \n"
-          cat /root/.config/tanzu/config.yaml
           python arcas-tekton-cicd/scripts/__main__.py --root-dir=/workspace/task-shared-data workload-clusters tkgs-wld-ns-setup
 
       volumeMounts:
