@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: tkgs-wld-ns-create
+  name: tkgs-wld-ns-setup
 spec:
   workspaces:
       - name: task-shared-data
