@@ -92,16 +92,21 @@ class RaWorkloadClusterWorkflow:
         :return:
         """
         self.vcenter_dict = {}
-        self.vcenter_dict.update({'vcenter_ip': self.jsonspec['envSpec']['vcenterDetails']['vcenterAddress'],
-                                  'vcenter_password': CmdHelper.decode_base64(
-                                      self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']),
-                                  'vcenter_username': self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser'],
-                                  'vcenter_cluster_name': self.jsonspec['envSpec']['vcenterDetails']['vcenterCluster'],
-                                  'vcenter_datacenter': self.jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter'],
-                                  'vcenter_data_store': self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore'],
-                                  'vcenter_parent_resourcepool': self.jsonspec['envSpec']['vcenterDetails'][
-                                      'resourcePoolName']
-                                  })
+        try:
+            self.vcenter_dict.update({'vcenter_ip': self.jsonspec['envSpec']['vcenterDetails']['vcenterAddress'],
+                                      'vcenter_password': CmdHelper.decode_base64(
+                                          self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']),
+                                      'vcenter_username': self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser'],
+                                      'vcenter_cluster_name': self.jsonspec['envSpec']['vcenterDetails'][
+                                          'vcenterCluster'],
+                                      'vcenter_datacenter': self.jsonspec['envSpec']['vcenterDetails'][
+                                          'vcenterDatacenter'],
+                                      'vcenter_data_store': self.jsonspec['envSpec']['vcenterDetails'][
+                                          'vcenterDatastore']
+                                      })
+        except KeyError as e:
+            logger.warning(f"Field  {e} not configured in vcenterDetails")
+            pass
 
 
     def createAkoFile(self, ip, wipCidr, tkgMgmtDataPg):
