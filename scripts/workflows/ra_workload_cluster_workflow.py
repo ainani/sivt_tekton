@@ -100,9 +100,7 @@ class RaWorkloadClusterWorkflow:
                                       'vcenter_cluster_name': self.jsonspec['envSpec']['vcenterDetails'][
                                           'vcenterCluster'],
                                       'vcenter_datacenter': self.jsonspec['envSpec']['vcenterDetails'][
-                                          'vcenterDatacenter'],
-                                      'vcenter_data_store': self.jsonspec['envSpec']['vcenterDetails'][
-                                          'vcenterDatastore']
+                                          'vcenterDatacenter']
                                       })
         except KeyError as e:
             logger.warning(f"Field  {e} not configured in vcenterDetails")
