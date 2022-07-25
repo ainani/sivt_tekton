@@ -110,7 +110,7 @@ class RaWorkloadClusterWorkflow:
         elif self.tkg_type == "tkgs":
             self.desired_state_tkg_version = self.run_config.desired_state.version.tkgs
         else:
-            raise f"Invalid TKG type in desired state YAML file: {self.tkg_type}"
+            raise Exception(f"Invalid TKG type in desired state YAML file: {self.tkg_type}")
 
     def createAkoFile(self, ip, wipCidr, tkgMgmtDataPg):
 
