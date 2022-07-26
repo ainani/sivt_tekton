@@ -10,7 +10,7 @@ from retry import retry
 import json
 
 from constants.constants import Paths, AlbPrefix, AlbCloudType, ComponentPrefix, AlbLicenseTier, VmPowerState, \
-    AlbVrfContext, ControllerLocation, CertName
+    AlbVrfContext, ControllerLocation, CertName, ResourcePoolAndFolderName
 from model.run_config import RunConfig
 from model.status import HealthEnum, Info, State
 from util.avi_api_helper import AviApiSpec, ra_avi_download, isAviHaEnabled, \
@@ -22,7 +22,7 @@ from jinja2 import Template
 from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
 from util.vcenter_operations import checkforIpAddress, getSi
-from util.common_utils import checkenv
+from util.common_utils import checkenv, createResourceFolderAndWait
 from util.vcenter_operations import create_folder, createResourcePool
 from util.tkg_util import TkgUtil
 
@@ -53,6 +53,26 @@ class RALBWorkflow:
             raise Exception(msg)
         self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
         self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
+        self.get_vcenter_details()
+
+    def get_vcenter_details(self):
+        """
+        Method to get vCenter Details from JSON file
+        :return:
+        """
+        self.vcenter_dict = {}
+        try:
+            self.vcenter_dict.update({'vcenter_ip': self.jsonspec['envSpec']['vcenterDetails']['vcenterAddress'],
+                                      'vcenter_password': CmdHelper.decode_base64(
+                                          self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']),
+                                      'vcenter_username': self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser'],
+                                      'vcenter_cluster_name': self.jsonspec['envSpec']['vcenterDetails']['vcenterCluster'],
+                                      'vcenter_datacenter': self.jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter'],
+                                      'vcenter_data_store': self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
+                                      })
+        except KeyError as e:
+            logger.warning(f"Field  {e} not configured in vcenterDetails")
+            pass
 
     @log("Setting up AVI Certificate")
     def aviCertManagement_vsphere(self):
@@ -99,13 +119,34 @@ class RALBWorkflow:
 
     @log("Setting up AVI Controller")
     def avi_controller_setup(self):
-
         if self.run_config.state.avi.deployed:
             logger.debug("NSX-ALB is deployed")
             return True
         if not ra_avi_download(self.jsonspec):
             logger.error("Failed to setup AVI")
             raise ValueError('Failed to deploy and configure avi.')
+        cluster_name = self.vcenter_dict["vcenter_cluster_name"]
+        data_center = self.vcenter_dict["vcenter_datacenter"]
+        data_store = self.vcenter_dict["vcenter_data_store"]
+        password = self.vcenter_dict["vcenter_password"]
+        vcenter_username = self.vcenter_dict["vcenter_username"]
+        vcenter_ip = self.vcenter_dict["vcenter_ip"]
+        if self.isEnvTkgs_wcp:
+            parent_resourcepool = ""
+        else:
+            parent_resourcepool = self.jsonspec['envSpec']['vcenterDetails']['resourcePoolName']
+        create = createResourceFolderAndWait(vcenter_ip, vcenter_username, password,
+                                             cluster_name, data_center, ResourcePoolAndFolderName.AVI_RP_VSPHERE,
+                                             ResourcePoolAndFolderName.AVI_Components_FOLDER_VSPHERE,
+                                             parent_resourcepool)
+        if create[1] != 200:
+            logger.error("Failed to create resource pool and folder " + create[0].json['msg'])
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to create resource pool " + str(create[0].json['msg']),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
         avi_fqdn2 = ''
         avi_ip2 = ''
         avi_fqdn3 = ''
