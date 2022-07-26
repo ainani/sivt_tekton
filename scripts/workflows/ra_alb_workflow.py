@@ -254,11 +254,11 @@ class RALBWorkflow:
             dcname = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
             clustername = self.jsonspec['envSpec']['vcenterDetails']['vcenterCluster']
             dsname = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
-            if self.isEnvTkgs_wcp:
-                parent_resourcepool = ""
+            if parent_resourcepool is not None:
+                rp_pool = dcname + "/host/" + clustername + "/Resources/" + parent_resourcepool + "/" + ResourcePoolAndFolderName.AVI_RP_VSPHERE
             else:
-                parent_resourcepool = self.jsonspec['envSpec']['vcenterDetails']['resourcePoolName']
-            rp_pool = dcname + "/host/" + clustername + "/Resources/" + parent_resourcepool
+                rp_pool = dcname + "/host/" + clustername + "/Resources/" + ResourcePoolAndFolderName.AVI_RP_VSPHERE
+            #rp_pool = dcname + "/host/" + clustername + "/Resources/" + parent_resourcepool
             foldername = "TEKTON"
             vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
             password = CmdHelper.decode_base64(vcpass_base64)
