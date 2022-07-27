@@ -160,7 +160,7 @@ def tkgs_namespace(ctx):
 def extns(ctx):
     ctx.ensure_object(dict)
 
-@cli.command(name="deploy")
+@extns.command(name="deploy")
 @click.pass_context
 def extns_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
