@@ -2766,7 +2766,7 @@ def getBodyResourceSpec(cpu_limit, memory_limit, storage_limit):
 
 def configureKubectl(clusterIp):
     kubectl_path_tempDir = "/tmp/kubectl_zip"
-    os.system(f"mkdir {kubectl_path_tempDir}")
+    os.system(f"rm -rf {kubectl_path_tempDir}; mkdir -p {kubectl_path_tempDir}")
     url = "https://" + clusterIp + "/wcp/plugin/linux-amd64/vsphere-plugin.zip"
     response = requests.get(url, verify=False)
     if response.status_code != 200:
