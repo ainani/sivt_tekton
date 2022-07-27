@@ -734,7 +734,7 @@ class AppName:
     AKO = "ako"
     HARBOR = "harbor"
     FLUENT_BIT = "fluent-bit"
-    PROMETHEUS = "prometheus"
+    PROMETHUS = "prometheus"
     GRAFANA = "grafana"
     CERT_MANAGER = "cert-manager"
     CONTOUR = "contour"

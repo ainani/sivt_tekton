@@ -43,7 +43,7 @@ def deploy_tkgs_extensions(jsonspec):
                 return json.dumps(d), 500
             env = env[0]
             """
-            env="vpshere"
+            #env="vpshere"
             vcenter_ip = jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
             vcenter_username = jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
             str_enc = str(jsonspec['envSpec']['vcenterDetails']["vcenterSsoPasswordBase64"])
@@ -52,7 +52,7 @@ def deploy_tkgs_extensions(jsonspec):
             password = enc_bytes.decode('ascii').rstrip("\n")
             cluster = jsonspec["envSpec"]["vcenterDetails"]["vcenterCluster"]
 
-            status = tkgsExtensionsPrecheck(vcenter_ip, vcenter_username, password, cluster, env, jsonspec)
+            status = tkgsExtensionsPrecheck(vcenter_ip, vcenter_username, password, cluster, jsonspec)
             if status[0] is None:
                 d = {
                     "responseType": "ERROR",
@@ -63,7 +63,7 @@ def deploy_tkgs_extensions(jsonspec):
 
             logger.info("Pre-checks required before TKGs extensions deployment PASSED")
             workload_cluster = jsonspec['tanzuExtensions']['tkgClustersName']
-            deploy_ext = deploy_extensions(env, workload_cluster, jsonspec)
+            deploy_ext = deploy_extensions(workload_cluster, jsonspec)
             if deploy_ext[1] != 200:
                 d = {
                     "responseType": "ERROR",
@@ -98,7 +98,7 @@ def deploy_tkgs_extensions(jsonspec):
         return json.dumps(d), 500
 
 
-def tkgsExtensionsPrecheck(vcenter_ip, vcenter_username, password, cluster, env, jsonspec):
+def tkgsExtensionsPrecheck(vcenter_ip, vcenter_username, password, cluster, jsonspec):
 
     workload_cluster = jsonspec['tanzuExtensions']['tkgClustersName']
 
@@ -122,14 +122,14 @@ def tkgsExtensionsPrecheck(vcenter_ip, vcenter_username, password, cluster, env,
 
     logger.info(rolebinding_result[1])
 
-    if not checkTmcEnabled(env):
+    if not checkTmcEnabled(jsonspec):
         kapp_status = kappConfiguration()
         if kapp_status[0] is None:
             logger.error(kapp_status[1])
             return None, kapp_status[1]
         logger.info(kapp_status[1])
 
-    package_repo = configurePackagesRepository(env)
+    package_repo = configurePackagesRepository(jsonspec)
     if package_repo[0] is None:
         logger.error(package_repo[1])
         return None, package_repo[1]
@@ -287,8 +287,8 @@ def isRepoConfigured():
     return False
 
 
-def configurePackagesRepository(env):
-    if checkTmcEnabled(env):
+def configurePackagesRepository(jsonspec):
+    if checkTmcEnabled(jsonspec):
         logger.info("TMC is enabled and standard package repository installation should be done by TMC")
         logger.info("Checking Standard Package Repository status...")
         command = ["tanzu", "package", "repository", "list", "-n", "tanzu-package-repo-global"]
@@ -331,7 +331,7 @@ def configurePackagesRepository(env):
             return "SUCCESS", "Standard Package Repository is already deployed!"
 
 
-def deploy_extensions(env, cluster_name, jsonspec):
+def deploy_extensions(cluster_name, jsonspec):
     try:
         listOfExtention = []
         service = "all"
@@ -342,7 +342,7 @@ def deploy_extensions(env, cluster_name, jsonspec):
             listOfExtention.append(Tkg_Extention_names.PROMETHEUS)
             listOfExtention.append(Tkg_Extention_names.GRAFANA)
 
-        status = tkgsCertManagerandContour(env, cluster_name, service)
+        status = tkgsCertManagerandContour(cluster_name, service, jsonspec)
         if status[1] != 200:
             logger.info("Failed to deploy extension "+str(status[0].json['msg']))
             d = {
@@ -371,7 +371,7 @@ def deploy_extensions(env, cluster_name, jsonspec):
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
-            state = installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, cluster_name, env)
+            state = installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, cluster_name)
             if state[1] != 200:
                 logger.error(state[0].json['msg'])
                 d = {
@@ -403,7 +403,7 @@ def deploy_extensions(env, cluster_name, jsonspec):
                 return json.dumps(d), 200'''
             else:
                 for extension_name in listOfExtention:
-                    monitor_status = deploy_monitoring_extentions(env, extension_name, cluster_name, jsonspec)
+                    monitor_status = deploy_monitoring_extentions(extension_name, cluster_name, jsonspec)
                     if monitor_status[1] != 200:
                         logger.error(monitor_status[0].json['msg'])
                         d = {
@@ -414,13 +414,13 @@ def deploy_extensions(env, cluster_name, jsonspec):
                         return json.dumps(d), 500
                     logger.info("Extension - " + extension_name + " deployed successfully")
 
-        is_enabled = fluent_bit_enabled(env)
+        is_enabled = fluent_bit_enabled(jsonspec)
         if is_enabled[0]:
             is_deployed = checkFluentBitInstalled()
             if not is_deployed[0]:
                 end_point = is_enabled[1]
                 workload_cluster = jsonspec['tanzuExtensions']['tkgClustersName']
-                response = deploy_fluent_bit(end_point, workload_cluster)
+                response = deploy_fluent_bit(end_point, workload_cluster, jsonspec)
                 if response[1] != 200:
                     logger.error(response[0].json['msg'])
                     d = {
@@ -452,9 +452,9 @@ def deploy_extensions(env, cluster_name, jsonspec):
         return json.dumps(d), 500
 
 
-def tkgsCertManagerandContour(env, cluster_name, service_name):
+def tkgsCertManagerandContour(cluster_name, service_name, jsonspec):
     try:
-        status_ = checkRepositoryAdded(env)
+        status_ = checkRepositoryAdded(jsonspec)
         if status_[1] != 200:
             logger.error(str(status_[0].json['msg']))
             d = {
@@ -463,7 +463,7 @@ def tkgsCertManagerandContour(env, cluster_name, service_name):
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        install = installExtentionFor14(service_name, cluster_name, env)
+        install = installExtentionFor14(service_name, cluster_name, jsonspec)
         if install[1] != 200:
             return install[0], install[1]
         logger.info("Configured cert-manager and contour successfully")
@@ -483,7 +483,7 @@ def tkgsCertManagerandContour(env, cluster_name, service_name):
         return json.dumps(d), 500
 
 
-def deploy_monitoring_extentions(env, monitoringType, clusterName, jsonspec):
+def deploy_monitoring_extentions(monitoringType, clusterName, jsonspec):
     try:
         load_bom = loadBomFile()
         if load_bom is None:
@@ -494,10 +494,18 @@ def deploy_monitoring_extentions(env, monitoringType, clusterName, jsonspec):
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        repo = getRepo(env)
+        repo = getRepo(jsonspec)
         repository = repo[1]
         os.system("chmod +x ./common/injectValue.sh")
         enable = jsonspec['tanzuExtensions']['monitoring']['enableLoggingExtension']
+        extention = ""
+        appName = ""
+        namespace = ""
+        certKey_Path = ""
+        fqdn = ""
+        cert_Path = ""
+        password = ""
+        yamlFile = ""
         if enable.lower() == "true":
             if monitoringType == Tkg_Extention_names.PROMETHEUS:
                 password = None
@@ -716,7 +724,7 @@ def updateStorageClass(yamlFile, extension):
         return json.dumps(d), 500
 
 
-def installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, clusterName, env):
+def installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, clusterName):
     main_command = ["tanzu", "package", "installed", "list", "-A"]
     sub_command = ["grep", AppName.HARBOR]
     out = grabPipeOutput(main_command, sub_command)

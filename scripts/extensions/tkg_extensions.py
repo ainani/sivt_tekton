@@ -123,9 +123,9 @@ class deploy_tkg_extensions():
 def getImageName(server_image):
     return server_image[server_image.rindex("/") + 1:len(server_image)]
 
-def getRepo(env, jsonspec):
+def getRepo(jsonspec):
     try:
-        if checkAirGappedIsEnabled(env, jsonspec):
+        if checkAirGappedIsEnabled(jsonspec):
             repo_address = str(jsonspec['envSpec']['customRepositorySpec'][
                                    'tkgCustomImageRepository'])
         else:

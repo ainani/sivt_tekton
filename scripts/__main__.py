@@ -164,7 +164,7 @@ def extns(ctx):
 @click.pass_context
 def extns_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    RaDeployExtWorkflow(run_config).deploy_tkg_extensions
+    RaDeployExtWorkflow(run_config).deploy_tkg_extensions()
 
 
 @cli.command(name="execute-scale")
