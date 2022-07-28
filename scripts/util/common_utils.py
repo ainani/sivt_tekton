@@ -2269,15 +2269,13 @@ def isWcpEnabled(cluster_id, jsonspec):
     else:
         return False, None
 
-
-
 def connect_to_workload(vCenter, vcenter_username, password, cluster, workload_name, jsonspec):
     try:
         logger.info("Connecting to workload cluster...")
-        cluster_id = getClusterID(vCenter, vcenter_username, password, cluster)
+        cluster_id = getClusterID(vCenter, vcenter_username, password, cluster, jsonspec)
         if cluster_id[1] != 200:
             logger.error(cluster_id[0])
-            return None, cluster_id[0].json['msg']
+            return None, cluster_id[0]
 
         cluster_namespace = jsonspec['tkgsComponentSpec']["tkgsVsphereNamespaceSpec"][
             'tkgsVsphereWorkloadClusterSpec']['tkgsVsphereNamespaceName']

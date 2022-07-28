@@ -64,6 +64,7 @@ def deploy_tkgs_extensions(jsonspec):
             logger.info("Pre-checks required before TKGs extensions deployment PASSED")
             workload_cluster = jsonspec['tanzuExtensions']['tkgClustersName']
             deploy_ext = deploy_extensions(workload_cluster, jsonspec)
+            deploy_ext = json.loads(deploy_ext[0]), deploy_ext[1]
             if deploy_ext[1] != 200:
                 d = {
                     "responseType": "ERROR",
@@ -103,10 +104,11 @@ def tkgsExtensionsPrecheck(vcenter_ip, vcenter_username, password, cluster, json
     workload_cluster = jsonspec['tanzuExtensions']['tkgClustersName']
 
     workload_status = isClusterRunning(vcenter_ip, vcenter_username, password, cluster, workload_cluster, jsonspec)
+    workload_status = json.loads(workload_status[0]), workload_status[1]
     if workload_status[1] != 200:
-        return None, workload_status[0].json['msg']
+        return None, workload_status[0]['msg']
 
-    logger.info(workload_status[0].json['msg'])
+    logger.info(workload_status[0]['msg'])
 
     connect = connect_to_workload(vcenter_ip, vcenter_username, password, cluster, workload_cluster, jsonspec)
     if connect[0] is None:
@@ -343,6 +345,7 @@ def deploy_extensions(cluster_name, jsonspec):
             listOfExtention.append(Tkg_Extention_names.GRAFANA)
 
         status = tkgsCertManagerandContour(cluster_name, service, jsonspec)
+        status = json.loads(status[0]), status[1]
         if status[1] != 200:
             logger.info("Failed to deploy extension "+str(status[0].json['msg']))
             d = {
@@ -372,6 +375,7 @@ def deploy_extensions(cluster_name, jsonspec):
                 }
                 return json.dumps(d), 500
             state = installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, cluster_name)
+            state = json.loads(state[0]), state[1]
             if state[1] != 200:
                 logger.error(state[0].json['msg'])
                 d = {
@@ -404,6 +408,7 @@ def deploy_extensions(cluster_name, jsonspec):
             else:
                 for extension_name in listOfExtention:
                     monitor_status = deploy_monitoring_extentions(extension_name, cluster_name, jsonspec)
+                    monitor_status = json.loads(monitor_status[0]), monitor_status[1]
                     if monitor_status[1] != 200:
                         logger.error(monitor_status[0].json['msg'])
                         d = {
@@ -421,6 +426,7 @@ def deploy_extensions(cluster_name, jsonspec):
                 end_point = is_enabled[1]
                 workload_cluster = jsonspec['tanzuExtensions']['tkgClustersName']
                 response = deploy_fluent_bit(end_point, workload_cluster, jsonspec)
+                response = json.loads(response[0]), response[1]
                 if response[1] != 200:
                     logger.error(response[0].json['msg'])
                     d = {
@@ -816,6 +822,7 @@ def installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, c
             }
             return json.dumps(d), 500
         cer = certChanging(harborCertPath, harborCertKeyPath, harborPassword, host,clusterName)
+        cer = json.loads(cer[0]), cer[1]
         if cer[1] != 200:
             logger.error(cer[0].json['msg'])
             d = {
@@ -827,6 +834,7 @@ def installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, c
         os.system("chmod +x common/injectValue.sh")
 
         update_sc_resp = updateStorageClass(Paths.CLUSTER_PATH + clusterName + "/harbor-data-values.yaml", AppName.HARBOR)
+        update_sc_resp = json.loads(update_sc_resp[0]), update_sc_resp[1]
         if update_sc_resp[1] != 200:
             logger.error(update_sc_resp[0].json['msg'])
             d = {
@@ -890,6 +898,7 @@ def installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, c
         logger.info("Waiting for harbor installation to complete post pods re-creation...")
         state = waitForGrepProcessWithoutChangeDir(main_command, sub_command, AppName.HARBOR,
                                                    RegexPattern.RECONCILE_SUCCEEDED)
+        state = json.loads(state[0]), state[1]
         if state[1] != 200:
             logger.info("Harbor Deployment Failed.")
             d = {
