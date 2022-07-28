@@ -64,7 +64,7 @@ def deploy_tkgs_extensions(jsonspec):
             logger.info("Pre-checks required before TKGs extensions deployment PASSED")
             workload_cluster = jsonspec['tanzuExtensions']['tkgClustersName']
             deploy_ext = deploy_extensions(workload_cluster, jsonspec)
-            deploy_ext = json.loads(deploy_ext[0]), deploy_ext[1]
+            #deploy_ext = json.loads(deploy_ext[0]), deploy_ext[1]
             if deploy_ext[1] != 200:
                 d = {
                     "responseType": "ERROR",
@@ -72,9 +72,6 @@ def deploy_tkgs_extensions(jsonspec):
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
-
-            logger.info(deploy_ext[0].json['msg'])
-
             d = {
                 "responseType": "SUCCESS",
                 "msg": "Extensions deployed successfully",
@@ -104,11 +101,11 @@ def tkgsExtensionsPrecheck(vcenter_ip, vcenter_username, password, cluster, json
     workload_cluster = jsonspec['tanzuExtensions']['tkgClustersName']
 
     workload_status = isClusterRunning(vcenter_ip, vcenter_username, password, cluster, workload_cluster, jsonspec)
-    workload_status = json.loads(workload_status[0]), workload_status[1]
+    #workload_status = json.loads(workload_status[0]), workload_status[1]
     if workload_status[1] != 200:
         return None, workload_status[0]['msg']
 
-    logger.info(workload_status[0]['msg'])
+    #logger.info(workload_status[0]['msg'])
 
     connect = connect_to_workload(vcenter_ip, vcenter_username, password, cluster, workload_cluster, jsonspec)
     if connect[0] is None:
@@ -345,12 +342,11 @@ def deploy_extensions(cluster_name, jsonspec):
             listOfExtention.append(Tkg_Extention_names.GRAFANA)
 
         status = tkgsCertManagerandContour(cluster_name, service, jsonspec)
-        status = json.loads(status[0]), status[1]
+        #status = json.loads(status[0]), status[1]
         if status[1] != 200:
-            logger.info("Failed to deploy extension "+str(status[0].json['msg']))
             d = {
                 "responseType": "ERROR",
-                "msg": "Failed to deploy extension" + str(status[0].json['msg']),
+                "msg": "Failed to deploy extension" + str(status[0]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -375,17 +371,16 @@ def deploy_extensions(cluster_name, jsonspec):
                 }
                 return json.dumps(d), 500
             state = installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, cluster_name)
-            state = json.loads(state[0]), state[1]
+            #state = json.loads(state[0]), state[1]
             if state[1] != 200:
-                logger.error(state[0].json['msg'])
                 d = {
                     "responseType": "ERROR",
-                    "msg": state[0].json['msg'],
+                    "msg": state[0],
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
             else:
-                logger.info(state[0].json['msg'])
+                logger.info(state[0])
 
         #to_enable = jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"]["tanzuObservabilityAvailability"]
         if checkToEnabled(jsonspec):
@@ -410,10 +405,10 @@ def deploy_extensions(cluster_name, jsonspec):
                     monitor_status = deploy_monitoring_extentions(extension_name, cluster_name, jsonspec)
                     monitor_status = json.loads(monitor_status[0]), monitor_status[1]
                     if monitor_status[1] != 200:
-                        logger.error(monitor_status[0].json['msg'])
+                        logger.error(monitor_status[0])
                         d = {
                             "responseType": "ERROR",
-                            "msg": monitor_status[0].json['msg'],
+                            "msg": monitor_status[0],
                             "ERROR_CODE": 500
                         }
                         return json.dumps(d), 500
@@ -428,10 +423,10 @@ def deploy_extensions(cluster_name, jsonspec):
                 response = deploy_fluent_bit(end_point, workload_cluster, jsonspec)
                 response = json.loads(response[0]), response[1]
                 if response[1] != 200:
-                    logger.error(response[0].json['msg'])
+                    logger.error(response[0])
                     d = {
                         "responseType": "ERROR",
-                        "msg": response[0].json['msg'],
+                        "msg": response[0],
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
@@ -461,12 +456,11 @@ def deploy_extensions(cluster_name, jsonspec):
 def tkgsCertManagerandContour(cluster_name, service_name, jsonspec):
     try:
         status_ = checkRepositoryAdded(jsonspec)
-        status_ = json.loads(status_[0]), status_[1]
+        #status_ = json.loads(status_[0]), status_[1]
         if status_[1] != 200:
-            logger.error(str(status_[0].json['msg']))
             d = {
                 "responseType": "ERROR",
-                "msg": str(status_[0].json['msg']),
+                "msg": str(status_[0]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -589,7 +583,7 @@ def deploy_monitoring_extentions(monitoringType, clusterName, jsonspec):
                 if update_sc_response[1] != 200:
                     d = {
                         "responseType": "ERROR",
-                        "msg": update_sc_response[0].json['msg'],
+                        "msg": update_sc_response[0],
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
@@ -823,12 +817,12 @@ def installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, c
             }
             return json.dumps(d), 500
         cer = certChanging(harborCertPath, harborCertKeyPath, harborPassword, host,clusterName)
-        cer = json.loads(cer[0]), cer[1]
+        #cer = json.loads(cer[0]), cer[1]
         if cer[1] != 200:
-            logger.error(cer[0].json['msg'])
+            logger.error(cer[0])
             d = {
                 "responseType": "ERROR",
-                "msg": cer[0].json['msg'],
+                "msg": cer[0],
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -837,15 +831,15 @@ def installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, c
         update_sc_resp = updateStorageClass(Paths.CLUSTER_PATH + clusterName + "/harbor-data-values.yaml", AppName.HARBOR)
         update_sc_resp = json.loads(update_sc_resp[0]), update_sc_resp[1]
         if update_sc_resp[1] != 200:
-            logger.error(update_sc_resp[0].json['msg'])
+            logger.error(update_sc_resp[0])
             d = {
                 "responseType": "ERROR",
-                "msg": update_sc_resp[0].json['msg'],
+                "msg": update_sc_resp[0],
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
         else:
-            logger.info(update_sc_resp[0].json["msg"])
+            logger.info(update_sc_resp[0])
 
         command = ["sh", "./common/injectValue.sh", Paths.CLUSTER_PATH + clusterName + "/harbor-data-values.yaml", "remove"]
         runShellCommandAndReturnOutputAsList(command)
@@ -899,12 +893,12 @@ def installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, c
         logger.info("Waiting for harbor installation to complete post pods re-creation...")
         state = waitForGrepProcessWithoutChangeDir(main_command, sub_command, AppName.HARBOR,
                                                    RegexPattern.RECONCILE_SUCCEEDED)
-        state = json.loads(state[0]), state[1]
+        #state = json.loads(state[0]), state[1]
         if state[1] != 200:
             logger.info("Harbor Deployment Failed.")
             d = {
                 "responseType": "ERROR",
-                "msg": state[0].json['msg'],
+                "msg": state[0],
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500

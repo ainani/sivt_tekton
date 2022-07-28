@@ -1501,7 +1501,7 @@ def installExtentionFor14(service_name, cluster, jsonspec):
             if certManagerStatus[1] == 500:
                 d = {
                     "responseType": "ERROR",
-                    "msg": "Failed to bring cert-manager " + str(certManagerStatus[0].json['msg']),
+                    "msg": "Failed to bring cert-manager " + str(certManagerStatus[0]),
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
@@ -1563,7 +1563,7 @@ def installExtentionFor14(service_name, cluster, jsonspec):
             if certManagerStatus[1] == 500:
                 d = {
                     "responseType": "ERROR",
-                    "msg": "Failed to bring contour " + str(certManagerStatus[0].json['msg']),
+                    "msg": "Failed to bring contour " + str(certManagerStatus[0]),
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
@@ -2323,7 +2323,7 @@ def checkRepositoryAdded(jsonspec):
                 logger.error("Failed to run validate repository added command " + str(status[0]))
                 d = {
                     "responseType": "ERROR",
-                    "msg": "Failed to run validate repository added command " + str(str[0]),
+                    "msg": "Failed to run validate repository added command " + str(status[0]),
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
@@ -2338,7 +2338,7 @@ def checkRepositoryAdded(jsonspec):
                     logger.error("Failed to run command to add repository " + str(status[0]))
                     d = {
                         "responseType": "ERROR",
-                        "msg": "Failed to run command to add repository " + str(str[0]),
+                        "msg": "Failed to run command to add repository " + str(status[0]),
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
@@ -2347,7 +2347,7 @@ def checkRepositoryAdded(jsonspec):
                     logger.error("Failed to run validate repository added command " + str(status[0]))
                     d = {
                         "responseType": "ERROR",
-                        "msg": "Failed to run validate repository added command " + str(str[0]),
+                        "msg": "Failed to run validate repository added command " + str(status[0]),
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
@@ -2375,7 +2375,7 @@ def checkRepositoryAdded(jsonspec):
                 logger.error("Failed to run validate repository added command " + str(status[0]))
                 d = {
                     "responseType": "ERROR",
-                    "msg": "Failed to run validate repository added command " + str(str[0]),
+                    "msg": "Failed to run validate repository added command " + str(status[0]),
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
@@ -2388,7 +2388,7 @@ def checkRepositoryAdded(jsonspec):
                     logger.error("Failed to run command to add repository " + str(status[0]))
                     d = {
                         "responseType": "ERROR",
-                        "msg": "Failed to run command to add repository " + str(str[0]),
+                        "msg": "Failed to run command to add repository " + str(status[0]),
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
@@ -2397,7 +2397,7 @@ def checkRepositoryAdded(jsonspec):
                     logger.error("Failed to run validate repository added command " + str(status[0]))
                     d = {
                         "responseType": "ERROR",
-                        "msg": "Failed to run validate repository added command " + str(str[0]),
+                        "msg": "Failed to run validate repository added command " + str(status[0]),
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
@@ -2447,10 +2447,10 @@ def installCertManagerAndContour(env, cluster_name, repo_address, service_name, 
         switch = switchToManagementContext(cluster_name.strip())
         switch = json.loads(switch[0]), switch[1]
         if switch[1] != 200:
-            logger.info(switch[0].json['msg'])
+            logger.info(switch[0])
             d = {
                 "responseType": "ERROR",
-                "msg": switch[0].json['msg'],
+                "msg": switch[0],
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -2482,13 +2482,13 @@ def installCertManagerAndContour(env, cluster_name, repo_address, service_name, 
             return json.dumps(d), 500
    
     if Tkg_version.TKG_VERSION == "1.5":
-        status_ = checkRepositoryAdded(env, jsonspec)
+        status_ = checkRepositoryAdded(jsonspec)
         status_ = json.loads(status_[0]), status_[1]
         if status_[1] != 200:
-            logger.error(str(status_[0].json['msg']))
+            logger.error(str(status_[0]))
             d = {
                 "responseType": "ERROR",
-                "msg": str(status_[0].json['msg']),
+                "msg": str(status_[0]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500

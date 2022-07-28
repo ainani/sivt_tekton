@@ -118,10 +118,10 @@ class RaDeployExtWorkflow:
                     for extn in logginglistOfExtention:
                         status = deploy_tkg_extensions.deploy(extn)
                         if status[1] != 200:
-                            logger.info("Failed to deploy extension "+str(status[0].json['msg']))
+                            logger.info("Failed to deploy extension "+str(status[0]))
                             d = {
                                 "responseType": "ERROR",
-                                "msg": "Failed to deploy extension "+str(status[0].json['msg']),
+                                "msg": "Failed to deploy extension "+str(status[0]),
                                 "ERROR_CODE": 500
                             }
                             return json.dumps(d), 500
@@ -154,10 +154,10 @@ class RaDeployExtWorkflow:
                     for extn in monitoringListOfExtention:
                         status = deploy_tkg_extensions.deploy(extn)
                         if status[1] != 200:
-                            logger.info("Failed to deploy extension "+str(status[0].json['msg']))
+                            logger.info("Failed to deploy extension "+str(status[0]))
                             d = {
                                 "responseType": "ERROR",
-                                "msg": "Failed to deploy extension "+str(status[0].json['msg']),
+                                "msg": "Failed to deploy extension "+str(status[0]),
                                 "ERROR_CODE": 500
                             }
                             return json.dumps(d), 500
