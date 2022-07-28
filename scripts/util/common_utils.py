@@ -1041,7 +1041,7 @@ def checkTmcRegister(cluster, ifManagement):
         return False
 
 def checkToEnabled(jsonspec):
-    to = jsonspec["saasEndpoints"]["tanzuObservabilityDetails"][
+    to = jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"][
         "tanzuObservabilityAvailability"]
     if str(to).lower() == "true":
         return True
@@ -2123,7 +2123,6 @@ def getVersionOfPackage(packageName):
         return None
     return version
 
-
 def isClusterRunning(vcenter_ip, vcenter_username, password, cluster, workload_name, jsonspec):
     try:
         logger.info("Check if cluster is in running state - " + workload_name)
@@ -2616,7 +2615,12 @@ def deploy_fluent_bit(end_point, cluster, jsonspec):
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        copy_template_command = ["cp", Paths.VSPHERE_FLUENT_BIT_YAML, Paths.CLUSTER_PATH + cluster]
+        # Getting issue wih "Paths.VSPHERE_FLUENT_BIT_YAML", It's not able to resovle it's correct value:
+        # (Pdb) p copy_template_command
+        # ['cp', <Paths.VSPHERE_FLUENT_BIT_YAML: './scripts/template/fluent_bit_data_values.yml'>, '/opt/vmware/arcas/tanzu-clusters/tkg-workload']
+        fluent_bit_yaml_path = "./scripts/template/fluent_bit_data_values.yml"
+        #copy_template_command = ["cp", Paths.VSPHERE_FLUENT_BIT_YAML, Paths.CLUSTER_PATH + cluster]
+        copy_template_command = ["cp", fluent_bit_yaml_path, Paths.CLUSTER_PATH + cluster]
         copy_output = runShellCommandAndReturnOutputAsList(copy_template_command)
         if copy_output[1] != 0:
             logger.error("Failed to copy template file to : " + Paths.CLUSTER_PATH + cluster)
@@ -2626,7 +2630,7 @@ def deploy_fluent_bit(end_point, cluster, jsonspec):
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        yamlFile = Paths.CLUSTER_PATH + cluster + "/fluent_bit_data_values.yaml"
+        yamlFile = Paths.CLUSTER_PATH + cluster + "/fluent_bit_data_values.yml"
         namespace = "package-tanzu-system-logging"
         update_response = updateDataFile(end_point, yamlFile, jsonspec)
         if not update_response:

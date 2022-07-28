@@ -248,9 +248,9 @@ def generateYamlFile(extention, version, certKey_Path, cert_Path, fqdn, secret, 
     # modify yaml file, add fqdn etc..
 
     if extention == 'grafana':
-        command = ["./common/injectValue.sh", yaml_file_name, "inject_secret", secret, "tanzu-system-dashboards"]
+        command = ["./scripts/common/injectValue.sh", yaml_file_name, "inject_secret", secret, "tanzu-system-dashboards"]
     else:
-        command = ["./common/injectValue.sh", yaml_file_name, "inject_ingress", "true"]
+        command = ["./scripts/common/injectValue.sh", yaml_file_name, "inject_ingress", "true"]
     runShellCommandAndReturnOutputAsList(command)
     if cert_Path and certKey_Path:
         cert = Path(cert_Path).read_text()
@@ -266,9 +266,9 @@ def generateYamlFile(extention, version, certKey_Path, cert_Path, fqdn, secret, 
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-    command = ["./common/injectValue.sh", yaml_file_name, "inject_ingress_fqdn", fqdn]
+    command = ["./scripts/common/injectValue.sh", yaml_file_name, "inject_ingress_fqdn", fqdn]
     runShellCommandAndReturnOutputAsList(command)
-    command2 = ["./common/injectValue.sh", yaml_file_name, "remove"]
+    command2 = ["./scripts/common/injectValue.sh", yaml_file_name, "remove"]
     runShellCommandAndReturnOutputAsList(command2)
 
     d = {

@@ -21,7 +21,7 @@ CLUSTER_PLAN = ["dev", "prod"]
 
 class Paths(str, Enum):
     #check the below two vars
-    VSPHERE_FLUENT_BIT_YAML = './common/template/fluent_bit_data_values.yaml'
+    VSPHERE_FLUENT_BIT_YAML = "./scripts/template/fluent_bit_data_values.yml"
     CLUSTER_PATH = "/opt/vmware/arcas/tanzu-clusters/"
 
     MASTER_SPEC_PATH = "config/deployment-config.json"
