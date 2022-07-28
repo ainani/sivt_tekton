@@ -15,7 +15,7 @@ from constants.constants import Tkgs_Extension_Details, RegexPattern, Tkg_Extent
 from util.common_utils import getVersionOfPackage, loadBomFile,\
      checkToEnabled, installExtentionFor14, checkRepositoryAdded, loadBomFile, \
     checkTmcEnabled, waitForGrepProcessWithoutChangeDir, connect_to_workload, isClusterRunning, \
-     deploy_fluent_bit, checkFluentBitInstalled, fluent_bit_enabled, getClusterID, configureKubectl
+     deploy_fluent_bit, checkFluentBitInstalled, fluent_bit_enabled, getClusterID, configureKubectl, createClusterFolder
 
 
 from util.extensions_helper import checkTanzuExtensionEnabled, checkPromethusEnabled
@@ -135,6 +135,18 @@ def deploy_tkgs_extensions(jsonspec):
 
 
 def tkgsExtensionsPrecheck(vcenter_ip, vcenter_username, password, cluster, jsonspec):
+    # Creating cluster folder
+    workload_name = jsonspec['tkgsComponentSpec']["tkgsVsphereNamespaceSpec"][
+        'tkgsVsphereWorkloadClusterSpec']['tkgsVsphereWorkloadClusterName']
+    if not createClusterFolder(workload_name):
+        d = {
+            "responseType": "ERROR",
+            "msg": "Failed to create directory: " + Paths.CLUSTER_PATH + workload_name,
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+    logger.info("The yml files will be located at: " + Paths.CLUSTER_PATH + workload_name)
+    ###################
 
     workload_cluster = jsonspec['tanzuExtensions']['tkgClustersName']
 
