@@ -2445,6 +2445,7 @@ def installCertManagerAndContour(env, cluster_name, repo_address, service_name, 
             return json.dumps(d), 500
     if str(mgmt).strip() == cluster_name.strip():
         switch = switchToManagementContext(cluster_name.strip())
+        switch = json.loads(switch[0]), switch[1]
         if switch[1] != 200:
             logger.info(switch[0].json['msg'])
             d = {
@@ -2482,6 +2483,7 @@ def installCertManagerAndContour(env, cluster_name, repo_address, service_name, 
    
     if Tkg_version.TKG_VERSION == "1.5":
         status_ = checkRepositoryAdded(env, jsonspec)
+        status_ = json.loads(status_[0]), status_[1]
         if status_[1] != 200:
             logger.error(str(status_[0].json['msg']))
             d = {

@@ -461,6 +461,7 @@ def deploy_extensions(cluster_name, jsonspec):
 def tkgsCertManagerandContour(cluster_name, service_name, jsonspec):
     try:
         status_ = checkRepositoryAdded(jsonspec)
+        status_ = json.loads(status_[0]), status_[1]
         if status_[1] != 200:
             logger.error(str(status_[0].json['msg']))
             d = {
