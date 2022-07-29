@@ -2,14 +2,14 @@
     "envSpec": {
         "envType": "tkgs-wcp",
         "vcenterDetails": {
-            "vcenterAddress": "<VCENTER_IP_ADDRESS_OR_HOSTNAME>",
-            "vcenterSsoUser": "<VCENTER_USERNAME>",
-            "vcenterSsoPasswordBase64": "<VCENTER_ENCRYPTED_PASSWORD>",
-            "vcenterDatacenter": "<VCENTER_DATA_CENTER>",
-            "vcenterCluster": "<VCENTER_CLUSTER>",
-            "vcenterDatastore": "<VCENTER_DATASTORE>",
-            "contentLibraryName": "<VCENTER_CONTENT_LIBRARY_NAME>",
-            "aviOvaName": "<AVI_OVA_NAME>"
+            "vcenterAddress": "vcenter.tsv.local",
+            "vcenterSsoUser": "administrator@vsphere.local",
+            "vcenterSsoPasswordBase64": "Vk13YXJlMSE=",
+            "vcenterDatacenter": "TSV_DC",
+            "vcenterCluster": "TSV_Cluster",
+            "vcenterDatastore": "vsanDatastore",
+            "contentLibraryName": "TanzuAutomation-Lib",
+            "aviOvaName": "controller-20.1.7-9154"
         },
         "marketplaceSpec": {
             "refreshToken": ""
@@ -24,25 +24,25 @@
             }
         },
         "infraComponents": {
-            "dnsServersIp": "<DNS_SERVER_IP>",
-            "searchDomains": "<DNS_SEARCH_DOMAINS>",
-            "ntpServers": "<NTP_SERVER_IP>"
+            "dnsServersIp": "172.16.10.2",
+            "searchDomains": "local",
+            "ntpServers": "10.166.1.120"
         }
     },
     "tkgsComponentSpec": {
         "controlPlaneSize": "SMALL",
         "aviMgmtNetwork": {
-            "aviMgmtNetworkName": "<AVI_MGMT_NETWORK_NAME>",
+            "aviMgmtNetworkName": "alb-mgmt",
             "aviMgmtNetworkGatewayCidr": "172.16.10.1/24",
             "aviMgmtServiceIpStartRange": "172.16.10.150",
-            "aviMgmtServiceIpEndRange": "172.16.10.199"
+            "aviMgmtServiceIpEndRange": "172.16.10.200"
         },
         "aviComponents": {
-            "aviPasswordBase64": "<AVI_ENCRYPTED_PASSWORD>",
-            "aviBackupPassphraseBase64": "<AVI_ENCRYPTED_BACKUP_PASSWORD>",
+            "aviPasswordBase64": "Vk13YXJlMSE=",
+            "aviBackupPassphraseBase64": "Vk13YXJlMSE=",
             "enableAviHa": "false",
             "aviController01Ip": "172.16.10.56",
-            "aviController01Fqdn": "<AVI_FQDN01>",
+            "aviController01Fqdn": "avi-controller1.tsv.local",
             "aviController02Ip": "",
             "aviController02Fqdn": "",
             "aviController03Ip": "",
@@ -54,32 +54,32 @@
             "aviCertKeyPath": ""
         },
         "tkgsVipNetwork": {
-            "tkgsVipNetworkName": "<TKGS_VIP_NETWORK_NAME>",
+            "tkgsVipNetworkName": "TkG-Cluster-VIP",
             "tkgsVipNetworkGatewayCidr": "172.16.16.1/26",
             "tkgsVipIpStartRange": "172.16.16.2",
             "tkgsVipIpEndRange": "172.16.16.59"
         },
         "tkgsMgmtNetworkSpec": {
-            "tkgsMgmtNetworkName": "<TKGS_MGMT_NETWORK_NAME>",
+            "tkgsMgmtNetworkName": "TkG-Management",
             "tkgsMgmtNetworkGatewayCidr": "172.16.14.1/24",
             "tkgsMgmtNetworkStartingIp": "172.16.14.150",
-            "tkgsMgmtNetworkDnsServers": "<DNS_SERVER_IP>",
-            "tkgsMgmtNetworkSearchDomains": "<DNS_SEARCH_DOMAINS>",
-            "tkgsMgmtNetworkNtpServers": "<NTP_SERVER_IP>"
+            "tkgsMgmtNetworkDnsServers": "172.16.10.2",
+            "tkgsMgmtNetworkSearchDomains": "local",
+            "tkgsMgmtNetworkNtpServers": "10.166.1.120"
         },
         "tkgsStoragePolicySpec": {
-            "masterStoragePolicy": "<TKGs_VSPHERE_NAMESPACE_STORAGE_POLICY>",
-            "ephemeralStoragePolicy": "<TKGs_VSPHERE_NAMESPACE_STORAGE_POLICY>",
-            "imageStoragePolicy": "<TKGs_VSPHERE_NAMESPACE_STORAGE_POLICY>"
+            "masterStoragePolicy": "vSAN Default Storage Policy",
+            "ephemeralStoragePolicy": "vSAN Default Storage Policy",
+            "imageStoragePolicy": "vSAN Default Storage Policy"
         },
         "tkgsPrimaryWorkloadNetwork": {
-            "tkgsPrimaryWorkloadPortgroupName": "<TKGS_WORKLOAD_PORTGROUP_NAME>",
-            "tkgsPrimaryWorkloadNetworkName": "<TKGS_WORKLOAD_NETWORK_NAME>",
+            "tkgsPrimaryWorkloadPortgroupName": "TkG-Workload-Data",
+            "tkgsPrimaryWorkloadNetworkName": "tkg-workload",
             "tkgsPrimaryWorkloadNetworkGatewayCidr": "172.16.15.1/24",
             "tkgsPrimaryWorkloadNetworkStartRange": "172.16.15.150",
             "tkgsPrimaryWorkloadNetworkEndRange": "172.16.15.199",
-            "tkgsWorkloadDnsServers": "<DNS_SERVER_IP>",
-            "tkgsWorkloadNtpServers": "<NTP_SERVER_IP>",
+            "tkgsWorkloadDnsServers": "172.16.10.2",
+            "tkgsWorkloadNtpServers": "10.166.1.120",
             "tkgsWorkloadServiceCidr": "10.96.0.0/22"
         }
     }
