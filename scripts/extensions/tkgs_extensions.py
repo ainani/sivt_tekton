@@ -547,7 +547,7 @@ def deploy_monitoring_extentions(monitoringType, clusterName, jsonspec):
             return json.dumps(d), 500
         repo = getRepo(jsonspec)
         repository = repo[1]
-        os.system("chmod +x ./scripts/common/injectValue.sh")
+        os.system(f"chmod +x {Paths.INJECT_VALUE_SH}")
         enable = jsonspec['tanzuExtensions']['monitoring']['enableLoggingExtension']
         extention = ""
         appName = ""
@@ -586,7 +586,7 @@ def deploy_monitoring_extentions(monitoringType, clusterName, jsonspec):
                 yamlFile = Paths.CLUSTER_PATH + clusterName + "/grafana-data-values.yaml"
                 appName = AppName.GRAFANA
                 namespace = "package-tanzu-system-dashboards"
-                command = ["./scripts/common/injectValue.sh", Extentions.GRAFANA_LOCATION + "/grafana-extension.yaml", "fluent_bit",
+                command = [f"{Paths.INJECT_VALUE_SH}", Extentions.GRAFANA_LOCATION + "/grafana-extension.yaml", "fluent_bit",
                            repository + "/" + Extentions.APP_EXTENTION]
                 runShellCommandAndReturnOutputAsList(command)
                 bom_map = getBomMap(load_bom, Tkg_Extention_names.GRAFANA)
@@ -735,11 +735,11 @@ def updateStorageClass(yamlFile, extension):
         logger.info("Default Storage Class for workload cluster - " + sc)
         logger.info("Update " + extension + " data files with storage class")
         if extension == Tkg_Extention_names.PROMETHEUS:
-            inject_sc = ["sh", "./scripts/common/injectValue.sh", yamlFile, "inject_sc_prometheus", sc]
+            inject_sc = ["sh", Paths.INJECT_VALUE_SH, yamlFile, "inject_sc_prometheus", sc]
         elif extension == Tkg_Extention_names.GRAFANA:
-            inject_sc = ["sh", "./scripts/common/injectValue.sh", yamlFile, "inject_sc_grafana", sc]
+            inject_sc = ["sh", Paths.INJECT_VALUE_SH, yamlFile, "inject_sc_grafana", sc]
         elif extension == AppName.HARBOR:
-            inject_sc = ["sh", "./scripts/common/injectValue.sh", yamlFile, "inject_sc_harbor", sc]
+            inject_sc = ["sh", Paths.INJECT_VALUE_SH, yamlFile, "inject_sc_harbor", sc]
         else:
             logger.error("Wrong extension name provided for updating storage class name - " + extension)
             d = {
@@ -876,7 +876,7 @@ def installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, c
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        os.system("chmod +x ./scripts/common/injectValue.sh")
+        os.system(f"chmod +x {Paths.INJECT_VALUE_SH}")
 
         update_sc_resp = updateStorageClass(Paths.CLUSTER_PATH + clusterName + "/harbor-data-values.yaml", AppName.HARBOR)
         update_sc_resp = json.loads(update_sc_resp[0]), update_sc_resp[1]
@@ -891,7 +891,7 @@ def installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, c
         else:
             logger.info(update_sc_resp[0])
 
-        command = ["sh", "./scripts/common/injectValue.sh", Paths.CLUSTER_PATH + clusterName + "/harbor-data-values.yaml", "remove"]
+        command = ["sh", Paths.INJECT_VALUE_SH, Paths.CLUSTER_PATH + clusterName + "/harbor-data-values.yaml", "remove"]
         runShellCommandAndReturnOutputAsList(command)
 
         logger.info("Initiated harbor deployment")
@@ -974,8 +974,8 @@ def installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, c
 
 def tkgsOverlay():
     try:
-        os.system("chmod +x ./scripts/common/tkgs_apply_overlay.sh fix-fsgroup-overlay.yaml")
-        apply = ["sh", "./scripts/common/tkgs_apply_overlay.sh"]
+        os.system(f"chmod +x {Paths.TKGS_OVERLAY} {Paths.FIX_FS_GRP}")
+        apply = ["sh", Paths.TKGS_OVERLAY]
         apply_state = runShellCommandAndReturnOutput(apply)
         if apply_state[1] != 0:
             logger.error("Failed to create secrets " + str(apply_state[0]))

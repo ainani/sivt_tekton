@@ -34,6 +34,13 @@ class Paths(str, Enum):
     SCALE_PATH = "desired-state/scale.yml"
     REPAVE_PATH = "desired-state/repave.yml"
 
+    # Supported extensions files
+    EXT_COMMON_ROOT_DIR = "common"
+    INJECT_SH = f"{EXT_COMMON_ROOT_DIR}/inject.sh"
+    INJECT_VALUE_SH = f"{EXT_COMMON_ROOT_DIR}/injectValue.sh"
+    TKGS_OVERLAY = f"{EXT_COMMON_ROOT_DIR}/tkgs_apply_overlay.sh"
+    FIX_FS_GRP = f"{EXT_COMMON_ROOT_DIR}/fix-fsgroup-overlay.yaml"
+
     # template files in package
     TEMPLATES_ROOT_DIR = "template"
     TKG_MGMT_SPEC_J2 = f"{TEMPLATES_ROOT_DIR}/deploy.yaml.j2"
