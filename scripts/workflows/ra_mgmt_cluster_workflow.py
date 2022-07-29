@@ -1386,8 +1386,7 @@ class RaMgmtClusterWorkflow:
                 for i in tqdm(range(60), desc="Waiting…", ascii=False, ncols=75):
                     time.sleep(1)
                 mgmt_pg = self.jsonspec['tkgComponentSpec']['aviMgmtNetwork']['aviMgmtNetworkName']
-                get_management = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion,
-                                                    cloudName=Cloud.DEFAULT_CLOUD_NAME_VSPHERE)
+                get_management = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion)
                 if get_management[0] is None:
                     logger.error("Failed to get management network " + str(get_management[1]))
                     d = {
@@ -1507,7 +1506,7 @@ class RaMgmtClusterWorkflow:
                         return json.dumps(d), 500
                 mgmt_pg = self.jsonspec['tkgComponentSpec']['tkgClusterVipNetwork'][
                     'tkgClusterVipNetworkName']
-                get_vip = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion, cloudName=Cloud.DEFAULT_CLOUD_NAME_VSPHERE)
+                get_vip = self.getNetworkUrl(ip, csrf2, mgmt_pg, aviVersion)
                 if get_vip[0] is None:
                     d = {
                         "responseType": "ERROR",
