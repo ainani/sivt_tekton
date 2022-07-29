@@ -22,17 +22,19 @@ from constants.constants import Tkg_version, Extentions
 logger = LoggerHelper.get_logger('common_utils')
 logging.getLogger("paramiko").setLevel(logging.WARNING)
 
-
-def certChanging(harborCertPath, harborCertKeyPath, harborPassword, host):
+def certChanging(harborCertPath, harborCertKeyPath, harborPassword, host, clusterName):
     os.system(f"chmod +x {Paths.INJECT_SH}")
-    location = "harbor-data-values.yaml"
-
+    location = ""
+    if Tkg_version.TKG_VERSION == "1.5":
+        location = Paths.CLUSTER_PATH + clusterName + "/harbor-data-values.yaml"
+    if Tkg_version.TKG_VERSION == "1.3":
+        location = Extentions.HARBOR_LOCATION + "/harbor-data-values.yaml"
     if harborCertPath and harborCertKeyPath:
         harbor_cert = Path(harborCertPath).read_text()
         harbor_cert_key = Path(harborCertKeyPath).read_text()
         certContent = harbor_cert
         certKeyContent = harbor_cert_key
-        command_harbor_change_host_password_cert = ["sh", Paths.INJECT_SH,
+        command_harbor_change_host_password_cert = ["sh", "./common/inject.sh",
                                                     location,
                                                     harborPassword, host, certContent, certKeyContent]
         state_harbor_change_host_password_cert = runShellCommandAndReturnOutput(
@@ -45,7 +47,7 @@ def certChanging(harborCertPath, harborCertKeyPath, harborPassword, host):
             }
             return json.dumps(d), 500
     else:
-        command_harbor_change_host_password_cert = ["sh", Paths.INJECT_SH,
+        command_harbor_change_host_password_cert = ["sh", "./common/inject.sh",
                                                     location,
                                                     harborPassword, host, "", ""]
         state_harbor_change_host_password_cert = runShellCommandAndReturnOutput(
