@@ -29,8 +29,9 @@ spec:
           ls -l
           cd /workspace/task-shared-data
           rm -rf /root/.config
+          cp -rf  /workspace/task-shared-data/kubeconfig-repo/.config /root/
           python arcas-tekton-cicd/scripts/__main__.py --root-dir=/workspace/task-shared-data workload-clusters tkgs-wld-ns-setup
-
+          cp -rf /root/.config /workspace/task-shared-data/kubeconfig-repo/
       volumeMounts:
       - mountPath: /certs/client
         name: dind-certs
