@@ -8,7 +8,7 @@
             "vcenterCluster": "TSV_Cluster",
             "vcenterDatastore": "vsanDatastore",
             "contentLibraryName": "TanzuAutomation-Lib",
-            "aviOvaName": "",
+            "aviOvaName": "avi-controller",
             "resourcePoolName": ""
         },
         "envType": "tkgm",
