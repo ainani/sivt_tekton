@@ -24,7 +24,7 @@ logging.getLogger("paramiko").setLevel(logging.WARNING)
 
 
 def certChanging(harborCertPath, harborCertKeyPath, harborPassword, host):
-    os.system("chmod +x common/inject.sh")
+    os.system("chmod +x ./scripts/common/inject.sh")
     location = "harbor-data-values.yaml"
 
     if harborCertPath and harborCertKeyPath:
@@ -32,7 +32,7 @@ def certChanging(harborCertPath, harborCertKeyPath, harborPassword, host):
         harbor_cert_key = Path(harborCertKeyPath).read_text()
         certContent = harbor_cert
         certKeyContent = harbor_cert_key
-        command_harbor_change_host_password_cert = ["sh", "./common/inject.sh",
+        command_harbor_change_host_password_cert = ["sh", "./scripts/common/inject.sh",
                                                     location,
                                                     harborPassword, host, certContent, certKeyContent]
         state_harbor_change_host_password_cert = runShellCommandAndReturnOutput(
@@ -45,7 +45,7 @@ def certChanging(harborCertPath, harborCertKeyPath, harborPassword, host):
             }
             return json.dumps(d), 500
     else:
-        command_harbor_change_host_password_cert = ["sh", "./common/inject.sh",
+        command_harbor_change_host_password_cert = ["sh", "./scripts/common/inject.sh",
                                                     location,
                                                     harborPassword, host, "", ""]
         state_harbor_change_host_password_cert = runShellCommandAndReturnOutput(

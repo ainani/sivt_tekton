@@ -876,7 +876,7 @@ def installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, c
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        os.system("chmod +x common/scripts/injectValue.sh")
+        os.system("chmod +x ./scripts/common/injectValue.sh")
 
         update_sc_resp = updateStorageClass(Paths.CLUSTER_PATH + clusterName + "/harbor-data-values.yaml", AppName.HARBOR)
         update_sc_resp = json.loads(update_sc_resp[0]), update_sc_resp[1]
@@ -974,8 +974,8 @@ def installHarborTkgs(harborCertPath, harborCertKeyPath, harborPassword, host, c
 
 def tkgsOverlay():
     try:
-        os.system("chmod +x tkgs_apply_overlay.sh fix-fsgroup-overlay.yaml")
-        apply = ["sh", "./tkgs_apply_overlay.sh"]
+        os.system("chmod +x ./scripts/common/tkgs_apply_overlay.sh fix-fsgroup-overlay.yaml")
+        apply = ["sh", "./scripts/common/tkgs_apply_overlay.sh"]
         apply_state = runShellCommandAndReturnOutput(apply)
         if apply_state[1] != 0:
             logger.error("Failed to create secrets " + str(apply_state[0]))
