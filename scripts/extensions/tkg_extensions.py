@@ -123,9 +123,9 @@ class deploy_tkg_extensions():
 def getImageName(server_image):
     return server_image[server_image.rindex("/") + 1:len(server_image)]
 
-def getRepo(env, jsonspec):
+def getRepo(jsonspec):
     try:
-        if checkAirGappedIsEnabled(env, jsonspec):
+        if checkAirGappedIsEnabled(jsonspec):
             repo_address = str(jsonspec['envSpec']['customRepositorySpec'][
                                    'tkgCustomImageRepository'])
         else:
@@ -248,14 +248,14 @@ def generateYamlFile(extention, version, certKey_Path, cert_Path, fqdn, secret, 
     # modify yaml file, add fqdn etc..
 
     if extention == 'grafana':
-        command = ["./common/injectValue.sh", yaml_file_name, "inject_secret", secret, "tanzu-system-dashboards"]
+        command = [Paths.INJECT_VALUE_SH, yaml_file_name, "inject_secret", secret, "tanzu-system-dashboards"]
     else:
-        command = ["./common/injectValue.sh", yaml_file_name, "inject_ingress", "true"]
+        command = [Paths.INJECT_VALUE_SH, yaml_file_name, "inject_ingress", "true"]
     runShellCommandAndReturnOutputAsList(command)
     if cert_Path and certKey_Path:
         cert = Path(cert_Path).read_text()
         cert_key = Path(certKey_Path).read_text()
-        inject_cert_key = ["sh", "./common/injectValue.sh", yaml_file_name, "inject_cert_dot4", cert, cert_key]
+        inject_cert_key = ["sh", Paths.INJECT_VALUE_SH, yaml_file_name, "inject_cert_dot4", cert, cert_key]
         state_harbor_change_host_password_cert = runShellCommandAndReturnOutput(inject_cert_key)
         if state_harbor_change_host_password_cert[1] == 500:
             logger.error(
@@ -266,9 +266,9 @@ def generateYamlFile(extention, version, certKey_Path, cert_Path, fqdn, secret, 
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-    command = ["./common/injectValue.sh", yaml_file_name, "inject_ingress_fqdn", fqdn]
+    command = [Paths.INJECT_VALUE_SH, yaml_file_name, "inject_ingress_fqdn", fqdn]
     runShellCommandAndReturnOutputAsList(command)
-    command2 = ["./common/injectValue.sh", yaml_file_name, "remove"]
+    command2 = [Paths.INJECT_VALUE_SH, yaml_file_name, "remove"]
     runShellCommandAndReturnOutputAsList(command2)
 
     d = {
@@ -372,7 +372,7 @@ def monitoringDeployment(monitoringType, jsonspec):
                     return json.dumps(d), 500
                 repo = getRepo(env, jsonspec)
                 repository = repo[1]
-                os.system("chmod +x ./common/injectValue.sh")
+                os.system(f"chmod +x {Paths.INJECT_VALUE_SH}")
             if monitoringType == Tkg_Extention_names.PROMETHEUS:
                 password = None
                 extention = Tkg_Extention_names.PROMETHEUS
@@ -404,7 +404,7 @@ def monitoringDeployment(monitoringType, jsonspec):
                 yamlFile = Paths.CLUSTER_PATH + cluster + "/grafana-data-values.yaml"
                 appName = AppName.GRAFANA
                 namespace = "package-tanzu-system-dashboards"
-                command = ["./common/injectValue.sh", Extentions.GRAFANA_LOCATION + "/grafana-extension.yaml",
+                command = [Paths.INJECT_VALUE_SH, Extentions.GRAFANA_LOCATION + "/grafana-extension.yaml",
                            "fluent_bit", repository + "/" + Extentions.APP_EXTENTION]
                 runShellCommandAndReturnOutputAsList(command)
                 bom_map = getBomMap(load_bom, Tkg_Extention_names.GRAFANA)

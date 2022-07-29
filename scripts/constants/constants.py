@@ -21,7 +21,7 @@ CLUSTER_PLAN = ["dev", "prod"]
 
 class Paths(str, Enum):
     #check the below two vars
-    VSPHERE_FLUENT_BIT_YAML = './common/template/fluent_bit_data_values.yaml'
+    VSPHERE_FLUENT_BIT_YAML = "./scripts/template/fluent_bit_data_values.yml"
     CLUSTER_PATH = "/opt/vmware/arcas/tanzu-clusters/"
 
     MASTER_SPEC_PATH = "config/deployment-config.json"
@@ -33,6 +33,13 @@ class Paths(str, Enum):
     JSON_SPEC_PATH = "config/deployment-config.json"
     SCALE_PATH = "desired-state/scale.yml"
     REPAVE_PATH = "desired-state/repave.yml"
+
+    # Supported extensions files
+    EXT_COMMON_ROOT_DIR = "arcas-tekton-cicd/scripts/common"
+    INJECT_SH = f"{EXT_COMMON_ROOT_DIR}/inject.sh"
+    INJECT_VALUE_SH = f"{EXT_COMMON_ROOT_DIR}/injectValue.sh"
+    TKGS_OVERLAY = f"{EXT_COMMON_ROOT_DIR}/tkgs_apply_overlay.sh"
+    FIX_FS_GRP = f"{EXT_COMMON_ROOT_DIR}/fix-fsgroup-overlay.yaml"
 
     # template files in package
     TEMPLATES_ROOT_DIR = "template"
@@ -734,7 +741,7 @@ class AppName:
     AKO = "ako"
     HARBOR = "harbor"
     FLUENT_BIT = "fluent-bit"
-    PROMETHEUS = "prometheus"
+    PROMETHUS = "prometheus"
     GRAFANA = "grafana"
     CERT_MANAGER = "cert-manager"
     CONTOUR = "contour"

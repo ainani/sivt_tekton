@@ -10,6 +10,7 @@ from util import cmd_runner
 from pathlib import Path
 import base64
 import logging
+import ruamel
 from constants.constants import Paths, ControllerLocation, KubernetesOva, MarketPlaceUrl, VrfType, \
     ClusterType, TmcUser, RegexPattern, SAS, AppName, UpgradeVersions, Repo, Env, Extentions, Tkg_Extention_names, \
     Tkg_version, TKG_Package_Details, TKGCommands, VeleroAPI
@@ -1040,7 +1041,7 @@ def checkTmcRegister(cluster, ifManagement):
         return False
 
 def checkToEnabled(jsonspec):
-    to = jsonspec["saasEndpoints"]["tanzuObservabilityDetails"][
+    to = jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"][
         "tanzuObservabilityAvailability"]
     if str(to).lower() == "true":
         return True
@@ -1439,7 +1440,7 @@ def waitForGrepProcessWithoutChangeDir(list1, list2, podName, status):
     }
     return json.dumps(d), 200, count_cert
 
-def createContourDataValues():
+def createContourDataValues(clusterName):
     data = dict(
         infrastructure_provider='vsphere',
         namespace='tanzu-system-ingress',
@@ -1465,15 +1466,15 @@ def createContourDataValues():
         ),
         certificates=dict(duration='8760h', renewBefore='360h')
     )
-    with open('./contour-data-values.yaml', 'w') as outfile:
+    with open(Paths.CLUSTER_PATH + clusterName + '/contour-data-values.yaml', 'w') as outfile:
         outfile.write("---\n")
-        yaml1 = ryaml.YAML()
+        yaml1 = ruamel.yaml.YAML()
         yaml1.indent(mapping=2, sequence=4, offset=3)
         yaml1.dump(data, outfile)
 
-def installExtentionFor14():
+def installExtentionFor14(service_name, cluster, jsonspec):
     main_command = ["tanzu", "package", "installed", "list", "-A"]
-    service = 'all'
+    service = service_name
     if service == "certmanager" or service == "all":
         sub_command = ["grep", AppName.CERT_MANAGER]
         command_cert = grabPipeOutput(main_command, sub_command)
@@ -1500,7 +1501,7 @@ def installExtentionFor14():
             if certManagerStatus[1] == 500:
                 d = {
                     "responseType": "ERROR",
-                    "msg": "Failed to bring certmanager " + str(certManagerStatus[0].json['msg']),
+                    "msg": "Failed to bring cert-manager " + str(certManagerStatus[0]),
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
@@ -1522,11 +1523,21 @@ def installExtentionFor14():
                 }
                 return json.dumps(d), 200
     if service == "ingress" or service == "all":
-
+        if not TkgUtil.isEnvTkgs_ns(jsonspec):
+            podRunninng_ako_main = ["kubectl", "get", "pods", "-A"]
+            podRunninng_ako_grep = ["grep", AppName.AKO]
+            command_status_ako = grabPipeOutput(podRunninng_ako_main, podRunninng_ako_grep)
+            if not verifyPodsAreRunning(AppName.AKO, command_status_ako[0], RegexPattern.RUNNING):
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Ako pod is not running " + str(command_status_ako[0]),
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
         sub_command = ["grep", AppName.CONTOUR]
         command_cert = grabPipeOutput(main_command, sub_command)
         if not verifyPodsAreRunning(AppName.CONTOUR, command_cert[0], RegexPattern.RECONCILE_SUCCEEDED):
-            createContourDataValues()
+            createContourDataValues(cluster)
             state = getVersionOfPackage("contour.tanzu.vmware.com")
             if state is None:
                 d = {
@@ -1538,7 +1549,8 @@ def installExtentionFor14():
             logger.info("Installing contour - " + state)
             install_command = ["tanzu", "package", "install", AppName.CONTOUR, "--package-name",
                                "contour.tanzu.vmware.com", "--version", state, "--values-file",
-                               "./contour-data-values.yaml", "--namespace", "package-tanzu-system-contour",
+                               Paths.CLUSTER_PATH + cluster + "/contour-data-values.yaml", "--namespace",
+                               "package-tanzu-system-contour",
                                "--create-namespace"]
             states = runShellCommandAndReturnOutputAsList(install_command)
             if states[1] != 0:
@@ -1551,7 +1563,7 @@ def installExtentionFor14():
             if certManagerStatus[1] == 500:
                 d = {
                     "responseType": "ERROR",
-                    "msg": "Failed to bring contour " + str(certManagerStatus[0].json['msg']),
+                    "msg": "Failed to bring contour " + str(certManagerStatus[0]),
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
@@ -2073,15 +2085,12 @@ def getVipNetworkIpNetMask(ip, csrf2, name, aviVersion):
         return "NOT_FOUND", "FAILED"
 
 
-def checkAirGappedIsEnabled(env, jsonspec):
-    if env == Env.VMC:
-        air_gapped = ""
-    else:
-        try:
-            air_gapped = jsonspec['envSpec']['customRepositorySpec'][
-                'tkgCustomImageRepository']
-        except:
-            return False
+def checkAirGappedIsEnabled(jsonspec):
+    try:
+        air_gapped = jsonspec['envSpec']['customRepositorySpec'][
+            'tkgCustomImageRepository']
+    except:
+        return False
     if not air_gapped.lower():
         return False
     else:
@@ -2114,12 +2123,11 @@ def getVersionOfPackage(packageName):
         return None
     return version
 
-
 def isClusterRunning(vcenter_ip, vcenter_username, password, cluster, workload_name, jsonspec):
     try:
         logger.info("Check if cluster is in running state - " + workload_name)
 
-        cluster_id = getClusterID(vcenter_ip, vcenter_username, password, cluster)
+        cluster_id = getClusterID(vcenter_ip, vcenter_username, password, cluster, jsonspec)
         if cluster_id[1] != 200:
             logger.error(cluster_id[0])
             d = {
@@ -2131,7 +2139,7 @@ def isClusterRunning(vcenter_ip, vcenter_username, password, cluster, workload_n
 
         cluster_id = cluster_id[0]
 
-        wcp_status = isWcpEnabled(cluster_id)
+        wcp_status = isWcpEnabled(cluster_id, jsonspec)
         if wcp_status[0]:
             endpoint_ip = wcp_status[1]['api_server_cluster_endpoint']
         else:
@@ -2260,15 +2268,13 @@ def isWcpEnabled(cluster_id, jsonspec):
     else:
         return False, None
 
-
-
 def connect_to_workload(vCenter, vcenter_username, password, cluster, workload_name, jsonspec):
     try:
         logger.info("Connecting to workload cluster...")
-        cluster_id = getClusterID(vCenter, vcenter_username, password, cluster)
+        cluster_id = getClusterID(vCenter, vcenter_username, password, cluster, jsonspec)
         if cluster_id[1] != 200:
             logger.error(cluster_id[0])
-            return None, cluster_id[0].json['msg']
+            return None, cluster_id[0]
 
         cluster_namespace = jsonspec['tkgsComponentSpec']["tkgsVsphereNamespaceSpec"][
             'tkgsVsphereWorkloadClusterSpec']['tkgsVsphereNamespaceName']
@@ -2306,8 +2312,8 @@ def verifyCluster(cluster_name):
     else:
         return True
 
-def checkRepositoryAdded(env, jsonspec):
-    if checkAirGappedIsEnabled(env, jsonspec):
+def checkRepositoryAdded(jsonspec):
+    if checkAirGappedIsEnabled(jsonspec):
         try:
             validate_command = ["tanzu", "package", "repository", "list", "-A"]
 
@@ -2316,7 +2322,7 @@ def checkRepositoryAdded(env, jsonspec):
                 logger.error("Failed to run validate repository added command " + str(status[0]))
                 d = {
                     "responseType": "ERROR",
-                    "msg": "Failed to run validate repository added command " + str(str[0]),
+                    "msg": "Failed to run validate repository added command " + str(status[0]),
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
@@ -2331,7 +2337,7 @@ def checkRepositoryAdded(env, jsonspec):
                     logger.error("Failed to run command to add repository " + str(status[0]))
                     d = {
                         "responseType": "ERROR",
-                        "msg": "Failed to run command to add repository " + str(str[0]),
+                        "msg": "Failed to run command to add repository " + str(status[0]),
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
@@ -2340,7 +2346,7 @@ def checkRepositoryAdded(env, jsonspec):
                     logger.error("Failed to run validate repository added command " + str(status[0]))
                     d = {
                         "responseType": "ERROR",
-                        "msg": "Failed to run validate repository added command " + str(str[0]),
+                        "msg": "Failed to run validate repository added command " + str(status[0]),
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
@@ -2368,7 +2374,7 @@ def checkRepositoryAdded(env, jsonspec):
                 logger.error("Failed to run validate repository added command " + str(status[0]))
                 d = {
                     "responseType": "ERROR",
-                    "msg": "Failed to run validate repository added command " + str(str[0]),
+                    "msg": "Failed to run validate repository added command " + str(status[0]),
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
@@ -2381,7 +2387,7 @@ def checkRepositoryAdded(env, jsonspec):
                     logger.error("Failed to run command to add repository " + str(status[0]))
                     d = {
                         "responseType": "ERROR",
-                        "msg": "Failed to run command to add repository " + str(str[0]),
+                        "msg": "Failed to run command to add repository " + str(status[0]),
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
@@ -2390,7 +2396,7 @@ def checkRepositoryAdded(env, jsonspec):
                     logger.error("Failed to run validate repository added command " + str(status[0]))
                     d = {
                         "responseType": "ERROR",
-                        "msg": "Failed to run validate repository added command " + str(str[0]),
+                        "msg": "Failed to run validate repository added command " + str(status[0]),
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
@@ -2438,11 +2444,12 @@ def installCertManagerAndContour(env, cluster_name, repo_address, service_name, 
             return json.dumps(d), 500
     if str(mgmt).strip() == cluster_name.strip():
         switch = switchToManagementContext(cluster_name.strip())
+        switch = json.loads(switch[0]), switch[1]
         if switch[1] != 200:
-            logger.info(switch[0].json['msg'])
+            logger.info(switch[0])
             d = {
                 "responseType": "ERROR",
-                "msg": switch[0].json['msg'],
+                "msg": switch[0],
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -2474,16 +2481,17 @@ def installCertManagerAndContour(env, cluster_name, repo_address, service_name, 
             return json.dumps(d), 500
    
     if Tkg_version.TKG_VERSION == "1.5":
-        status_ = checkRepositoryAdded(env, jsonspec)
+        status_ = checkRepositoryAdded(jsonspec)
+        status_ = json.loads(status_[0]), status_[1]
         if status_[1] != 200:
-            logger.error(str(status_[0].json['msg']))
+            logger.error(str(status_[0]))
             d = {
                 "responseType": "ERROR",
-                "msg": str(status_[0].json['msg']),
+                "msg": str(status_[0]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        install = installExtentionFor14(service_name, cluster_name, env)
+        install = installExtentionFor14(service_name, cluster_name, jsonspec)
         if install[1] != 200:
             return install[0], install[1]
     logger.info("Configured cert-manager and contour successfully")
@@ -2574,7 +2582,7 @@ def updateDataFile(fluent_endpoint, dataFile, jsonspec):
 
         logger.info("Printing " + fluent_endpoint + " endpoint details ")
         logger.info(output_str)
-        inject_sc = ["sh", "./common/injectValue.sh", dataFile, "inject_output_fluent", output_str.strip()]
+        inject_sc = ["sh", Paths.INJECT_VALUE_SH, dataFile, "inject_output_fluent", output_str.strip()]
         inject_sc_response = runShellCommandAndReturnOutput(inject_sc)
         if inject_sc_response[1] == 500:
             logger.error("Command to update output endpoint failed")
@@ -2607,7 +2615,12 @@ def deploy_fluent_bit(end_point, cluster, jsonspec):
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        copy_template_command = ["cp", Paths.VSPHERE_FLUENT_BIT_YAML, Paths.CLUSTER_PATH + cluster]
+        # Getting issue wih "Paths.VSPHERE_FLUENT_BIT_YAML", It's not able to resovle it's correct value:
+        # (Pdb) p copy_template_command
+        # ['cp', <Paths.VSPHERE_FLUENT_BIT_YAML: './scripts/template/fluent_bit_data_values.yml'>, '/opt/vmware/arcas/tanzu-clusters/tkg-workload']
+        fluent_bit_yaml_path = "./scripts/template/fluent_bit_data_values.yml"
+        #copy_template_command = ["cp", Paths.VSPHERE_FLUENT_BIT_YAML, Paths.CLUSTER_PATH + cluster]
+        copy_template_command = ["cp", fluent_bit_yaml_path, Paths.CLUSTER_PATH + cluster]
         copy_output = runShellCommandAndReturnOutputAsList(copy_template_command)
         if copy_output[1] != 0:
             logger.error("Failed to copy template file to : " + Paths.CLUSTER_PATH + cluster)
@@ -2617,7 +2630,7 @@ def deploy_fluent_bit(end_point, cluster, jsonspec):
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        yamlFile = Paths.CLUSTER_PATH + cluster + "/fluent_bit_data_values.yaml"
+        yamlFile = Paths.CLUSTER_PATH + cluster + "/fluent_bit_data_values.yml"
         namespace = "package-tanzu-system-logging"
         update_response = updateDataFile(end_point, yamlFile, jsonspec)
         if not update_response:
@@ -2689,17 +2702,17 @@ def deploy_fluent_bit(end_point, cluster, jsonspec):
         return json.dumps(d), 500
 
 
-def fluent_bit_enabled(env, jsonspec):
-    if TkgUtil.isEnvTkgs_ns(jsonspec) or env == Env.VSPHERE or env == Env.VMC:
-        if check_fluent_bit_splunk_endpoint_endpoint_enabled():
+def fluent_bit_enabled(jsonspec):
+    if TkgUtil.isEnvTkgs_ns(jsonspec):
+        if check_fluent_bit_splunk_endpoint_endpoint_enabled(jsonspec):
             return True, Tkg_Extention_names.FLUENT_BIT_SPLUNK
-        elif check_fluent_bit_http_endpoint_enabled():
+        elif check_fluent_bit_http_endpoint_enabled(jsonspec):
             return True, Tkg_Extention_names.FLUENT_BIT_HTTP
-        elif check_fluent_bit_syslog_endpoint_enabled():
+        elif check_fluent_bit_syslog_endpoint_enabled(jsonspec):
             return True, Tkg_Extention_names.FLUENT_BIT_SYSLOG
-        elif check_fluent_bit_elastic_search_endpoint_enabled():
+        elif check_fluent_bit_elastic_search_endpoint_enabled(jsonspec):
             return True, Tkg_Extention_names.FLUENT_BIT_ELASTIC
-        elif check_fluent_bit_kafka_endpoint_endpoint_enabled():
+        elif check_fluent_bit_kafka_endpoint_endpoint_enabled(jsonspec):
             return True, Tkg_Extention_names.FLUENT_BIT_KAFKA
         else:
             return False, None
@@ -3058,8 +3071,8 @@ def registerTMCTKGs(vCenter, vCenter_user, VC_PASSWORD, jsonspec):
             if command_cert[1] != 0:
                 return "Failed to get namespace details", 500
             namespace = command_cert[0].split("\\s")[0].strip()
-            os.system("chmod +x ./common/injectValue.sh")
-            os.system("./common/injectValue.sh " + "k8s-register-manifest.yaml" + " inject_namespace " + namespace)
+            os.system(f"chmod +x {Paths.INJECT_VALUE_SH}")
+            os.system(Paths.INJECT_VALUE_SH + " " + "k8s-register-manifest.yaml" + " inject_namespace " + namespace)
             command = ["kubectl", "apply", "-f", "k8s-register-manifest.yaml"]
             state = runShellCommandAndReturnOutputAsList(command)
             if state[1] != 0:

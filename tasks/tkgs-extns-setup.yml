@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: tkgs-mgmt-create
+  name: tkgs-extns-setup
 spec:
   workspaces:
         - name: task-shared-data
@@ -12,12 +12,12 @@ spec:
       description: imagepullpolicy for operand image("Always", "IfNotPresent", "Never")
   steps:
     - image: $(params.imagename)
-      name: tkgs-mgmt-create
+      name: step-tkgs-extns-setup
       imagePullPolicy: $(params.imagepullpolicy)
       env:
       # Connect to the sidecar over TCP, with TLS.
-      - name: DOCKER_HOST
-        value: tcp://localhost:2376
+      - name: "KUBECONFIG"
+        value: "/root/.kube/config"
       # Verify TLS.
       - name: DOCKER_TLS_VERIFY
         value: '1'
@@ -28,8 +28,7 @@ spec:
           ls -l
           cd /workspace/task-shared-data
           rm -rf /root/.config
-          python arcas-tekton-cicd/scripts/__main__.py --root-dir=/workspace/task-shared-data mgmt deploy
-
+          python arcas-tekton-cicd/scripts/__main__.py --root-dir=/workspace/task-shared-data extns deploy
       volumeMounts:
       - mountPath: /certs/client
         name: dind-certs

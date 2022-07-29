@@ -29,15 +29,17 @@ class RaDeployExtWorkflow:
         self.run_config = run_config
         self.version = None
         self.jsonpath = None
-        self.tkg_type = self.run_config.desired_state.version.keys()
-        if "tkgs" in self.tkg_type:
-            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_WCP_MASTER_SPEC_PATH)
-            #self.ns_jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_NS_MASTER_SPEC_PATH)
-        elif "tkgm" in self.tkg_type:
+        self.tkg_util_obj = TkgUtil(run_config=self.run_config)
+        self.tkg_version_dict = self.tkg_util_obj.get_desired_state_tkg_version()
+        self.desired_state_tkg_version = None
+        if "tkgs" in self.tkg_version_dict:
+            self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_NS_MASTER_SPEC_PATH)
+            self.desired_state_tkg_version = self.tkg_version_dict["tkgs"]
+        elif "tkgm" in self.tkg_version_dict:
             self.jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
+            self.desired_state_tkg_version = self.tkg_version_dict["tkgm"]
         else:
-            raise Exception(f"Could not find supported TKG version: {self.tkg_type}")
-
+            raise Exception(f"Could not find supported TKG version: {self.tkg_version_dict}")
         with open(self.jsonpath) as f:
             self.jsonspec = json.load(f)
 
@@ -64,9 +66,8 @@ class RaDeployExtWorkflow:
                 }
                 return json.dumps(d), 500
             """
-            env = "vsphere"
             if self.isEnvTkgs_ns:
-                result = deploy_tkgs_extensions()
+                result = deploy_tkgs_extensions(self.jsonspec)
                 if result[1] != 200:
                     d = {
                         "responseType": "ERROR",
@@ -84,15 +85,15 @@ class RaDeployExtWorkflow:
             else:
                 logginglistOfExtention = []
                 if checkTanzuExtensionEnabled(self.jsonspec):
-                    if check_fluent_bit_splunk_endpoint_endpoint_enabled():
+                    if check_fluent_bit_splunk_endpoint_endpoint_enabled(self.jsonspec):
                         logginglistOfExtention.append(Tkg_Extention_names.FLUENT_BIT_SPLUNK)
-                    if check_fluent_bit_http_endpoint_enabled():
+                    if check_fluent_bit_http_endpoint_enabled(self.jsonspec):
                         logginglistOfExtention.append(Tkg_Extention_names.FLUENT_BIT_HTTP)
-                    if check_fluent_bit_syslog_endpoint_enabled():
+                    if check_fluent_bit_syslog_endpoint_enabled(self.jsonspec):
                         logginglistOfExtention.append(Tkg_Extention_names.FLUENT_BIT_SYSLOG)
-                    if check_fluent_bit_elastic_search_endpoint_enabled():
+                    if check_fluent_bit_elastic_search_endpoint_enabled(self.jsonspec):
                         logginglistOfExtention.append(Tkg_Extention_names.FLUENT_BIT_ELASTIC)
-                    if check_fluent_bit_kafka_endpoint_endpoint_enabled():
+                    if check_fluent_bit_kafka_endpoint_endpoint_enabled(self.jsonspec):
                         logginglistOfExtention.append(Tkg_Extention_names.FLUENT_BIT_KAFKA)
                         
                 else:
@@ -115,12 +116,12 @@ class RaDeployExtWorkflow:
 
                 if Tkg_version.TKG_VERSION == "1.5":
                     for extn in logginglistOfExtention:
-                        status = deploy_tkg_extensions.deploy(extn, self.jsonspec)
+                        status = deploy_tkg_extensions.deploy(extn)
                         if status[1] != 200:
-                            logger.info("Failed to deploy extension "+str(status[0].json['msg']))
+                            logger.info("Failed to deploy extension "+str(status[0]))
                             d = {
                                 "responseType": "ERROR",
-                                "msg": "Failed to deploy extension "+str(status[0].json['msg']),
+                                "msg": "Failed to deploy extension "+str(status[0]),
                                 "ERROR_CODE": 500
                             }
                             return json.dumps(d), 500
@@ -151,12 +152,12 @@ class RaDeployExtWorkflow:
 
                 if Tkg_version.TKG_VERSION == "1.5":
                     for extn in monitoringListOfExtention:
-                        status = deploy_tkg_extensions.deploy(extn, self.jsonspec)
+                        status = deploy_tkg_extensions.deploy(extn)
                         if status[1] != 200:
-                            logger.info("Failed to deploy extension "+str(status[0].json['msg']))
+                            logger.info("Failed to deploy extension "+str(status[0]))
                             d = {
                                 "responseType": "ERROR",
-                                "msg": "Failed to deploy extension "+str(status[0].json['msg']),
+                                "msg": "Failed to deploy extension "+str(status[0]),
                                 "ERROR_CODE": 500
                             }
                             return json.dumps(d), 500
