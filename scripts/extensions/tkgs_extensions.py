@@ -12,8 +12,8 @@ from util.ShellHelper import runShellCommandAndReturnOutputAsList, \
 
 from constants.constants import Tkgs_Extension_Details, RegexPattern, Tkg_Extention_names, Repo, Extentions, \
     AppName, Paths
-from util.common_utils import getVersionOfPackage, loadBomFile,\
-     checkToEnabled, installExtentionFor14, checkRepositoryAdded, loadBomFile, \
+from util.common_utils import getVersionOfPackage,\
+     checkToEnabled, installExtentionFor14, checkRepositoryAdded, \
     checkTmcEnabled, waitForGrepProcessWithoutChangeDir, connect_to_workload, isClusterRunning, \
      deploy_fluent_bit, checkFluentBitInstalled, fluent_bit_enabled, getClusterID, configureKubectl, createClusterFolder
 
@@ -536,15 +536,6 @@ def tkgsCertManagerandContour(cluster_name, service_name, jsonspec):
 
 def deploy_monitoring_extentions(monitoringType, clusterName, jsonspec):
     try:
-        load_bom = loadBomFile()
-        if load_bom is None:
-            logger.error("Failed to load the bom data ")
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to load the bom data",
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
         repo = getRepo(jsonspec)
         repository = repo[1]
         os.system(f"chmod +x {Paths.INJECT_VALUE_SH}")
@@ -561,7 +552,6 @@ def deploy_monitoring_extentions(monitoringType, clusterName, jsonspec):
             if monitoringType == Tkg_Extention_names.PROMETHEUS:
                 password = None
                 extention = Tkg_Extention_names.PROMETHEUS
-                bom_map = getBomMap(load_bom, Tkg_Extention_names.PROMETHEUS)
                 appName = AppName.PROMETHUS
                 namespace = "package-tanzu-system-monitoring"
                 yamlFile = Paths.CLUSTER_PATH + clusterName + "/prometheus-data-values.yaml"
@@ -589,7 +579,6 @@ def deploy_monitoring_extentions(monitoringType, clusterName, jsonspec):
                 command = [f"{Paths.INJECT_VALUE_SH}", Extentions.GRAFANA_LOCATION + "/grafana-extension.yaml", "fluent_bit",
                            repository + "/" + Extentions.APP_EXTENTION]
                 runShellCommandAndReturnOutputAsList(command)
-                bom_map = getBomMap(load_bom, Tkg_Extention_names.GRAFANA)
                 cert_Path = jsonspec['tanzuExtensions']['monitoring']['grafanaCertPath']
                 fqdn = jsonspec['tanzuExtensions']['monitoring']['grafanaFqdn']
                 certKey_Path = jsonspec['tanzuExtensions']['monitoring'][
