@@ -81,7 +81,7 @@
             "aviBackupPassphraseBase64": "Vk13YXJlMSE=",
             "enableAviHa": "false",
             "aviController01Ip": "172.16.10.56",
-            "aviController01Fqdn": "avi-controller.tsv.local",
+            "aviController01Fqdn": "avi-controller1.tsv.local",
             "aviController02Ip": "",
             "aviController02Fqdn": "",
             "aviController03Ip": "",
