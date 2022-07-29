@@ -85,7 +85,7 @@
         },
         "logging": {
             "syslogEndpoint": {
-			"enableSyslogEndpoint": "false",
+			"enableSyslogEndpoint": "true",
 			"syslogEndpointAddress": "",
 			"syslogEndpointPort": "",
 			"syslogEndpointMode": "",
