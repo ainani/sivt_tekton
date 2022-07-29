@@ -2582,7 +2582,7 @@ def updateDataFile(fluent_endpoint, dataFile, jsonspec):
 
         logger.info("Printing " + fluent_endpoint + " endpoint details ")
         logger.info(output_str)
-        inject_sc = ["sh", "./common/injectValue.sh", dataFile, "inject_output_fluent", output_str.strip()]
+        inject_sc = ["sh", Paths.INJECT_VALUE_SH, dataFile, "inject_output_fluent", output_str.strip()]
         inject_sc_response = runShellCommandAndReturnOutput(inject_sc)
         if inject_sc_response[1] == 500:
             logger.error("Command to update output endpoint failed")
@@ -3071,8 +3071,8 @@ def registerTMCTKGs(vCenter, vCenter_user, VC_PASSWORD, jsonspec):
             if command_cert[1] != 0:
                 return "Failed to get namespace details", 500
             namespace = command_cert[0].split("\\s")[0].strip()
-            os.system("chmod +x ./common/injectValue.sh")
-            os.system("./common/injectValue.sh " + "k8s-register-manifest.yaml" + " inject_namespace " + namespace)
+            os.system(f"chmod +x {Paths.INJECT_VALUE_SH}")
+            os.system(Paths.INJECT_VALUE_SH + " " + "k8s-register-manifest.yaml" + " inject_namespace " + namespace)
             command = ["kubectl", "apply", "-f", "k8s-register-manifest.yaml"]
             state = runShellCommandAndReturnOutputAsList(command)
             if state[1] != 0:

@@ -34,7 +34,7 @@ def certChanging(harborCertPath, harborCertKeyPath, harborPassword, host, cluste
         harbor_cert_key = Path(harborCertKeyPath).read_text()
         certContent = harbor_cert
         certKeyContent = harbor_cert_key
-        command_harbor_change_host_password_cert = ["sh", "./common/inject.sh",
+        command_harbor_change_host_password_cert = ["sh", Paths.INJECT_SH,
                                                     location,
                                                     harborPassword, host, certContent, certKeyContent]
         state_harbor_change_host_password_cert = runShellCommandAndReturnOutput(
@@ -47,7 +47,7 @@ def certChanging(harborCertPath, harborCertKeyPath, harborPassword, host, cluste
             }
             return json.dumps(d), 500
     else:
-        command_harbor_change_host_password_cert = ["sh", "./common/inject.sh",
+        command_harbor_change_host_password_cert = ["sh", Paths.INJECT_SH,
                                                     location,
                                                     harborPassword, host, "", ""]
         state_harbor_change_host_password_cert = runShellCommandAndReturnOutput(
