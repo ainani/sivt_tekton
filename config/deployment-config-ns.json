@@ -2,11 +2,11 @@
     "envSpec": {
         "envType": "tkgs-ns",
         "vcenterDetails": {
-            "vcenterAddress": "vcenter.tsv.local",
-            "vcenterSsoUser": "administrator@vsphere.local",
-            "vcenterSsoPasswordBase64": "Vk13YXJlMSE=",
-            "vcenterDatacenter": "TSV_DC",
-            "vcenterCluster": "TSV_Cluster"
+            "vcenterAddress": "<VCENTER_IP_ADDRESS_OR_HOSTNAME>",
+            "vcenterSsoUser": "<VCENTER_USERNAME>",
+            "vcenterSsoPasswordBase64": "<VCENTER_ENCRYPTED_PASSWORD>",
+            "vcenterDatacenter": "<VCENTER_DATA_CENTER>",
+            "vcenterCluster": "<VCENTER_CLUSTER>"
         },
         "saasEndpoints": {
             "tmcDetails": {
@@ -24,7 +24,7 @@
     },
     "tkgsComponentSpec": {
         "tkgsWorkloadNetwork": {
-            "tkgsWorkloadNetworkName": "tkg-workload",
+            "tkgsWorkloadNetworkName": "<TKGs_WORKLOAD_NETWORK_NAME>",
             "tkgsWorkloadPortgroupName": "",
             "tkgsWorkloadNetworkGatewayCidr": "",
             "tkgsWorkloadNetworkStartRange": "",
@@ -32,7 +32,7 @@
             "tkgsWorkloadServiceCidr": ""
         },
         "tkgsVsphereNamespaceSpec": {
-            "tkgsVsphereNamespaceName": "nsabhi",
+            "tkgsVsphereNamespaceName": "<TKGs_VSPHERE_NAMESPACE_NAME>",
             "tkgsVsphereNamespaceDescription": "",
             "tkgsVsphereNamespaceContentLibrary": "",
             "tkgsVsphereNamespaceVmClasses": [
@@ -43,18 +43,18 @@
             "tkgsVsphereNamespaceResourceSpec": {},
             "tkgsVsphereNamespaceStorageSpec": [
                 {
-                    "storagePolicy": "GOLDSP"
+                    "storagePolicy": "<TKGs_VSPHERE_NAMESPACE_STORAGE_POLICY>"
                 }
             ],
             "tkgsVsphereWorkloadClusterSpec": {
-                "tkgsVsphereNamespaceName": "nsabhi",
-                "tkgsVsphereWorkloadClusterName": "tkg-workload",
+                "tkgsVsphereNamespaceName": "<TKGs_VSPHERE_NAMESPACE_NAME>",
+                "tkgsVsphereWorkloadClusterName": "<TKGs_WORKLOAD_CLUSTER_NAME>",
                 "tkgsVsphereWorkloadClusterVersion": "v1.21.6+vmware.1-tkg.1.b3d708a",
                 "allowedStorageClasses": [
-                    "GOLDSP"
+                    "<TKGs_VSPHERE_NAMESPACE_STORAGE_POLICY>"
                 ],
-                "defaultStorageClass": "GOLDSP",
-                "nodeStorageClass": "GOLDSP",
+                "defaultStorageClass": "<TKGs_VSPHERE_NAMESPACE_STORAGE_POLICY>",
+                "nodeStorageClass": "<TKGs_VSPHERE_NAMESPACE_STORAGE_POLICY>",
                 "serviceCidrBlocks": "10.96.0.0/12",
                 "podCidrBlocks": "192.168.0.0/16",
                 "controlPlaneVmClass": "best-effort-large",
@@ -74,46 +74,45 @@
         }
     },
     "tanzuExtensions": {
-        "enableExtensions": "true",
-        "tkgClustersName": "tkg-workload",
+        "enableExtensions": "false",
+        "tkgClustersName": "",
         "harborSpec": {
-		"enableHarborExtension": "true",
-		"harborFqdn":"harbor.tanzu.lab",
-		"harborPasswordBase64":"Vk13YXJlMSE=",
-		"harborCertPath":"",
-		"harborCertKeyPath":""
+            "enableHarborExtension": "false",
+            "harborFqdn": "",
+            "harborPasswordBase64": "",
+            "harborCertPath": "",
+            "harborCertKeyPath": ""
         },
         "logging": {
             "syslogEndpoint": {
-			"enableSyslogEndpoint": "true",
-			"syslogEndpointAddress": "",
-			"syslogEndpointPort": "",
-			"syslogEndpointMode": "",
-			"syslogEndpointFormat": ""
+                "enableSyslogEndpoint": "false",
+                "syslogEndpointAddress": "",
+                "syslogEndpointPort": "",
+                "syslogEndpointMode": "",
+                "syslogEndpointFormat": ""
             },
             "httpEndpoint": {
-			"enableHttpEndpoint": "false",
-			"httpEndpointAddress": "",
-			"httpEndpointPort": "",
-			"httpEndpointUri": "",
-			"httpEndpointHeaderKeyValue": "Authorization Bearer Axxxxxxxxxxxxxx"
+                "enableHttpEndpoint": "false",
+                "httpEndpointAddress": "",
+                "httpEndpointPort": "",
+                "httpEndpointUri": "",
+                "httpEndpointHeaderKeyValue": ""
             },
             "kafkaEndpoint": {
-			"enableKafkaEndpoint": "false",
-			"kafkaBrokerServiceName": "",
-			"kafkaTopicName": ""
+                "enableKafkaEndpoint": "false",
+                "kafkaBrokerServiceName": "",
+                "kafkaTopicName": ""
             }
         },
         "monitoring": {
-            "enableLoggingExtension":"true",
-			"prometheusFqdn":"prometheus.tanzu.lab",
-			"prometheusCertPath":"",
-			"prometheusCertKeyPath":"",
-			"grafanaFqdn":"grafana.tanzu.lab",
-			"grafanaCertPath":"",
-			"grafanaCertKeyPath":"",
-			"grafanaPasswordBase64":"Vk13YXJlMSE="
+            "enableLoggingExtension": "false",
+            "prometheusFqdn": "",
+            "prometheusCertPath": "",
+            "prometheusCertKeyPath": "",
+            "grafanaFqdn": "",
+            "grafanaCertPath": "",
+            "grafanaCertKeyPath": "",
+            "grafanaPasswordBase64": ""
         }
     }
 }
-
