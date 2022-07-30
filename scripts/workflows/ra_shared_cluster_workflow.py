@@ -131,6 +131,7 @@ class RaSharedClusterWorkflow:
             logger.error("Error Encountered in Attaching to TMC: {}".format(traceback.format_exc()))
             return False
 
+    @log('Deploy Shared Services Cluster')
     def deploy(self):
 
         json_dict = self.jsonspec
@@ -491,34 +492,4 @@ class RaSharedClusterWorkflow:
 
         return json.dumps(d), 200
 
-    @log('Deploy Shared Services Cluster')
-    def deploy_shared_services_cluster(self):
-        deploy_shared = self.deploy()
-        if deploy_shared[1] != 200:
-            logger.error(deploy_shared[0].json['msg'])
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to Config shared cluster " + str(deploy_shared[0].json['msg']),
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        if str(self.jsonspec["tanzuExtensions"]["enableExtensions"]).lower() == "true":
-            deploy_extention = deployExtentions(self.jsonspec, self.run_config)
-            if deploy_extention[1] != 200:
-                logger.error(str(deploy_extention[0].json['msg']))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to deploy extention " + str(deploy_extention[0].json['msg']),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            else:
-                logger.info("Completed extension installation...")
-        logger.info("Shared cluster configured Successfully")
-        d = {
-            "responseType": "SUCCESS",
-            "msg": "Shared cluster configured Successfully",
-            "ERROR_CODE": 200
-        }
-        return json.dumps(d), 200
 

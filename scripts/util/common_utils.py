@@ -22,7 +22,8 @@ from util.avi_api_helper import getProductSlugId, obtain_second_csrf
 from util.replace_value import replaceValueSysConfig, replaceValue
 from util.file_helper import FileHelper
 from util.ShellHelper import runShellCommandAndReturnOutput, runShellCommandAndReturnOutputAsList,\
-    runProcess, grabKubectlCommand, verifyPodsAreRunning, grabPipeOutput
+    runProcess, grabKubectlCommand, verifyPodsAreRunning, grabPipeOutput, \
+    runShellCommandAndReturnOutputAsListWithChangedDir, grabPipeOutputChagedDir
 from util.cmd_helper import CmdHelper
 from util.cmd_runner import RunCmd
 import time
@@ -2417,9 +2418,7 @@ def checkRepositoryAdded(jsonspec):
             }
             return json.dumps(d), 500
 
-
-
-def installCertManagerAndContour(env, cluster_name, repo_address, service_name, jsonspec):
+def installCertManagerAndContour(cluster_name, repo_address, service_name, jsonspec):
     podRunninng = ["tanzu", "cluster", "list", "--include-management-cluster"]
     command_status = runShellCommandAndReturnOutputAsList(podRunninng)
     if not verifyPodsAreRunning(cluster_name, command_status[0], RegexPattern.running):
@@ -2444,7 +2443,6 @@ def installCertManagerAndContour(env, cluster_name, repo_address, service_name, 
             return json.dumps(d), 500
     if str(mgmt).strip() == cluster_name.strip():
         switch = switchToManagementContext(cluster_name.strip())
-        switch = json.loads(switch[0]), switch[1]
         if switch[1] != 200:
             logger.info(switch[0])
             d = {
@@ -2479,10 +2477,8 @@ def installCertManagerAndContour(env, cluster_name, repo_address, service_name, 
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-   
     if Tkg_version.TKG_VERSION == "1.5":
         status_ = checkRepositoryAdded(jsonspec)
-        status_ = json.loads(status_[0]), status_[1]
         if status_[1] != 200:
             logger.error(str(status_[0]))
             d = {
@@ -2497,7 +2493,49 @@ def installCertManagerAndContour(env, cluster_name, repo_address, service_name, 
     logger.info("Configured cert-manager and contour successfully")
     d = {
         "responseType": "SUCCESS",
-        "msg": "Configured cert-manager and contour extensions successfully",
+        "msg": "Configured cert-manager and contour extentions successfully",
+        "ERROR_CODE": 200
+    }
+    return json.dumps(d), 200
+
+def checkCertManagerRunning():
+    list1 = ["kubectl", "get", "pods", "-A"]
+    list2 = ["grep", "cert-manager"]
+    dir = Extentions.TKG_EXTENTION_LOCATION
+    podName = "cert-manager"
+    try:
+        cert_state = grabPipeOutputChagedDir(list1, list2, dir)
+        if cert_state[1] != 0:
+            logger.error("Failed to get " + podName + " " + cert_state[0])
+            return False
+        if verifyPodsAreRunning(podName, cert_state[0], RegexPattern.RUNNING):
+            logger.info("Cert Manager is Running.")
+            return True
+    except Exception as e:
+        return False
+    return False
+
+
+def changeRepo(repo_address):
+    repo_address = repo_address.replace("https://", "").replace("http://", "")
+    list_type = ["cert-manager-cainjector", "cert-manager", "cert-manager-webhook"]
+
+    if not repo_address.endswith("/"):
+        repo_address = repo_address + "/"
+    for type_cert in list_type:
+        repo = None
+        if type_cert == "cert-manager-cainjector":
+            repo = repo_address + Extentions.CERT_MANAGER_CA_INJECTOR
+        elif type_cert == "cert-manager":
+            repo = repo_address + Extentions.CERT_MANAGER_CONTROLLER
+        elif type_cert == "cert-manager-webhook":
+            repo = repo_address + Extentions.CERT_MANAGER_WEB_HOOK
+        change_repo = "./common/injectValue.sh " + Extentions.CERT_MANAGER_LOCATION + "/03-cert-manager.yaml" + " cert " + repo + " " + type_cert
+        os.system(change_repo)
+    logger.info("Changed repo of cert manager Successfully")
+    d = {
+        "responseType": "SUCCESS",
+        "msg": "Changed repo of cert manager Successfully",
         "ERROR_CODE": 200
     }
     return json.dumps(d), 200
@@ -2618,7 +2656,7 @@ def deploy_fluent_bit(end_point, cluster, jsonspec):
         # Getting issue wih "Paths.VSPHERE_FLUENT_BIT_YAML", It's not able to resovle it's correct value:
         # (Pdb) p copy_template_command
         # ['cp', <Paths.VSPHERE_FLUENT_BIT_YAML: './scripts/template/fluent_bit_data_values.yml'>, '/opt/vmware/arcas/tanzu-clusters/tkg-workload']
-        fluent_bit_yaml_path = "./scripts/template/fluent_bit_data_values.yml"
+        fluent_bit_yaml_path = f"{Paths.TEMPLATES_ROOT_DIR}/fluent_bit_data_values.yml"
         #copy_template_command = ["cp", Paths.VSPHERE_FLUENT_BIT_YAML, Paths.CLUSTER_PATH + cluster]
         copy_template_command = ["cp", fluent_bit_yaml_path, Paths.CLUSTER_PATH + cluster]
         copy_output = runShellCommandAndReturnOutputAsList(copy_template_command)

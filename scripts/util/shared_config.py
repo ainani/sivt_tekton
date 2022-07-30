@@ -4,7 +4,7 @@
 from constants.constants import ControllerLocation, Repo, AppName, RegexPattern, Constants, Paths
 from pathlib import Path
 import base64
-from util.common_utils import installCertManagerAndContour, getVersionOfPackage, waitForGrepProcessWithoutChangeDir
+from util.common_utils import getVersionOfPackage, waitForGrepProcessWithoutChangeDir
 import json
 from util.logger_helper import LoggerHelper
 import logging
@@ -119,55 +119,3 @@ def _install_harbor_package(jsonspec, cluster_name, runconfig):
         return json.dumps(d), 500
     logger.info('Harbor installation complete')
     return "SUCCESS", 200
-
-def deployExtentions(jsonspec, runconfig):
-
-    aviVersion = ControllerLocation.VSPHERE_AVI_VERSION
-    shared_cluster_name = jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceClusterName']
-    str_enc = str(jsonspec['harborSpec']['harborPasswordBase64'])
-    base64_bytes = str_enc.encode('ascii')
-    enc_bytes = base64.b64decode(base64_bytes)
-    password = enc_bytes.decode('ascii').rstrip("\n")
-    harborPassword = password
-    host = jsonspec['harborSpec']['harborFqdn']
-    harborCertPath = jsonspec['harborSpec']['harborCertPath']
-    harborCertKeyPath = jsonspec['harborSpec']['harborCertKeyPath']
-    checkHarborEnabled = jsonspec['harborSpec']['enableHarborExtension']
-    if str(checkHarborEnabled).lower() == "true":
-        isHarborEnabled = True
-    else:
-        isHarborEnabled = False
-    repo_address = Repo.PUBLIC_REPO
-    if not repo_address.endswith("/"):
-        repo_address = repo_address + "/"
-    repo_address = repo_address.replace("https://", "").replace("http://", "")
-    logger.info('Setting up Cert and Contour...')
-    cert_ext_status = installCertManagerAndContour(jsonspec, shared_cluster_name, repo_address)
-    if cert_ext_status[1] != 200:
-        logger.error(cert_ext_status[0].json['msg'])
-        d = {
-            "responseType": "ERROR",
-            "msg": cert_ext_status[0].json['msg'],
-            "ERROR_CODE": 500
-        }
-        return json.dumps(d), 500
-
-    service = "all"
-    if isHarborEnabled:
-        logger.info('Setting up Harbor...')
-        harbor_status = _install_harbor_package(jsonspec, shared_cluster_name, runconfig)
-        if harbor_status[1] != 200:
-            logger.error("Error setting up Harbor registry...")
-            d = {
-                "responseType": "ERROR",
-                "msg": cert_ext_status[0].json['msg'],
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-    logger.info("Configured all extentions successfully")
-    d = {
-        "responseType": "SUCCESS",
-        "msg": "Configured all extentions successfully",
-        "ERROR_CODE": 200
-    }
-    return json.dumps(d), 200
