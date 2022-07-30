@@ -161,7 +161,7 @@ class ControllerLocation:
     SUBSCRIBED_CONTENT_LIBRARY = "SubscribedAutomation-Lib"
     # MARKETPLACE_CONTROLLER_FILENAME = "controller-20-1641297052015.ova"
     MARKETPLACE_AVI_SOLUTION_NAME = "nsx-advanced-load-balancer-1"
-    VSPHERE_AVI_VERSION = "21.1.4"
+    VSPHERE_AVI_VERSION = "20.1.7"
     OVA_LOCATION = ''
     SPEC_FILE_PATH = ''
     CONTROLLER_NAME2 = "avi-controller2"
