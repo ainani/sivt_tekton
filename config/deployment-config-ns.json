@@ -74,46 +74,45 @@
         }
     },
     "tanzuExtensions": {
-        "enableExtensions": "true",
-        "tkgClustersName": "tkg-workload",
+        "enableExtensions": "false",
+        "tkgClustersName": "",
         "harborSpec": {
-		"enableHarborExtension": "true",
-		"harborFqdn":"harbor.tanzu.lab",
-		"harborPasswordBase64":"Vk13YXJlMSE=",
-		"harborCertPath":"",
-		"harborCertKeyPath":""
+            "enableHarborExtension": "false",
+            "harborFqdn": "",
+            "harborPasswordBase64": "",
+            "harborCertPath": "",
+            "harborCertKeyPath": ""
         },
         "logging": {
             "syslogEndpoint": {
-			"enableSyslogEndpoint": "false",
-			"syslogEndpointAddress": "",
-			"syslogEndpointPort": "",
-			"syslogEndpointMode": "",
-			"syslogEndpointFormat": ""
+                "enableSyslogEndpoint": "false",
+                "syslogEndpointAddress": "",
+                "syslogEndpointPort": "",
+                "syslogEndpointMode": "",
+                "syslogEndpointFormat": ""
             },
             "httpEndpoint": {
-			"enableHttpEndpoint": "false",
-			"httpEndpointAddress": "",
-			"httpEndpointPort": "",
-			"httpEndpointUri": "",
-			"httpEndpointHeaderKeyValue": "Authorization Bearer Axxxxxxxxxxxxxx"
+                "enableHttpEndpoint": "false",
+                "httpEndpointAddress": "",
+                "httpEndpointPort": "",
+                "httpEndpointUri": "",
+                "httpEndpointHeaderKeyValue": ""
             },
             "kafkaEndpoint": {
-			"enableKafkaEndpoint": "false",
-			"kafkaBrokerServiceName": "",
-			"kafkaTopicName": ""
+                "enableKafkaEndpoint": "false",
+                "kafkaBrokerServiceName": "",
+                "kafkaTopicName": ""
             }
         },
         "monitoring": {
-            "enableLoggingExtension":"true",
-			"prometheusFqdn":"prometheus.tanzu.lab",
-			"prometheusCertPath":"",
-			"prometheusCertKeyPath":"",
-			"grafanaFqdn":"grafana.tanzu.lab",
-			"grafanaCertPath":"",
-			"grafanaCertKeyPath":"",
-			"grafanaPasswordBase64":"Vk13YXJlMSE="
+            "enableLoggingExtension": "false",
+            "prometheusFqdn": "",
+            "prometheusCertPath": "",
+            "prometheusCertKeyPath": "",
+            "grafanaFqdn": "",
+            "grafanaCertPath": "",
+            "grafanaCertKeyPath": "",
+            "grafanaPasswordBase64": ""
         }
     }
 }
-
