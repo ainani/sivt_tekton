@@ -3,7 +3,13 @@
 
 import subprocess
 import re
+from pathlib import Path
 from subprocess import Popen, PIPE, STDOUT
+
+
+from util.logger_helper import LoggerHelper
+
+logger = LoggerHelper.get_logger(Path(__file__).stem)
 
 
 def runShellCommandAndReturnOutput(fin):
@@ -58,6 +64,7 @@ def runShellCommandWithPolling(fin):
 
 def runShellCommandAndReturnOutputAsList(fin):
     try:
+        logger.debug(f"Command to execute: {' '.join(fin)}")
         proc = subprocess.Popen(
             fin,
             stderr=subprocess.STDOUT,
@@ -72,7 +79,9 @@ def runShellCommandAndReturnOutputAsList(fin):
     except subprocess.CalledProcessError as e:
         returnCode = 1
         output = e.output
-    return output.decode("utf-8").rstrip("\n\r").replace("\x1b[0m", "").replace("\x1b[1m", "").split("\n"), returnCode
+    formatted_output = output.decode("utf-8").rstrip("\n\r").replace("\x1b[0m", "").replace("\x1b[1m", "")
+    logger.debug(f"Output Received: {formatted_output}")
+    return formatted_output.split("\n"), returnCode
 
 
 def runShellCommandAndReturnOutputAsListWithChangedDir(fin, ndir):
