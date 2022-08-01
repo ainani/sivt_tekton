@@ -61,7 +61,7 @@ def runShellCommandWithPolling(fin):
 
 def runShellCommandAndReturnOutputAsList(fin):
     try:
-        logger.debug(f"Command to execute: {' '.join(fin)}")
+        logger.debug(f"Command to execute: \n\"{' '.join(fin)}\"")
         proc = subprocess.Popen(
             fin,
             stderr=subprocess.STDOUT,
@@ -77,7 +77,7 @@ def runShellCommandAndReturnOutputAsList(fin):
         returnCode = 1
         output = e.output
     formatted_output = output.decode("utf-8").rstrip("\n\r").replace("\x1b[0m", "").replace("\x1b[1m", "")
-    logger.debug(f"Output Received: {formatted_output}")
+    logger.debug(f"Output Received: \n {'*'*10}Output Start{'*'*10}\n{formatted_output}\n{'*'*10}Output End{'*'*10}")
     return formatted_output.split("\n"), returnCode
 
 
