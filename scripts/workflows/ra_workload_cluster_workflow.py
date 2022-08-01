@@ -59,8 +59,8 @@ class RaWorkloadClusterWorkflow:
             self.desired_state_tkg_version = self.tkg_version_dict["tkgm"]
         else:
             raise Exception(f"Could not find supported TKG version: {self.tkg_version_dict}")
-        self.extensions_root = TKG_EXTENSIONS_ROOT[self.desired_state_tkg_version]
-        self.extensions_dir = Paths.TKG_EXTENSIONS_DIR.format(extensions_root=self.extensions_root)
+        #self.extensions_root = TKG_EXTENSIONS_ROOT[self.desired_state_tkg_version]
+        #self.extensions_dir = Paths.TKG_EXTENSIONS_DIR.format(extensions_root=self.extensions_root)
         self.cluster_to_deploy = None
         self.tkg_cli_client = TkgCliClient()
         self.kubectl_client = KubectlClient()

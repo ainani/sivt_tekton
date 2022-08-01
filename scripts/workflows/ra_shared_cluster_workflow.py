@@ -53,8 +53,8 @@ class RaSharedClusterWorkflow:
         else:
             raise Exception(f"Could not find supported TKG version: {self.tkg_version_dict}")
         
-        self.extensions_root = TKG_EXTENSIONS_ROOT[self.desired_state_tkg_version]
-        self.extensions_dir = Paths.TKG_EXTENSIONS_DIR.format(extensions_root=self.extensions_root)
+        #self.extensions_root = TKG_EXTENSIONS_ROOT[self.desired_state_tkg_version]
+        #self.extensions_dir = Paths.TKG_EXTENSIONS_DIR.format(extensions_root=self.extensions_root)
         # Specifies current running version as per state.yml
         self.current_version = self.run_config.state.shared_services.version
         self.prev_version = self.run_config.state.shared_services.upgradedFrom or self.run_config.state.shared_services.version
