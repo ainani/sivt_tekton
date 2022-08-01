@@ -2888,6 +2888,7 @@ def getClusterVersionsFullList(vCenter, vcenter_username, password, cluster, jso
         connect_command = ["kubectl", "vsphere", "login", "--server=" + endpoint_ip,
                            "--vsphere-username=" + vcenter_username,
                            "--insecure-skip-tls-verify"]
+        time.sleep(5)
         output = runShellCommandAndReturnOutputAsList(connect_command)
         if output[1] != 0:
             logger.error("Failed while connecting to Supervisor Cluster ")
