@@ -90,7 +90,7 @@ def pushAviToContenLibraryMarketPlace(jsonspec):
     data_center = jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
     data_store = jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
     reftoken = jsonspec['envSpec']['marketplaceSpec']['refreshToken']
-    avi_version = ControllerLocation.VSPHERE_AVI_VERSION
+    avi_version = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json"

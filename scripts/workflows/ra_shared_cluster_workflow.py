@@ -10,7 +10,7 @@ import base64
 from model.vsphereSpec import VsphereMasterSpec
 from constants.constants import TKG_EXTENSIONS_ROOT, ControllerLocation, KubectlCommands, \
     Paths, Task, ResourcePoolAndFolderName, PLAN, Sizing, ClusterType, RegexPattern, AkoType,\
-    AppName
+    AppName, Avi_Tkgs_Version, Avi_Version
 from jinja2 import Template
 from lib.kubectl_client import KubectlClient
 from lib.tkg_cli_client import TkgCliClient
@@ -135,7 +135,7 @@ class RaSharedClusterWorkflow:
 
         json_dict = self.jsonspec
         vsSpec = VsphereMasterSpec.parse_obj(json_dict)
-        aviVersion = ControllerLocation.VSPHERE_AVI_VERSION
+        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
         vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
         password = CmdHelper.decode_base64(vcpass_base64)
         vcenter_username = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']

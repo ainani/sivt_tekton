@@ -10,7 +10,7 @@ from retry import retry
 import json
 
 from constants.constants import Paths, AlbPrefix, AlbCloudType, ComponentPrefix, AlbLicenseTier, VmPowerState, \
-    AlbVrfContext, ControllerLocation, CertName, ResourcePoolAndFolderName
+    AlbVrfContext, ControllerLocation, CertName, ResourcePoolAndFolderName, Avi_Version, Avi_Tkgs_Version
 from model.run_config import RunConfig
 from model.status import HealthEnum, Info, State
 from util.avi_api_helper import AviApiSpec, ra_avi_download, isAviHaEnabled, \
@@ -98,7 +98,7 @@ class RALBWorkflow:
                 "ERROR_CODE": 500
             }
             return None
-        aviVersion = ControllerLocation.VSPHERE_AVI_VERSION
+        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
         cert = manage_avi_certificates(ip, aviVersion, self.jsonspec,
                                        avi_fqdn, CertName.VSPHERE_CERT_NAME)
         if cert[1] != 200:
@@ -272,7 +272,7 @@ class RALBWorkflow:
         else:
             logger.error("Currently other then dev plan is not supported")
             raise ValueError('Failed to deploy and configure avi.')
-        avi_version = ControllerLocation.VSPHERE_AVI_VERSION
+        avi_version = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
         govc_client = GovcClient(self.jsonspec, LocalCmdHelper())
         dep = deployAndConfigureAvi(govc_client=govc_client, vm_name=controller_name,
                                     controller_ova_location=controller_location,

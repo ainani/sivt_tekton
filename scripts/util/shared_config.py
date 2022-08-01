@@ -1,7 +1,8 @@
 #  Copyright 2021 VMware, Inc
 #  SPDX-License-Identifier: BSD-2-Clause
 
-from constants.constants import ControllerLocation, Repo, AppName, RegexPattern, Constants, Paths
+from constants.constants import ControllerLocation, Repo, AppName, RegexPattern, Constants, Paths, Avi_Version, \
+    Avi_Tkgs_Version
 from pathlib import Path
 import base64
 from util.common_utils import installCertManagerAndContour, getVersionOfPackage, waitForGrepProcessWithoutChangeDir
@@ -16,6 +17,7 @@ from workflows.cluster_common_workflow import ClusterCommonWorkflow
 from util.cmd_runner import RunCmd
 from util.file_helper import FileHelper
 from util.cmd_helper import CmdHelper
+from util.tkg_util import TkgUtil
 
 from constants.constants import Tkg_version, Extentions
 
@@ -122,7 +124,7 @@ def _install_harbor_package(jsonspec, cluster_name, runconfig):
 
 def deployExtentions(jsonspec, runconfig):
 
-    aviVersion = ControllerLocation.VSPHERE_AVI_VERSION
+    aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
     shared_cluster_name = jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceClusterName']
     str_enc = str(jsonspec['harborSpec']['harborPasswordBase64'])
     base64_bytes = str_enc.encode('ascii')
