@@ -201,7 +201,7 @@ class RaWorkloadClusterWorkflow:
 
     def networkConfig(self):
 
-        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
+        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_ns(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
         vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
         password = CmdHelper.decode_base64(vcpass_base64)
         vcenter_username = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
@@ -543,7 +543,7 @@ class RaWorkloadClusterWorkflow:
     def deploy(self):
         json_dict = self.jsonspec
         vsSpec = VsphereMasterSpec.parse_obj(json_dict)
-        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
+        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_ns(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
         vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
         password = CmdHelper.decode_base64(vcpass_base64)
         vcenter_username = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
