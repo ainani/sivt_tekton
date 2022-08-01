@@ -211,7 +211,14 @@
     },
     "tanzuExtensions": {
         "enableExtensions": "true",
-        "tkgClustersName": "",
+        "tkgClustersName": "tkg-workload",
+        "harborSpec": {
+            "enableHarborExtension": "true",
+            "harborFqdn":"harbor.tanzu.lab",
+            "harborPasswordBase64":"Vk13YXJlMSE=",
+            "harborCertPath":"",
+            "harborCertKeyPath":""
+        },
         "logging": {
             "syslogEndpoint": {
                 "enableSyslogEndpoint": "false",
@@ -225,25 +232,25 @@
                 "httpEndpointAddress": "",
                 "httpEndpointPort": "",
                 "httpEndpointUri": "",
-                "httpEndpointHeaderKeyValue": ""
+                "httpEndpointHeaderKeyValue": "Authorization Bearer Axxxxxxxxxxxxxx"
             },
             "kafkaEndpoint": {
-                "enableKafkaEndpoint": "true",
-                "kafkaBrokerServiceName": "kafka-service",
-                "kafkaTopicName": "kafkaTopic"
+                "enableKafkaEndpoint": "false",
+                "kafkaBrokerServiceName": "",
+                "kafkaTopicName": ""
             }
         },
-        
         "monitoring": {
-            "enableLoggingExtension": "false",
-            "prometheusFqdn": "",
-            "prometheusCertPath": "",
-            "prometheusCertKeyPath": "",
-            "grafanaFqdn": "",
-            "grafanaCertPath": "",
-            "grafanaCertKeyPath": "",
-            "grafanaPasswordBase64": ""
+            "enableLoggingExtension":"true",
+			"prometheusFqdn":"prometheus.tanzu.lab",
+			"prometheusCertPath":"",
+			"prometheusCertKeyPath":"",
+			"grafanaFqdn":"grafana.tanzu.lab",
+			"grafanaCertPath":"",
+			"grafanaCertKeyPath":"",
+			"grafanaPasswordBase64":"Vk13YXJlMSE="
         }
     }
+
  }
  
