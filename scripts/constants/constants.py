@@ -42,7 +42,7 @@ class Paths(str, Enum):
     FIX_FS_GRP = f"{EXT_COMMON_ROOT_DIR}/fix-fsgroup-overlay.yaml"
 
     # template files in package
-    TEMPLATES_ROOT_DIR = "arcas-tekton-cicd/scripts/template"
+    TEMPLATES_ROOT_DIR = "template"
     TKG_MGMT_SPEC_J2 = f"{TEMPLATES_ROOT_DIR}/deploy.yaml.j2"
     VSPHERE_SHARED_SERVICES_SPEC_J2 = f"{TEMPLATES_ROOT_DIR}/vsphere_shared_cluster_deploy.yaml.j2"
     VSPHERE_SHARED_SERVICES_SPEC = f"vsphere_shared_cluster_deploy.yml"
