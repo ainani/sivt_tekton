@@ -1467,7 +1467,7 @@ def createContourDataValues(clusterName):
         ),
         certificates=dict(duration='8760h', renewBefore='360h')
     )
-    with open(Paths.CLUSTER_PATH + clusterName + '/contour-data-values.yaml', 'w') as outfile:
+    with open(Paths.LOCAL_VSPHERE_ALB_CONTOUR_CONFIG, 'w') as outfile:
         outfile.write("---\n")
         yaml1 = ruamel.yaml.YAML()
         yaml1.indent(mapping=2, sequence=4, offset=3)
@@ -1524,7 +1524,7 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                 }
                 return json.dumps(d), 200
     if service == "ingress" or service == "all":
-        if not TkgUtil.isEnvTkgs_ns(jsonspec):
+        """if not TkgUtil.isEnvTkgs_ns(jsonspec):
             podRunninng_ako_main = ["kubectl", "get", "pods", "-A"]
             podRunninng_ako_grep = ["grep", AppName.AKO]
             command_status_ako = grabPipeOutput(podRunninng_ako_main, podRunninng_ako_grep)
@@ -1534,7 +1534,7 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                     "msg": "Ako pod is not running " + str(command_status_ako[0]),
                     "ERROR_CODE": 500
                 }
-                return json.dumps(d), 500
+                return json.dumps(d), 500"""
         sub_command = ["grep", AppName.CONTOUR]
         command_cert = grabPipeOutput(main_command, sub_command)
         if not verifyPodsAreRunning(AppName.CONTOUR, command_cert[0], RegexPattern.RECONCILE_SUCCEEDED):
@@ -1550,7 +1550,7 @@ def installExtentionFor14(service_name, cluster, jsonspec):
             logger.info("Installing contour - " + state)
             install_command = ["tanzu", "package", "install", AppName.CONTOUR, "--package-name",
                                "contour.tanzu.vmware.com", "--version", state, "--values-file",
-                               Paths.CLUSTER_PATH + cluster + "/contour-data-values.yaml", "--namespace",
+                               Paths.LOCAL_VSPHERE_ALB_CONTOUR_CONFIG, "--namespace",
                                "package-tanzu-system-contour",
                                "--create-namespace"]
             states = runShellCommandAndReturnOutputAsList(install_command)

@@ -50,6 +50,7 @@ class RaDeployExtWorkflow:
             raise Exception(msg)
         self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
         self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
+        self.ext_obj = deploy_tkg_extensions(self.jsonspec)
 
     def deploy_tkg_extensions(self):
         try:
@@ -116,7 +117,7 @@ class RaDeployExtWorkflow:
 
                 if Tkg_version.TKG_VERSION == "1.5":
                     for extn in logginglistOfExtention:
-                        status = deploy_tkg_extensions.deploy(extn)
+                        status = self.ext_obj.deploy(extn)
                         if status[1] != 200:
                             logger.info("Failed to deploy extension "+str(status[0]))
                             d = {
@@ -151,7 +152,8 @@ class RaDeployExtWorkflow:
                     return json.dumps(d), 200
                 if Tkg_version.TKG_VERSION == "1.5":
                     for extn in monitoringListOfExtention:
-                        status = deploy_tkg_extensions.deploy(extn)
+                        import pdb; pdb.set_trace()
+                        status = self.ext_obj.deploy(extn)
                         if status[1] != 200:
                             logger.info("Failed to deploy extension "+str(status[0]))
                             d = {
