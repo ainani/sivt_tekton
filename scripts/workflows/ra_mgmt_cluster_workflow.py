@@ -11,7 +11,8 @@ import requests
 from tqdm import tqdm
 import base64
 from constants.constants import Constants, Paths, TKGCommands, ComponentPrefix, AkoType, \
-    ControllerLocation, KubernetesOva, Cloud, VrfType, ResourcePoolAndFolderName, RegexPattern, CertName
+    ControllerLocation, KubernetesOva, Cloud, VrfType, ResourcePoolAndFolderName, RegexPattern, CertName, Avi_Version,\
+    Avi_Tkgs_Version
 from lib.tkg_cli_client import TkgCliClient
 from model.run_config import RunConfig
 from model.spec import Bootstrap
@@ -250,7 +251,7 @@ class RaMgmtClusterWorkflow:
 
         json_dict = self.jsonspec
         vsSpec = VsphereMasterSpec.parse_obj(json_dict)
-        aviVersion = ControllerLocation.VSPHERE_AVI_VERSION
+        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
         vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
         password = CmdHelper.decode_base64(vcpass_base64)
         vcenter_username = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
@@ -1243,7 +1244,7 @@ class RaMgmtClusterWorkflow:
 
     @log("Configuring cloud")
     def configCloud(self):
-        aviVersion = ControllerLocation.VSPHERE_AVI_VERSION
+        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
         vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
         password = CmdHelper.decode_base64(vcpass_base64)
         vcenter_username = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']

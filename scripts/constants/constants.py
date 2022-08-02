@@ -40,6 +40,8 @@ class Paths(str, Enum):
     INJECT_VALUE_SH = f"{EXT_COMMON_ROOT_DIR}/injectValue.sh"
     TKGS_OVERLAY = f"{EXT_COMMON_ROOT_DIR}/tkgs_apply_overlay.sh"
     FIX_FS_GRP = f"{EXT_COMMON_ROOT_DIR}/fix-fsgroup-overlay.yaml"
+    POD_SECURITY_KAPP_CTRL_FILE = f"{EXT_COMMON_ROOT_DIR}/tanzu-system-kapp-ctrl-restricted.yaml"
+    KAPP_CTRL_FILE = f"{EXT_COMMON_ROOT_DIR}/kapp-controller.yaml"
 
     # template files in package
     TEMPLATES_ROOT_DIR = "template"

@@ -10,7 +10,7 @@ import base64
 from model.vsphereSpec import VsphereMasterSpec
 from constants.constants import TKG_EXTENSIONS_ROOT, ControllerLocation, KubectlCommands, \
     Paths, Task, ResourcePoolAndFolderName, PLAN, Sizing, ClusterType, RegexPattern, AkoType,\
-    AppName
+    AppName, Avi_Tkgs_Version, Avi_Version
 from jinja2 import Template
 from lib.kubectl_client import KubectlClient
 from lib.tkg_cli_client import TkgCliClient
@@ -53,8 +53,8 @@ class RaSharedClusterWorkflow:
         else:
             raise Exception(f"Could not find supported TKG version: {self.tkg_version_dict}")
         
-        self.extensions_root = TKG_EXTENSIONS_ROOT[self.desired_state_tkg_version]
-        self.extensions_dir = Paths.TKG_EXTENSIONS_DIR.format(extensions_root=self.extensions_root)
+        #self.extensions_root = TKG_EXTENSIONS_ROOT[self.desired_state_tkg_version]
+        #self.extensions_dir = Paths.TKG_EXTENSIONS_DIR.format(extensions_root=self.extensions_root)
         # Specifies current running version as per state.yml
         self.current_version = self.run_config.state.shared_services.version
         self.prev_version = self.run_config.state.shared_services.upgradedFrom or self.run_config.state.shared_services.version
@@ -136,7 +136,7 @@ class RaSharedClusterWorkflow:
 
         json_dict = self.jsonspec
         vsSpec = VsphereMasterSpec.parse_obj(json_dict)
-        aviVersion = ControllerLocation.VSPHERE_AVI_VERSION
+        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
         vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
         password = CmdHelper.decode_base64(vcpass_base64)
         vcenter_username = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
