@@ -64,7 +64,6 @@ def runShellCommandWithPolling(fin):
 
 def runShellCommandAndReturnOutputAsList(fin):
     try:
-        logger.debug(f"Command to execute: {' '.join(fin)}")
         proc = subprocess.Popen(
             fin,
             stderr=subprocess.STDOUT,
@@ -79,9 +78,7 @@ def runShellCommandAndReturnOutputAsList(fin):
     except subprocess.CalledProcessError as e:
         returnCode = 1
         output = e.output
-    formatted_output = output.decode("utf-8").rstrip("\n\r").replace("\x1b[0m", "").replace("\x1b[1m", "")
-    logger.debug(f"Output Received: {formatted_output}")
-    return formatted_output.split("\n"), returnCode
+    return output.decode("utf-8").rstrip("\n\r").replace("\x1b[0m", "").replace("\x1b[1m", "").split("\n"), returnCode
 
 
 def runShellCommandAndReturnOutputAsListWithChangedDir(fin, ndir):
