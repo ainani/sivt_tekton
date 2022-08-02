@@ -257,7 +257,7 @@ def kappConfiguration():
             create_policy = createPodSecurity()
             if create_policy[0] is None:
                 return None, create_policy[1]
-        kapp_command = ["kubectl", "apply", "-f", "kapp-controller.yaml"]
+        kapp_command = ["kubectl", "apply", "-f", Paths.KAPP_CTRL_FILE]
         output = runShellCommandAndReturnOutputAsList(kapp_command)
         if output[1] != 0:
             return None, "Command to deploy kapp-controller failed!"
@@ -298,7 +298,7 @@ def isSecurityPodRunning():
 
 def createPodSecurity():
     logger.info("Creating kapp Controller Pod Security Policy....")
-    command = ["kubectl", "apply", "-f", "tanzu-system-kapp-ctrl-restricted.yaml"]
+    command = ["kubectl", "apply", "-f", Paths.POD_SECURITY_KAPP_CTRL_FILE]
     output = runShellCommandAndReturnOutputAsList(command)
     if output[1] != 0:
         return None, "kapp Controller Pod Security Policy creation failed"

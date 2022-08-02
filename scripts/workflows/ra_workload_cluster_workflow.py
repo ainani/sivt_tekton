@@ -9,7 +9,7 @@ import base64
 import time
 from constants.constants import TKG_EXTENSIONS_ROOT, Constants, Paths, Task, ControllerLocation, \
     Cloud, VrfType, RegexPattern, AkoType, AppName, Versions, ResourcePoolAndFolderName, PLAN, \
-    Sizing, ClusterType, Repo
+    Sizing, ClusterType, Repo, Avi_Version, Avi_Tkgs_Version
 from lib.kubectl_client import KubectlClient
 from lib.tkg_cli_client import TkgCliClient
 from model.run_config import RunConfig
@@ -59,8 +59,8 @@ class RaWorkloadClusterWorkflow:
             self.desired_state_tkg_version = self.tkg_version_dict["tkgm"]
         else:
             raise Exception(f"Could not find supported TKG version: {self.tkg_version_dict}")
-        self.extensions_root = TKG_EXTENSIONS_ROOT[self.desired_state_tkg_version]
-        self.extensions_dir = Paths.TKG_EXTENSIONS_DIR.format(extensions_root=self.extensions_root)
+        #self.extensions_root = TKG_EXTENSIONS_ROOT[self.desired_state_tkg_version]
+        #self.extensions_dir = Paths.TKG_EXTENSIONS_DIR.format(extensions_root=self.extensions_root)
         self.cluster_to_deploy = None
         self.tkg_cli_client = TkgCliClient()
         self.kubectl_client = KubectlClient()
@@ -201,7 +201,7 @@ class RaWorkloadClusterWorkflow:
 
     def networkConfig(self):
 
-        aviVersion = ControllerLocation.VSPHERE_AVI_VERSION
+        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_ns(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
         vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
         password = CmdHelper.decode_base64(vcpass_base64)
         vcenter_username = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
@@ -543,7 +543,7 @@ class RaWorkloadClusterWorkflow:
     def deploy(self):
         json_dict = self.jsonspec
         vsSpec = VsphereMasterSpec.parse_obj(json_dict)
-        aviVersion = ControllerLocation.VSPHERE_AVI_VERSION
+        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_ns(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
         vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
         password = CmdHelper.decode_base64(vcpass_base64)
         vcenter_username = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
