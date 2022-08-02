@@ -149,6 +149,25 @@ class RaDeployExtWorkflow:
                         "ERROR_CODE": 200
                     }
                     return json.dumps(d), 200
+                if Tkg_version.TKG_VERSION == "1.5":
+                    for extn in monitoringListOfExtention:
+                        status = deploy_tkg_extensions.deploy(extn)
+                        if status[1] != 200:
+                            logger.info("Failed to deploy extension "+str(status[0]))
+                            d = {
+                                "responseType": "ERROR",
+                                "msg": "Failed to deploy extension "+str(status[0]),
+                                "ERROR_CODE": 500
+                            }
+                            return json.dumps(d), 500
+                    logger.info("Successfully deployed "+str(monitoringListOfExtention))
+                    d = {
+                        "responseType": "SUCCESS",
+                        "msg": "Successfully deployed logging extension "+str(monitoringListOfExtention),
+                        "ERROR_CODE": 200
+                    }
+                    return json.dumps(d), 200
+                    
                 else:
                     logger.info("Unsupported TKG version")
                     d = {
