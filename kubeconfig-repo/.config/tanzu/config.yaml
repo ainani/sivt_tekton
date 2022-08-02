@@ -32,7 +32,7 @@ metadata:
   creationTimestamp: null
 servers:
 - managementClusterOpts:
-    context: kind-tkg-kind-cbjv1g5ctuo1ru548nl0
-    path: /root/.kube-tkg/tmp/config_QuWJ4StV
+    context: kind-tkg-kind-cbk0rtdctuo24t4om9q0
+    path: /root/.kube-tkg/tmp/config_DQhuySFp
   name: pooja-clstr-mgmt01
   type: managementcluster
