@@ -147,7 +147,7 @@
             "tkgSharedserviceClusterCidr": "100.96.0.0/11",
             "tkgSharedserviceServiceCidr": "100.64.0.0/13",
             "tkgSharedserviceBaseOs": "photon",
-            "tkgSharedserviceKubeVersion": "v1.22.8",
+            "tkgSharedserviceKubeVersion": "v1.22.9",
             "tkgSharedserviceRbacUserRoleSpec": {
                 "clusterAdminUsers": "",
                 "adminUsers": "",
