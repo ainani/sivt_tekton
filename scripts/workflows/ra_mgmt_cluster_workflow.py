@@ -195,6 +195,7 @@ class RaMgmtClusterWorkflow:
         with open("vip_ip.txt", "r") as e:
             vip_ip = e.read()
         avi_cluster_vip_network_gateway_cidr = vip_ip
+        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
         air_gapped_repo = ""
         repo_certificate = ""
         FileHelper.write_to_file(
@@ -211,6 +212,7 @@ class RaMgmtClusterWorkflow:
                      air_gapped_repo=air_gapped_repo, repo_certificate=repo_certificate,
                      osName=osName, osVersion=osVersion,
                      size=size, control_plane_vcpu=control_plane_vcpu,
+                     avi_controller_version= aviVersion,
                      control_plane_disk_gb=control_plane_disk_gb,
                      control_plane_mem_mb=control_plane_mem_mb),
             "management_cluster_vsphere.yaml")
