@@ -211,7 +211,7 @@
     },
     "tanzuExtensions": {
         "enableExtensions": "true",
-        "tkgClustersName": "pooja-wrkld-clsrt01",
+        "tkgClustersName": "pooja-clstr-shrd01",
         "harborSpec": {
             "enableHarborExtension": "true",
             "harborFqdn":"harbor.tanzu.lab",
