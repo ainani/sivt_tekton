@@ -123,6 +123,19 @@ class deploy_tkg_extensions():
 def getImageName(server_image):
     return server_image[server_image.rindex("/") + 1:len(server_image)]
 
+
+def createClusterFolder(clusterName):
+    try:
+        command = ["mkdir", "-p", Paths.CLUSTER_PATH + clusterName + "/"]
+        create_output = runShellCommandAndReturnOutputAsList(command)
+        if create_output[1] != 0:
+            return False
+        else:
+            return True
+    except Exception as e:
+        logger.error("Exception occurred while creating directory - " + Paths.CLUSTER_PATH + clusterName)
+        return False
+
 def getRepo(jsonspec):
     try:
         if checkAirGappedIsEnabled(jsonspec):
@@ -308,6 +321,15 @@ def monitoringDeployment(monitoringType, jsonspec):
                 return json.dumps(d), 500
             """
             #env = "vsphere"
+            cluster_name = jsonspec['tanzuExtensions']['tkgClustersName']
+            if not createClusterFolder(cluster_name):
+                error = {
+                "responseType": "ERROR",
+                "msg": "Failed to create directory: " + Paths.CLUSTER_PATH + cluster_name,
+                "ERROR_CODE": 500
+                }
+                return json.dumps(error), 500
+            logger.info("The yml files will be located at: " + Paths.CLUSTER_PATH + cluster_name)
             if checkToEnabled(jsonspec):
                 logger.info("Tanzu observability is enabled, skipping prometheus and grafana deployment")
                 d = {
