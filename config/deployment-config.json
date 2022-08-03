@@ -185,7 +185,7 @@
         "tkgWorkloadClusterCidr": "100.96.0.0/11",
         "tkgWorkloadServiceCidr": "100.64.0.0/13",
         "tkgWorkloadBaseOs": "photon",
-        "tkgWorkloadKubeVersion": "v1.22.8",
+        "tkgWorkloadKubeVersion": "v1.22.9",
         "tkgWorkloadRbacUserRoleSpec": {
             "clusterAdminUsers": "",
             "adminUsers": "",
@@ -211,7 +211,7 @@
     },
     "tanzuExtensions": {
         "enableExtensions": "true",
-        "tkgClustersName": "tkg-workload",
+        "tkgClustersName": "pooja-wrkld-clsrt01",
         "harborSpec": {
             "enableHarborExtension": "true",
             "harborFqdn":"harbor.tanzu.lab",

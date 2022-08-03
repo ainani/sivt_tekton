@@ -32,13 +32,13 @@ logger = LoggerHelper.get_logger(Path(__file__).stem)
 
 
 class deploy_tkg_extensions():
-    def __init__(self, extension_name, jsonspec):
-        self.extension_name = extension_name
+    def __init__(self, jsonspec):
+        self.extension_name = None
         self.jsonspec = jsonspec
         logger.info("Deploying extentions: {}".format(self.extension_name))
 
-    def deploy(self):       
-
+    def deploy(self, extention):       
+        self.extension_name  = extention
         if str(self.extension_name).__contains__("Fluent"):
             status = self.fluent_bit(self.extension_name)
             return status[0], status[1]
