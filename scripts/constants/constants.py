@@ -21,7 +21,6 @@ CLUSTER_PLAN = ["dev", "prod"]
 
 class Paths(str, Enum):
     #check the below two vars
-    VSPHERE_FLUENT_BIT_YAML = "./scripts/template/fluent_bit_data_values.yml"
     CLUSTER_PATH = "/opt/vmware/arcas/tanzu-clusters/"
 
     MASTER_SPEC_PATH = "config/deployment-config.json"
@@ -42,6 +41,7 @@ class Paths(str, Enum):
     FIX_FS_GRP = f"{EXT_COMMON_ROOT_DIR}/fix-fsgroup-overlay.yaml"
     POD_SECURITY_KAPP_CTRL_FILE = f"{EXT_COMMON_ROOT_DIR}/tanzu-system-kapp-ctrl-restricted.yaml"
     KAPP_CTRL_FILE = f"{EXT_COMMON_ROOT_DIR}/kapp-controller.yaml"
+    VSPHERE_FLUENT_BIT_YAML = f"{EXT_COMMON_ROOT_DIR}/fluent_bit_data_values.yml"
 
     # template files in package
     TEMPLATES_ROOT_DIR = "template"
