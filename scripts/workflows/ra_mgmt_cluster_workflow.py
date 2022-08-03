@@ -212,7 +212,7 @@ class RaMgmtClusterWorkflow:
                      air_gapped_repo=air_gapped_repo, repo_certificate=repo_certificate,
                      osName=osName, osVersion=osVersion,
                      size=size, control_plane_vcpu=control_plane_vcpu,
-                     avi_controller_version= aviVersion,
+                     AVI_CONTROLLER_VERSION= aviVersion,
                      control_plane_disk_gb=control_plane_disk_gb,
                      control_plane_mem_mb=control_plane_mem_mb),
             "management_cluster_vsphere.yaml")
