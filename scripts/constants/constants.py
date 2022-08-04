@@ -738,6 +738,7 @@ class AkoType:
     KEY = 'type'
     VALUE = 'management'
     type_ako_set = "workload-set01"
+    SHARED_CLUSTER_SELECTOR = "shared-services-cluster"
 
 class AppName:
     AKO = "ako"

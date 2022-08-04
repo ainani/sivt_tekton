@@ -7,10 +7,11 @@ import traceback
 import time
 import json
 import base64
+import ruamel
 from model.vsphereSpec import VsphereMasterSpec
 from constants.constants import TKG_EXTENSIONS_ROOT, ControllerLocation, KubectlCommands, \
     Paths, Task, ResourcePoolAndFolderName, PLAN, Sizing, ClusterType, RegexPattern, AkoType,\
-    AppName, Avi_Tkgs_Version, Avi_Version
+    AppName, Avi_Tkgs_Version, Avi_Version, Cloud, Env
 from jinja2 import Template
 from lib.kubectl_client import KubectlClient
 from lib.tkg_cli_client import TkgCliClient
@@ -26,13 +27,15 @@ from util.ssh_helper import SshHelper
 from util.tanzu_utils import TanzuUtils
 from util.cmd_runner import RunCmd
 from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, runSsh, getNetworkFolder, \
-    deployCluster, registerWithTmcOnSharedAndWorkload, registerTanzuObservability, checkenv
+    deployCluster, registerWithTmcOnSharedAndWorkload, registerTanzuObservability, checkenv, getVipNetworkIpNetMask, \
+        obtain_second_csrf
 from util.vcenter_operations import createResourcePool, create_folder
 from util.ShellHelper import runShellCommandAndReturnOutputAsList, verifyPodsAreRunning,\
     grabKubectlCommand, grabPipeOutput
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 from util.shared_config import deployExtentions
 from util.tkg_util import TkgUtil
+
 
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
@@ -81,6 +84,57 @@ class RaSharedClusterWorkflow:
         t = Template(deploy_yaml)
         return t.render(spec=self.run_config.spec)
 
+
+    def isAviHaEnabled(self):
+        try:
+            if TkgUtil.isEnvTkgs_wcp(self.jsonspec):
+                enable_avi_ha = self.jsonspec['tkgsComponentSpec']['aviComponents']['enableAviHa']
+            else:
+                enable_avi_ha = self.jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
+            if str(enable_avi_ha).lower() == "true":
+                return True
+            else:
+                return False
+        except:
+            return False
+
+
+    def createAkoFile(self,ip, shared_cluster_name, tkgMgmtDataVipCidr, tkgMgmtDataPg):
+        repository = 'projects.registry.vmware.com/tkg/ako'
+
+        data = dict(
+            apiVersion='networking.tkg.tanzu.vmware.com/v1alpha1',
+            kind='AKODeploymentConfig',
+            metadata=dict(
+                finalizers=['ako-operator.networking.tkg.tanzu.vmware.com'],
+                generation=1,
+                name='install-ako-for-shared-services-cluster',
+            ),
+            spec=dict(
+                adminCredentialRef=dict(
+                    name='avi-controller-credentials',
+                    namespace='tkg-system-networking'),
+                certificateAuthorityRef=dict(
+                    name='avi-controller-ca',
+                    namespace='tkg-system-networking'
+                ),
+                cloudName=Cloud.CLOUD_NAME_VSPHERE,
+                clusterSelector=dict(
+                    matchLabels=dict(
+                        type=AkoType.SHARED_CLUSTER_SELECTOR
+                    )
+                ),
+                controller=ip,
+                dataNetwork=dict(cidr=tkgMgmtDataVipCidr, name=tkgMgmtDataPg),
+                extraConfigs=dict(ingress=dict(defaultIngressController=False, reopository=repository, disableIngressClass=True)),
+                serviceEngineGroup=Cloud.SE_GROUP_NAME_VSPHERE
+            )
+        )
+        with open(Paths.CLUSTER_PATH + shared_cluster_name + '/tkgvsphere-ako-shared-services-cluster.yaml', 'w') as outfile:
+            yaml = ruamel.yaml.YAML()
+            yaml.indent(mapping=2, sequence=4, offset=3)
+            yaml.dump(data, outfile)
+        
     @log("Updating state file")
     def _update_state(self, task: Task, msg="Successful shared cluster deployment"):
         state_file_path = os.path.join(self.run_config.root_dir, Paths.STATE_PATH)
@@ -450,6 +504,90 @@ class RaSharedClusterWorkflow:
         if count_ako > 30:
             for i in tqdm(range(60), desc="Waiting for ako pods to be up…", ascii=False, ncols=75):
                 time.sleep(1)
+        
+        if self.isAviHaEnabled():
+            avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviClusterFqdn']
+        else:
+            avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']
+        if avi_fqdn is None:
+            logger.error("Failed to get ip of avi controller")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to get ip of avi controller",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        try:
+            tkg_mgmt_data_pg = self.jsonspec['tkgMgmtDataNetwork']['tkgMgmtDataNetworkName']
+            tkg_cluster_vip_name = self.jsonspec['tkgComponentSpec']['tkgClusterVipNetwork']['tkgClusterVipNetworkName']
+        except Exception as e:
+            logger.error("One of the following values is not present in input file: "
+                                    "tkgMgmtDataNetworkName, tkgClusterVipNetworkName")
+            logger.error(str(e))
+            d = {
+                "responseType": "ERROR",
+                "msg": "One of the following values is not present in input file: tkgMgmtDataNetworkName, "
+                    "tkgClusterVipNetworkName",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        csrf2 = obtain_second_csrf(avi_fqdn, self.jsonspec)
+        if csrf2 is None:
+            logger.error("Failed to get csrf from new set password")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to get csrf from new set password",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        tkg_mgmt_data_netmask = getVipNetworkIpNetMask(avi_fqdn, csrf2, tkg_mgmt_data_pg, aviVersion)
+        if tkg_mgmt_data_netmask[0] is None or tkg_mgmt_data_netmask[0] == "NOT_FOUND":
+            logger.error("Failed to get TKG Management Data netmask")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to get TKG Management Data netmask",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        tkg_cluster_vip_netmask = getVipNetworkIpNetMask(avi_fqdn, csrf2, tkg_cluster_vip_name, aviVersion)
+        if tkg_cluster_vip_netmask[0] is None or tkg_cluster_vip_netmask[0] == "NOT_FOUND":
+            logger.error("Failed to get Cluster VIP netmask")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to get Cluster VIP netmask",
+                "ERROR_CODE": 500
+            }
+            return json(d), 500
+        logger.info("Creating AKODeploymentConfig for shared services cluster...")
+        self.createAkoFile(avi_fqdn, shared_cluster_name, tkg_mgmt_data_netmask[0], tkg_mgmt_data_pg)
+        yaml_file_path = Paths.CLUSTER_PATH + shared_cluster_name + "/tkgvsphere-ako-shared-services-cluster.yaml"
+        listOfCommand = ["kubectl", "create", "-f", yaml_file_path]
+        status = runShellCommandAndReturnOutputAsList(listOfCommand)
+        if status[1] != 0:
+            if not str(status[0]).__contains__("already has a value"):
+                logger.error("Failed to apply ako" + str(status[0]))
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to create new AkoDeploymentConfig " + str(status[0]),
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+        logger.info("Successfully created a new AkoDeploymentConfig for shared services cluster")
+
+        listOfCommand = ["kubectl", "label", "cluster",
+                            shared_cluster_name, AkoType.KEY + "=" + AkoType.SHARED_CLUSTER_SELECTOR, "--overwrite=true"]
+        status = runShellCommandAndReturnOutputAsList(listOfCommand)
+        if status[1] != 0:
+            if not str(status[0]).__contains__("already has a value"):
+                logger.error("Failed to apply ako label " + str(status[0]))
+                d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to apply ako label " + str(status[0]),
+                        "ERROR_CODE": 500
+                    }
+                return json.dumps(d), 500
+        else:
+            logger.info(status[0])
 
         logger.info('Attaching to TMC if enabled...')
         tmc_required = str(
