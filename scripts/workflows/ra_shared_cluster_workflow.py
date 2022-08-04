@@ -28,7 +28,7 @@ from util.tanzu_utils import TanzuUtils
 from util.cmd_runner import RunCmd
 from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, runSsh, getNetworkFolder, \
     deployCluster, registerWithTmcOnSharedAndWorkload, registerTanzuObservability, checkenv, getVipNetworkIpNetMask, \
-        obtain_second_csrf
+        obtain_second_csrf, createClusterFolder
 from util.vcenter_operations import createResourcePool, create_folder
 from util.ShellHelper import runShellCommandAndReturnOutputAsList, verifyPodsAreRunning,\
     grabKubectlCommand, grabPipeOutput
@@ -531,6 +531,15 @@ class RaSharedClusterWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
+
+        if not createClusterFolder(shared_cluster_name):
+            d = {
+            "responseType": "ERROR",
+            "msg": "Failed to create directory: " + Paths.CLUSTER_PATH + shared_cluster_name,
+            "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        logger.info("The config files for shared services cluster will be located at: " + Paths.CLUSTER_PATH + shared_cluster_name)
         if TkgUtil.isEnvTkgs_wcp(self.jsonspec):
             avienc_pass = str(self.jsonspec['tkgsComponentSpec']['aviComponents']['aviPasswordBase64'])
         else:
