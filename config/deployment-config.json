@@ -228,11 +228,11 @@
                 "syslogEndpointFormat": ""
             },
             "httpEndpoint": {
-                "enableHttpEndpoint": "false",
-                "httpEndpointAddress": "",
-                "httpEndpointPort": "",
-                "httpEndpointUri": "",
-                "httpEndpointHeaderKeyValue": "Authorization Bearer Axxxxxxxxxxxxxx"
+                "enableHttpEndpoint": "true",
+                "httpEndpointAddress": "data.mgmt.cloud.vmware.com",
+                "httpEndpointPort": "443",
+                "httpEndpointUri": "le-mans/v1/streams/ingestion-pipeline-stream",
+                "httpEndpointHeaderKeyValue": "Authorization Bearer AfXSc1NC06i7rsIBkhpFJLzwE4D8qmxT"
             },
             "kafkaEndpoint": {
                 "enableKafkaEndpoint": "false",
