@@ -531,7 +531,7 @@ class RaSharedClusterWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        if self.isEnvTkgs_wcp:
+        if TkgUtil.isEnvTkgs_wcp(self.jsonspec):
             avienc_pass = str(self.jsonspec['tkgsComponentSpec']['aviComponents']['aviPasswordBase64'])
         else:
             avienc_pass = str(self.jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64'])
