@@ -2653,12 +2653,7 @@ def deploy_fluent_bit(end_point, cluster, jsonspec):
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        # Getting issue wih "Paths.VSPHERE_FLUENT_BIT_YAML", It's not able to resovle it's correct value:
-        # (Pdb) p copy_template_command
-        # ['cp', <Paths.VSPHERE_FLUENT_BIT_YAML: './scripts/template/fluent_bit_data_values.yml'>, '/opt/vmware/arcas/tanzu-clusters/tkg-workload']
-        fluent_bit_yaml_path = f"{Paths.TEMPLATES_ROOT_DIR}/fluent_bit_data_values.yml"
-        #copy_template_command = ["cp", Paths.VSPHERE_FLUENT_BIT_YAML, Paths.CLUSTER_PATH + cluster]
-        copy_template_command = ["cp", fluent_bit_yaml_path, Paths.CLUSTER_PATH + cluster]
+        copy_template_command = ["cp", Paths.VSPHERE_FLUENT_BIT_YAML, Paths.CLUSTER_PATH + cluster]
         copy_output = runShellCommandAndReturnOutputAsList(copy_template_command)
         if copy_output[1] != 0:
             logger.error("Failed to copy template file to : " + Paths.CLUSTER_PATH + cluster)
