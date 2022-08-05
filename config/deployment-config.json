@@ -121,7 +121,7 @@
         "tkgMgmtComponents": {
             "tkgMgmtNetworkName": "TkG-Management",
             "tkgMgmtGatewayCidr": "172.16.14.1/24",
-            "tkgMgmtClusterName": "pooja-clstr-mgmt01",
+            "tkgMgmtClusterName": "tejas-clstr-mgmt01",
             "tkgMgmtSize": "medium",
             "tkgMgmtCpuSize": "",
             "tkgMgmtMemorySize": "",
@@ -137,7 +137,7 @@
                 "viewUsers": ""
             },
             "tkgMgmtClusterGroupName": "",
-            "tkgSharedserviceClusterName": "pooja-clstr-shrd01",
+            "tkgSharedserviceClusterName": "tejas-clstr-shrd01",
             "tkgSharedserviceSize": "medium",
             "tkgSharedserviceCpuSize": "",
             "tkgSharedserviceMemorySize": "",
@@ -211,7 +211,7 @@
     },
     "tanzuExtensions": {
         "enableExtensions": "true",
-        "tkgClustersName": "pooja-clstr-shrd01",
+        "tkgClustersName": "tejas-clstr-shrd01",
         "harborSpec": {
             "enableHarborExtension": "true",
             "harborFqdn":"harbor.tanzu.lab",
