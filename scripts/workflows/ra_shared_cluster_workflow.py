@@ -427,55 +427,6 @@ class RaSharedClusterWorkflow:
             }
             return json.dumps(d), 500
 
-        logger.info("Setting Label for created cluster")
-        lisOfCommand = ["kubectl", "label", "cluster.cluster.x-k8s.io/" + shared_cluster_name,
-                        "cluster-role.tkg.tanzu.vmware.com/tanzu-services=""", "--overwrite=true"]
-        status = runShellCommandAndReturnOutputAsList(lisOfCommand)
-        if status[1] != 0:
-            logger.error("Failed to apply k8s label " + str(status[0]))
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to apply k8s label " + str(status[0]),
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        lisOfCommand = ["kubectl", "label", "cluster",
-                        shared_cluster_name, AkoType.KEY + "=" + AkoType.SHARED_CLUSTER_SELECTOR, "--overwrite=true"]
-        status = runShellCommandAndReturnOutputAsList(lisOfCommand)
-        logger.info("Running label cmd: {}".format(status))
-        if status[1] != 0:
-            if not str(status[0]).__contains__("already has a value"):
-                logger.error("Failed to apply ako label " + str(status[0]))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to apply ako label " + str(status[0]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-        else:
-            logger.info("Status: {}".format(status[0]))
-        commands_shared = ["tanzu", "cluster", "kubeconfig", "get", shared_cluster_name, "--admin"]
-        kubeContextCommand_shared = grabKubectlCommand(commands_shared,
-                                                       RegexPattern.SWITCH_CONTEXT_KUBECTL)
-        if kubeContextCommand_shared is None:
-            logger.error("Failed to get switch to shared cluster context command")
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to get switch to shared cluster context command",
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        lisOfSwitchContextCommand_shared = str(kubeContextCommand_shared).split(" ")
-        status = runShellCommandAndReturnOutputAsList(lisOfSwitchContextCommand_shared)
-        if status[1] != 0:
-            logger.error(
-                "Failed to get switch to shared cluster context " + str(status[0]))
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to get switch to shared cluster context " + str(status[0]),
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
         
 
         if self.isAviHaEnabled():
@@ -588,8 +539,56 @@ class RaSharedClusterWorkflow:
         if count_ako > 30:
             for i in tqdm(range(60), desc="Waiting for ako pods to be up…", ascii=False, ncols=75):
                 time.sleep(1)
-        
 
+        logger.info("Setting Label for created cluster")
+        lisOfCommand = ["kubectl", "label", "cluster.cluster.x-k8s.io/" + shared_cluster_name,
+                        "cluster-role.tkg.tanzu.vmware.com/tanzu-services=""", "--overwrite=true"]
+        status = runShellCommandAndReturnOutputAsList(lisOfCommand)
+        if status[1] != 0:
+            logger.error("Failed to apply k8s label " + str(status[0]))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to apply k8s label " + str(status[0]),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        lisOfCommand = ["kubectl", "label", "cluster",
+                        shared_cluster_name, AkoType.KEY + "=" + AkoType.SHARED_CLUSTER_SELECTOR, "--overwrite=true"]
+        status = runShellCommandAndReturnOutputAsList(lisOfCommand)
+        logger.info("Running label cmd: {}".format(status))
+        if status[1] != 0:
+            if not str(status[0]).__contains__("already has a value"):
+                logger.error("Failed to apply ako label " + str(status[0]))
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to apply ako label " + str(status[0]),
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+        else:
+            logger.info("Status: {}".format(status[0]))
+        commands_shared = ["tanzu", "cluster", "kubeconfig", "get", shared_cluster_name, "--admin"]
+        kubeContextCommand_shared = grabKubectlCommand(commands_shared,
+                                                       RegexPattern.SWITCH_CONTEXT_KUBECTL)
+        if kubeContextCommand_shared is None:
+            logger.error("Failed to get switch to shared cluster context command")
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to get switch to shared cluster context command",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        lisOfSwitchContextCommand_shared = str(kubeContextCommand_shared).split(" ")
+        status = runShellCommandAndReturnOutputAsList(lisOfSwitchContextCommand_shared)
+        if status[1] != 0:
+            logger.error(
+                "Failed to get switch to shared cluster context " + str(status[0]))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to get switch to shared cluster context " + str(status[0]),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
 
 
         logger.info('Attaching to TMC if enabled...')
