@@ -476,35 +476,8 @@ class RaSharedClusterWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        podRunninng_ako_main = ["kubectl", "get", "pods", "-A"]
-        podRunninng_ako_grep = ["grep", AppName.AKO]
-        count_ako = 0
-        command_status_ako = grabPipeOutput(podRunninng_ako_main, podRunninng_ako_grep)
-        found = False
-        if verifyPodsAreRunning(AppName.AKO, command_status_ako[0], RegexPattern.RUNNING):
-            found = True
-
-        while not verifyPodsAreRunning(AppName.AKO, command_status_ako[0],
-                                       RegexPattern.RUNNING) and count_ako < 20:
-            command_status = grabPipeOutput(podRunninng_ako_main, podRunninng_ako_grep)
-            if verifyPodsAreRunning(AppName.AKO, command_status[0], RegexPattern.RUNNING):
-                found = True
-                break
-            count_ako = count_ako + 1
-            time.sleep(30)
-            logger.info("Waited for  " + str(count_ako * 30) + "s, retrying.")
-        if not found:
-            logger.error("Ako pods are not running on waiting " + str(count_ako * 30))
-            d = {
-                "responseType": "ERROR",
-                "msg": "Ako pods are not running on waiting " + str(count_ako * 30),
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        if count_ako > 30:
-            for i in tqdm(range(60), desc="Waiting for ako pods to be up…", ascii=False, ncols=75):
-                time.sleep(1)
         
+
         if self.isAviHaEnabled():
             avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviClusterFqdn']
         else:
@@ -586,6 +559,37 @@ class RaSharedClusterWorkflow:
                 }
                 return json.dumps(d), 500
         logger.info("Successfully created a new AkoDeploymentConfig for shared services cluster")
+
+        podRunninng_ako_main = ["kubectl", "get", "pods", "-A"]
+        podRunninng_ako_grep = ["grep", AppName.AKO]
+        count_ako = 0
+        command_status_ako = grabPipeOutput(podRunninng_ako_main, podRunninng_ako_grep)
+        found = False
+        if verifyPodsAreRunning(AppName.AKO, command_status_ako[0], RegexPattern.RUNNING):
+            found = True
+
+        while not verifyPodsAreRunning(AppName.AKO, command_status_ako[0],
+                                       RegexPattern.RUNNING) and count_ako < 20:
+            command_status = grabPipeOutput(podRunninng_ako_main, podRunninng_ako_grep)
+            if verifyPodsAreRunning(AppName.AKO, command_status[0], RegexPattern.RUNNING):
+                found = True
+                break
+            count_ako = count_ako + 1
+            time.sleep(30)
+            logger.info("Waited for  " + str(count_ako * 30) + "s, retrying.")
+        if not found:
+            logger.error("Ako pods are not running on waiting " + str(count_ako * 30))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Ako pods are not running on waiting " + str(count_ako * 30),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        if count_ako > 30:
+            for i in tqdm(range(60), desc="Waiting for ako pods to be up…", ascii=False, ncols=75):
+                time.sleep(1)
+        
+
 
 
         logger.info('Attaching to TMC if enabled...')
