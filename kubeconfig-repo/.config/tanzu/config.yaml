@@ -26,13 +26,13 @@ clientOptions:
       import: "false"
       network-separation-beta: "false"
       standalone-cluster-mode: "false"
-current: pooja-clstr-mgmt01
+current: tejas-clstr-mgmt01
 kind: ClientConfig
 metadata:
   creationTimestamp: null
 servers:
 - managementClusterOpts:
-    context: pooja-clstr-mgmt01-admin@pooja-clstr-mgmt01
+    context: tejas-clstr-mgmt01-admin@tejas-clstr-mgmt01
     path: /root/.kube-tkg/config
-  name: pooja-clstr-mgmt01
+  name: tejas-clstr-mgmt01
   type: managementcluster
