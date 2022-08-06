@@ -380,7 +380,7 @@ class RaSharedClusterWorkflow:
             isCreated4 = createResourcePool(vcenter_ip, vcenter_username, password,
                                             cluster_name,
                                             ResourcePoolAndFolderName.SHARED_RESOURCE_POOL_NAME_VCENTER,
-                                            parent_resourcePool, data_center)
+                                            parent_resourcePool)
             if isCreated4 is not None:
                 logger.info(
                     "Created resource pool " + ResourcePoolAndFolderName.SHARED_RESOURCE_POOL_NAME_VCENTER)
