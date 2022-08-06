@@ -364,7 +364,7 @@ class RaSharedClusterWorkflow:
         if not (TkgUtil.isEnvTkgs_wcp(self.jsonspec) or TkgUtil.isEnvTkgs_ns(self.jsonspec) ):
             if refToken:
                 logger.info("Kubernetes OVA configs for shared services cluster")
-                down_status = downloadAndPushKubernetesOvaMarketPlace(env, kubernetes_ova_version, kubernetes_ova_os)
+                down_status = downloadAndPushKubernetesOvaMarketPlace(self.env, kubernetes_ova_version, kubernetes_ova_os)
                 if down_status[0] is None:
                     logger.error(down_status[1])
                     d = {
@@ -902,7 +902,7 @@ class RaSharedClusterWorkflow:
                                 'editUsers']
                         view_users = \
                             self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
-                                'tkgSharedserviceRbacUserRoleSpec'][ß
+                                'tkgSharedserviceRbacUserRoleSpec'][
                                 'viewUsers']
                     rbac_user_status = createRbacUsers(shared_cluster_name, isMgmt=False, env=self.env, edit_users=edit_users,
                                                     cluster_admin_users=cluster_admin_users, admin_users=admin_users,
