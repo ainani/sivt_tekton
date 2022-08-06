@@ -19,7 +19,7 @@ from util.common_utils import getVersionOfPackage,\
 
 
 from util.extensions_helper import checkTanzuExtensionEnabled, checkPromethusEnabled
-from .tkg_extensions import generateYamlFile, getBomMap, getRepo
+from .tkg_extensions import generateYamlFile, getRepo
 
 from util.shared_config import certChanging
 

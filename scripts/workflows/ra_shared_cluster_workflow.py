@@ -126,7 +126,7 @@ class RaSharedClusterWorkflow:
                 ),
                 controller=ip,
                 dataNetwork=dict(cidr=tkgMgmtDataVipCidr, name=tkgMgmtDataPg),
-                extraConfigs=dict(ingress=dict(defaultIngressController=False, reopository=repository, disableIngressClass=True)),
+                extraConfigs=dict(ingress=dict(defaultIngressController=False, disableIngressClass=True)),
                 serviceEngineGroup=Cloud.SE_GROUP_NAME_VSPHERE
             )
         )
