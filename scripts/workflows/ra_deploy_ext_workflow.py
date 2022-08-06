@@ -19,6 +19,7 @@ from util.extensions_helper import checkTanzuExtensionEnabled, check_fluent_bit_
 from constants.constants import Tkg_Extention_names, Paths 
 from util.common_utils import checkenv
 from util.tkg_util import TkgUtil
+from util.cmd_runner import RunCmd
 
 logger = LoggerHelper.get_logger(name='ra_deploy_ext_workflow.py')
 
@@ -51,6 +52,7 @@ class RaDeployExtWorkflow:
         self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
         self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
         self.extension_obj = deploy_tkg_extensions(self.jsonspec)
+        self.rcmd = RunCmd()
 
     def deploy_tkg_extensions(self):
         try:
@@ -84,6 +86,10 @@ class RaDeployExtWorkflow:
                     }
                     return json.dumps(d), 200
             else:
+                # Init tanzu cli plugins
+                tanzu_init_cmd = "tanzu plugin sync"
+                command_status = self.rcmd.run_cmd_output(tanzu_init_cmd)
+                logger.debug("Tanzu plugin output: {}".format(command_status))
                 logginglistOfExtention = []
                 if checkTanzuExtensionEnabled(self.jsonspec):
                     if check_fluent_bit_splunk_endpoint_endpoint_enabled(self.jsonspec):

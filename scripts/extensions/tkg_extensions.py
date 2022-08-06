@@ -150,60 +150,6 @@ def getRepo(jsonspec):
     except Exception as e:
         return "ERROR", str(e)
 
-def getBomMap(load_bom, monitorinType):
-    bom_map = {}
-    if monitorinType == Tkg_Extention_names.PROMETHEUS:
-        image = load_bom['components']['prometheus'][0]['images']['prometheusImage']['imagePath']
-        bom_map['prometheus_server_name'] = getImageName(image)
-        bom_map['prometheus_server_tag'] = \
-            load_bom['components']['prometheus'][0]['images']['prometheusImage']['tag']
-        image = load_bom['components']['alertmanager'][0]['images']['alertmanagerImage']['imagePath']
-        bom_map['alertmanager_name'] = getImageName(image)
-        bom_map['alertmanager_tag'] = \
-            load_bom['components']['alertmanager'][0]['images']['alertmanagerImage']['tag']
-        image = load_bom['components']['kube-state-metrics'][0]['images']['kubeStateMetricsImage'][
-            'imagePath']
-        bom_map['kube_state_metrics_name'] = getImageName(image)
-        bom_map['kube_state_metrics_tag'] = \
-            load_bom['components']['kube-state-metrics'][0]['images']['kubeStateMetricsImage']['tag']
-        image = \
-            load_bom['components']['prometheus_node_exporter'][0]['images'][
-                'prometheusNodeExporterImage'][
-                'imagePath']
-        bom_map['node_exporter_name'] = getImageName(image)
-        bom_map['node_exporter_tag'] = \
-            load_bom['components']['prometheus_node_exporter'][0]['images'][
-                'prometheusNodeExporterImage'][
-                'tag']
-        image = load_bom['components']['pushgateway'][0]['images']['pushgatewayImage']['imagePath']
-        bom_map['pushgateway_name'] = getImageName(image)
-        bom_map['pushgateway_tag'] = \
-            load_bom['components']['pushgateway'][0]['images']['pushgatewayImage']['tag']
-        image = load_bom['components']['cadvisor'][0]['images']['cadvisorImage']['imagePath']
-        bom_map['cadvisor_name'] = getImageName(image)
-        bom_map['cadvisor_tag'] = load_bom['components']['cadvisor'][0]['images']['cadvisorImage'][
-            'tag']
-        image = load_bom['components']['configmap-reload'][0]['images']['configmapReloadImage'][
-            'imagePath']
-        bom_map['prometheus_server_configmap_reload_name'] = getImageName(image)
-        bom_map['prometheus_server_configmap_reload_tag'] = \
-            load_bom['components']['configmap-reload'][0]['images']['configmapReloadImage']['tag']
-    elif monitorinType == Tkg_Extention_names.GRAFANA:
-        image = load_bom['components']['grafana'][0]['images']['grafanaImage']['imagePath']
-        bom_map['image_name'] = getImageName(image)
-        bom_map['image_tag'] = \
-            load_bom['components']['grafana'][0]['images']['grafanaImage']['tag']
-        image = load_bom['components']['k8s-sidecar'][0]['images']['k8sSidecarImage']['imagePath']
-        bom_map['grafana_init_container_name'] = getImageName(image)
-        bom_map['grafana_init_container_tag'] = \
-            load_bom['components']['k8s-sidecar'][0]['images']['k8sSidecarImage']['tag']
-        bom_map['grafana_sc_dashboard_name'] = getImageName(image)
-        bom_map['grafana_sc_dashboard_tag'] = \
-            load_bom['components']['k8s-sidecar'][0]['images']['k8sSidecarImage']['tag']
-
-    return bom_map
-
-
 def captureVersion(extention):
     command = ["tanzu", "package", "available", "list", extention.lower() + ".tanzu.vmware.com",
                "-A"]
@@ -347,7 +293,7 @@ def monitoringDeployment(monitoringType, jsonspec):
             cluster = str(
                 jsonspec['tanzuExtensions']['tkgClustersName'])
             listOfClusters = cluster.split(",")
-            load_bom = ""
+
             for listOfCluster in listOfClusters:
                 if not verifyCluster(listOfCluster):
                     logger.info("Cluster " + listOfCluster + " is not deployed and not running")
@@ -384,22 +330,13 @@ def monitoringDeployment(monitoringType, jsonspec):
                             "ERROR_CODE": 500
                         }
                         return json.dumps(d), 500
-                load_bom = loadBomFile()
-                if load_bom is None:
-                    logger.error("Failed to load the bom data ")
-                    d = {
-                        "responseType": "ERROR",
-                        "msg": "Failed to load the bom data",
-                        "ERROR_CODE": 500
-                    }
-                    return json.dumps(d), 500
                 repo = getRepo(jsonspec)
                 repository = repo[1]
                 os.system(f"chmod +x {Paths.INJECT_VALUE_SH}")
             if monitoringType == Tkg_Extention_names.PROMETHEUS:
                 password = None
                 extention = Tkg_Extention_names.PROMETHEUS
-                bom_map = getBomMap(load_bom, Tkg_Extention_names.PROMETHEUS)
+
                 appName = AppName.PROMETHUS
                 namespace = "package-tanzu-system-monitoring"
                 yamlFile = Paths.CLUSTER_PATH + cluster + "/prometheus-data-values.yaml"
@@ -430,7 +367,7 @@ def monitoringDeployment(monitoringType, jsonspec):
                 command = [Paths.INJECT_VALUE_SH, Extentions.GRAFANA_LOCATION + "/grafana-extension.yaml",
                            "fluent_bit", repository + "/" + Extentions.APP_EXTENTION]
                 runShellCommandAndReturnOutputAsList(command)
-                bom_map = getBomMap(load_bom, Tkg_Extention_names.GRAFANA)
+
                 cert_Path = jsonspec['tanzuExtensions']['monitoring']['grafanaCertPath']
                 fqdn = jsonspec['tanzuExtensions']['monitoring']['grafanaFqdn']
                 certKey_Path = jsonspec['tanzuExtensions']['monitoring'][
