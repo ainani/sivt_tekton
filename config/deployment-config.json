@@ -175,7 +175,7 @@
     "tkgWorkloadComponents": {
         "tkgWorkloadNetworkName": "TkG-Workload",
         "tkgWorkloadGatewayCidr": "172.16.15.1/24",
-        "tkgWorkloadClusterName": "pooja-wrkld-clsrt01",
+        "tkgWorkloadClusterName": "tejas-wrkld-clsrt01",
         "tkgWorkloadSize": "medium",
         "tkgWorkloadCpuSize": "",
         "tkgWorkloadMemorySize": "",
