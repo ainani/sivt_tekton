@@ -409,8 +409,9 @@ class RaSharedClusterWorkflow:
         management_cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
             'tkgMgmtClusterName']
         try:
-            with open('/root/.ssh/id_rsa.pub', 'r') as f:
-                re = f.readline()
+            ssh_key = runSsh(vcenter_username)
+            # with open('/root/.ssh/id_rsa.pub', 'r') as f:
+            #     re = f.readline()
         except Exception as e:
             logger.error("Failed to ssh key from config file " + str(e))
             d = {
