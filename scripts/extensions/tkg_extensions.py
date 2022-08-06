@@ -364,9 +364,6 @@ def monitoringDeployment(monitoringType, jsonspec):
                 yamlFile = Paths.CLUSTER_PATH + cluster + "/grafana-data-values.yaml"
                 appName = AppName.GRAFANA
                 namespace = "package-tanzu-system-dashboards"
-                command = [Paths.INJECT_VALUE_SH, Extentions.GRAFANA_LOCATION + "/grafana-extension.yaml",
-                           "fluent_bit", repository + "/" + Extentions.APP_EXTENTION]
-                runShellCommandAndReturnOutputAsList(command)
 
                 cert_Path = jsonspec['tanzuExtensions']['monitoring']['grafanaCertPath']
                 fqdn = jsonspec['tanzuExtensions']['monitoring']['grafanaFqdn']
