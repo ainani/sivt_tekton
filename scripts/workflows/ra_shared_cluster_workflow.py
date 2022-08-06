@@ -361,18 +361,19 @@ class RaSharedClusterWorkflow:
                     'tkgSharedserviceClusterCidr']
         service_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                     'tkgSharedserviceServiceCidr']
-        if not (TkgUtil.isEnvTkgs_wcp(self.jsonspec) or TkgUtil.isEnvTkgs_ns(self.jsonspec) ):
-            if refToken:
-                logger.info("Kubernetes OVA configs for shared services cluster")
-                down_status = downloadAndPushKubernetesOvaMarketPlace(self.env, kubernetes_ova_version, kubernetes_ova_os)
-                if down_status[0] is None:
-                    logger.error(down_status[1])
-                    d = {
-                        "responseType": "ERROR",
-                        "msg": down_status[1],
-                        "ERROR_CODE": 500
-                    }
-                    return json.dumps(d), 500
+        if refToken:
+            logger.info("Kubernetes OVA configs for shared services cluster")
+            down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec,
+                                                                  kubernetes_ova_version,
+                                                                  kubernetes_ova_os)
+            if down_status[0] is None:
+                logger.error(down_status[1])
+                d = {
+                    "responseType": "ERROR",
+                    "msg": down_status[1],
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
         else:
             logger.info("MarketPlace refresh token is not provided, skipping the download of kubernetes ova")
         try:
