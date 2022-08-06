@@ -106,14 +106,14 @@ class RaSharedClusterWorkflow:
 
     def akoDeploymentConfigSharedCluster(self,shared_cluster_name, aviVersion):
         if self.env[1] != 200:
-            logger.error("Wrong env provided " + env[0])
+            logger.error("Wrong env provided " + self.env[0])
             d = {
                 "responseType": "ERROR",
-                "msg": "Wrong env provided " + env[0],
+                "msg": "Wrong env provided " + self.env[0],
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        env = env[0]
+        self.env = self.env[0]
         management_cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
             'tkgMgmtClusterName']
         commands = ["tanzu", "management-cluster", "kubeconfig", "get", management_cluster, "--admin"]
@@ -204,7 +204,7 @@ class RaSharedClusterWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        csrf2 = obtain_second_csrf(avi_fqdn, env)
+        csrf2 = obtain_second_csrf(avi_fqdn, self.env)
         if csrf2 is None:
             logger.error("Failed to get csrf from new set password")
             d = {
@@ -627,7 +627,7 @@ class RaSharedClusterWorkflow:
                 if cluster_plan.lower() == PLAN.PROD_PLAN:
                     createSharedCluster = ["tmc", "cluster", "create", "-t", "tkg-vsphere", "-n", shared_cluster_name, "-m",
                                         management_cluster, "-p", "default", "--cluster-group", clusterGroup,
-                                        "--ssh-key", re, "--version", version, "--datacenter", datacenter_path,
+                                        "--ssh-key", ssh_key, "--version", version, "--datacenter", datacenter_path,
                                         "--datastore",
                                         datastore_path, "--folder", shared_folder_path, "--resource-pool",
                                         shared_resource_path,
@@ -640,7 +640,7 @@ class RaSharedClusterWorkflow:
                 else:
                     createSharedCluster = ["tmc", "cluster", "create", "-t", "tkg-vsphere", "-n", shared_cluster_name, "-m",
                                         management_cluster, "-p", "default", "--cluster-group", clusterGroup,
-                                        "--ssh-key", re, "--version", version, "--datacenter", datacenter_path,
+                                        "--ssh-key", ssh_key, "--version", version, "--datacenter", datacenter_path,
                                         "--datastore",
                                         datastore_path, "--folder", shared_folder_path, "--resource-pool",
                                         shared_resource_path,
@@ -654,7 +654,7 @@ class RaSharedClusterWorkflow:
                 if cluster_plan.lower() == PLAN.PROD_PLAN:
                     createSharedCluster = ["tmc", "cluster", "create", "-t", "tkg-vsphere", "-n", shared_cluster_name, "-m",
                                         management_cluster, "-p", "default", "--cluster-group", clusterGroup,
-                                        "--ssh-key", re, "--version", version, "--datacenter", datacenter_path,
+                                        "--ssh-key", ssh_key, "--version", version, "--datacenter", datacenter_path,
                                         "--datastore",
                                         datastore_path, "--folder", shared_folder_path, "--resource-pool",
                                         shared_resource_path,
@@ -666,7 +666,7 @@ class RaSharedClusterWorkflow:
                 else:
                     createSharedCluster = ["tmc", "cluster", "create", "-t", "tkg-vsphere", "-n", shared_cluster_name, "-m",
                                         management_cluster, "-p", "default", "--cluster-group", clusterGroup,
-                                        "--ssh-key", re, "--version", version, "--datacenter", datacenter_path,
+                                        "--ssh-key", ssh_key, "--version", version, "--datacenter", datacenter_path,
                                         "--datastore",
                                         datastore_path, "--folder", shared_folder_path, "--resource-pool",
                                         shared_resource_path,
@@ -718,7 +718,7 @@ class RaSharedClusterWorkflow:
                     deploy_status = deployCluster(shared_cluster_name, cluster_plan,
                                                 data_center, data_store, shared_folder_path, shared_network_path,
                                                 vsphere_password,
-                                                shared_resource_path, vcenter_ip, re, vcenter_username, machineCount,
+                                                shared_resource_path, vcenter_ip, ssh_key, vcenter_username, machineCount,
                                                 size, self.env, ClusterType.SHARED, vsSpec)
                     if deploy_status[0] is None:
                         logger.error("Failed to deploy cluster " + deploy_status[1])
