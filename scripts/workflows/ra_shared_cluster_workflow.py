@@ -215,43 +215,43 @@ class RaSharedClusterWorkflow:
             return json.dumps(d), 500
         tkg_mgmt_data_netmask = getVipNetworkIpNetMask(avi_fqdn, csrf2, tkg_mgmt_data_pg, aviVersion)
         if tkg_mgmt_data_netmask[0] is None or tkg_mgmt_data_netmask[0] == "NOT_FOUND":
-            current_app.logger.error("Failed to get TKG Management Data netmask")
+            logger.error("Failed to get TKG Management Data netmask")
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to get TKG Management Data netmask",
                 "ERROR_CODE": 500
             }
-            return jsonify(d), 500
+            return json.dumps(d), 500
         tkg_cluster_vip_netmask = getVipNetworkIpNetMask(avi_fqdn, csrf2, tkg_cluster_vip_name, aviVersion)
         if tkg_cluster_vip_netmask[0] is None or tkg_cluster_vip_netmask[0] == "NOT_FOUND":
-            current_app.logger.error("Failed to get Cluster VIP netmask")
+            logger.error("Failed to get Cluster VIP netmask")
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to get Cluster VIP netmask",
                 "ERROR_CODE": 500
             }
-            return jsonify(d), 500
-        current_app.logger.info("Creating AKODeploymentConfig for shared services cluster...")
-        createAkoFile(avi_fqdn, shared_cluster_name, tkg_mgmt_data_netmask[0], tkg_mgmt_data_pg, env)
+            return json.dumps(d), 500
+        logger.info("Creating AKODeploymentConfig for shared services cluster...")
+        self.createAkoFile(avi_fqdn, shared_cluster_name, tkg_mgmt_data_netmask[0], tkg_mgmt_data_pg)
         yaml_file_path = Paths.CLUSTER_PATH + shared_cluster_name + "/tkgvsphere-ako-shared-services-cluster.yaml"
         listOfCommand = ["kubectl", "create", "-f", yaml_file_path]
         status = runShellCommandAndReturnOutputAsList(listOfCommand)
         if status[1] != 0:
             if not str(status[0]).__contains__("already has a value"):
-                current_app.logger.error("Failed to apply ako" + str(status[0]))
+                logger.error("Failed to apply ako" + str(status[0]))
                 d = {
                     "responseType": "ERROR",
                     "msg": "Failed to create new AkoDeploymentConfig " + str(status[0]),
                     "ERROR_CODE": 500
                 }
-                return jsonify(d), 500
-        current_app.logger.info("Successfully created a new AkoDeploymentConfig for shared services cluster")
+                return json.dumps(d), 500
+        logger.info("Successfully created a new AkoDeploymentConfig for shared services cluster")
         d = {
             "responseType": "SUCCESS",
             "msg": "Successfully validated running status for AKO",
             "ERROR_CODE": 200
         }
-        return jsonify(d), 200
+        return json.dumps(d), 200
 
 
 
