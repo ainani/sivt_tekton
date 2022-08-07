@@ -177,7 +177,11 @@ class RaSharedClusterWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        csrf2 = obtain_second_csrf(avi_fqdn, self.env)
+        if TkgUtil.isEnvTkgs_wcp(self.jsonspec):
+            avienc_pass = str(self.jsonspec['tkgsComponentSpec']['aviComponents']['aviPasswordBase64'])
+        else:
+            avienc_pass = str(self.jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64'])
+        csrf2 = obtain_second_csrf(avi_fqdn, avienc_pass)
         if csrf2 is None:
             logger.error("Failed to get csrf from new set password")
             d = {
@@ -255,7 +259,7 @@ class RaSharedClusterWorkflow:
                 ),
                 controller=ip,
                 dataNetwork=dict(cidr=tkgMgmtDataVipCidr, name=tkgMgmtDataPg),
-                extraConfigs=dict(ingress=dict(defaultIngressController=False, reopository=repository, disableIngressClass=True)),
+                extraConfigs=dict(ingress=dict(defaultIngressController=False, disableIngressClass=True)),
                 serviceEngineGroup=Cloud.SE_GROUP_NAME_VSPHERE
             )
         )
