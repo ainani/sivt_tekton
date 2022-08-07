@@ -105,15 +105,6 @@ class RaSharedClusterWorkflow:
 
 
     def akoDeploymentConfigSharedCluster(self,shared_cluster_name, aviVersion):
-        if self.env[1] != 200:
-            logger.error("Wrong env provided " + self.env[0])
-            d = {
-                "responseType": "ERROR",
-                "msg": "Wrong env provided " + self.env[0],
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        self.env = self.env[0]
         management_cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
             'tkgMgmtClusterName']
         commands = ["tanzu", "management-cluster", "kubeconfig", "get", management_cluster, "--admin"]
@@ -159,24 +150,6 @@ class RaSharedClusterWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-
-        logger.info("Checking if AKO Deployment Config already exists for Shared services cluster: " + shared_cluster_name)
-        command_main = ["kubectl", "get", "adc"]
-        command_grep = ["grep", "install-ako-for-shared-services-cluster"]
-        command_status_adc = grabPipeOutput(command_main, command_grep)
-        if command_status_adc[1] == 0:
-            logger.debug("Found an already existing AKO Deployment Config: "
-                                    "install-ako-for-shared-services-cluster")
-            command = ["kubectl", "delete", "adc", "install-ako-for-shared-services-cluster"]
-            status = runShellCommandAndReturnOutputAsList(command)
-            if status[1] != 0:
-                logger.error("Failed to delete an already present AKO Deployment config")
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to delete an already present AKO Deployment config",
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
 
         if self.isAviHaEnabled():
             avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviClusterFqdn']
