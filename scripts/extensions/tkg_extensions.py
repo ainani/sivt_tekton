@@ -17,7 +17,7 @@ import json
 from ruamel import yaml
 
 #from model.extensions import extensions_types, deploy_extensions
-from constants.constants import Tkg_Extention_names, Repo, RegexPattern, Extentions, AppName, Paths 
+from constants.constants import Tkg_Extention_names, Repo, RegexPattern, Extentions, AppName, Paths, Upgrade_Extensions
 import json, requests
 from util.common_utils import getVersionOfPackage, switchToContext, loadBomFile, \
      checkAirGappedIsEnabled, installCertManagerAndContour, getManagementCluster, verifyCluster, \
@@ -394,14 +394,23 @@ def monitoringDeployment(monitoringType, jsonspec):
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
+                if Upgrade_Extensions.UPGRADE_EXTN:
 
-                deply_extension_command = ["tanzu", "package", "install", extention.lower(), "--package-name",
+                    upgrade_extension_cmd = ["tanzu", "package", "installed", "update", extention.lower(), "--package-name",
+                                           extention.lower() + ".tanzu.vmware.com", "--version", version,
+                                           "--values-file", yamlFile, "--namespace", namespace]
+                    state_extention_apply = runShellCommandAndReturnOutputAsList(upgrade_extension_cmd)
+                    if state_extention_apply[1] != 0:
+                        logger.error(
+                            extention + " update command failed. Checking for reconciliation status...")
+                else:
+                    deply_extension_command = ["tanzu", "package", "install", extention.lower(), "--package-name",
                                            extention.lower() + ".tanzu.vmware.com", "--version", version,
                                            "--values-file", yamlFile, "--namespace", namespace, "--create-namespace"]
-                state_extention_apply = runShellCommandAndReturnOutputAsList(deply_extension_command)
-                if state_extention_apply[1] != 0:
-                    logger.error(
-                        extention + " install command failed. Checking for reconciliation status...")
+                    state_extention_apply = runShellCommandAndReturnOutputAsList(deply_extension_command)
+                    if state_extention_apply[1] != 0:
+                        logger.error(
+                            extention + " install command failed. Checking for reconciliation status...")
 
                 found = False
                 count = 0

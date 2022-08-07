@@ -13,7 +13,7 @@ import logging
 import ruamel
 from constants.constants import Paths, ControllerLocation, KubernetesOva, MarketPlaceUrl, VrfType, \
     ClusterType, TmcUser, RegexPattern, SAS, AppName, UpgradeVersions, Repo, Env, Extentions, Tkg_Extention_names, \
-    Tkg_version, TKG_Package_Details, TKGCommands, VeleroAPI
+    Tkg_version, TKG_Package_Details, TKGCommands, VeleroAPI, Upgrade_Extensions
 from util.extensions_helper import check_fluent_bit_http_endpoint_enabled, check_fluent_bit_splunk_endpoint_endpoint_enabled, \
     check_fluent_bit_syslog_endpoint_enabled, check_fluent_bit_elastic_search_endpoint_enabled, check_fluent_bit_kafka_endpoint_endpoint_enabled
 from util.logger_helper import LoggerHelper
@@ -1488,15 +1488,28 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
-            logger.info("Installing cert manager - " + state)
-            install_command = ["tanzu", "package", "install", AppName.CERT_MANAGER, "--package-name",
-                               "cert-manager.tanzu.vmware.com", "--namespace", "package-" + AppName.CERT_MANAGER,
-                               "--version", state,
-                               "--create-namespace"]
-            states = runShellCommandAndReturnOutputAsList(install_command)
-            if states[1] != 0:
-                logger.error(
-                    AppName.CERT_MANAGER + " installation command failed. Checking for reconciliation status..")
+
+            if Upgrade_Extensions.UPGRADE_EXTN:
+                logger.info("Updating cert manager - " + state)
+                update_command = ["tanzu", "package", "installed", "update", AppName.CERT_MANAGER, "--package-name",
+                                   "cert-manager.tanzu.vmware.com", "--namespace", "package-" + AppName.CERT_MANAGER,
+                                   "--version", state,
+                                   "--create-namespace"]
+                states = runShellCommandAndReturnOutputAsList(update_command)
+                if states[1] != 0:
+                    logger.error(
+                        AppName.CERT_MANAGER + " update command failed. Checking for reconciliation status..")
+
+            else:
+                logger.info("Installing cert manager - " + state)
+                install_command = ["tanzu", "package", "install", AppName.CERT_MANAGER, "--package-name",
+                                   "cert-manager.tanzu.vmware.com", "--namespace", "package-" + AppName.CERT_MANAGER,
+                                   "--version", state,
+                                   "--create-namespace"]
+                states = runShellCommandAndReturnOutputAsList(install_command)
+                if states[1] != 0:
+                    logger.error(
+                        AppName.CERT_MANAGER + " installation command failed. Checking for reconciliation status..")
             certManagerStatus = waitForGrepProcessWithoutChangeDir(main_command, sub_command, AppName.CERT_MANAGER,
                                                                    RegexPattern.RECONCILE_SUCCEEDED)
             if certManagerStatus[1] == 500:
@@ -1547,24 +1560,38 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
-            logger.info("Installing contour - " + state)
-            install_command = ["tanzu", "package", "install", AppName.CONTOUR, "--package-name",
-                               "contour.tanzu.vmware.com", "--version", state, "--values-file",
-                               Paths.LOCAL_VSPHERE_ALB_CONTOUR_CONFIG, "--namespace",
-                               "package-tanzu-system-contour",
-                               "--create-namespace"]
-            states = runShellCommandAndReturnOutputAsList(install_command)
-            if states[1] != 0:
-                for r in states[0]:
-                    logger.error(r)
-                logger.info(
-                    AppName.CONTOUR + " install command failed. Checking for reconciliation status...")
-            certManagerStatus = waitForGrepProcessWithoutChangeDir(main_command, sub_command, AppName.CONTOUR,
+            if Upgrade_Extensions.UPGRADE_EXTN:
+                logger.info("Updating contour - " + state)
+                update_command = ["tanzu", "package", "installed", "update", AppName.CONTOUR, "--package-name",
+                                   "contour.tanzu.vmware.com", "--version", state, "--values-file",
+                                   Paths.LOCAL_VSPHERE_ALB_CONTOUR_CONFIG, "--namespace",
+                                   "package-tanzu-system-contour",
+                                   "--create-namespace"]
+                states = runShellCommandAndReturnOutputAsList(update_command)
+                if states[1] != 0:
+                    for r in states[0]:
+                        logger.error(r)
+                    logger.info(
+                        AppName.CONTOUR + " update command failed. Checking for reconciliation status...")
+            else:
+                logger.info("Installing contour - " + state)
+                install_command = ["tanzu", "package", "install", AppName.CONTOUR, "--package-name",
+                                   "contour.tanzu.vmware.com", "--version", state, "--values-file",
+                                   Paths.LOCAL_VSPHERE_ALB_CONTOUR_CONFIG, "--namespace",
+                                   "package-tanzu-system-contour",
+                                   "--create-namespace"]
+                states = runShellCommandAndReturnOutputAsList(install_command)
+                if states[1] != 0:
+                    for r in states[0]:
+                        logger.error(r)
+                    logger.info(
+                        AppName.CONTOUR + " install command failed. Checking for reconciliation status...")
+            contourStatus = waitForGrepProcessWithoutChangeDir(main_command, sub_command, AppName.CONTOUR,
                                                                    RegexPattern.RECONCILE_SUCCEEDED)
-            if certManagerStatus[1] == 500:
+            if contourStatus[1] == 500:
                 d = {
                     "responseType": "ERROR",
-                    "msg": "Failed to bring contour " + str(certManagerStatus[0]),
+                    "msg": "Failed to bring contour " + str(contourStatus[0]),
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
@@ -2682,14 +2709,24 @@ def deploy_fluent_bit(end_point, cluster, jsonspec):
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        deploy_fluent_bit_command = ["tanzu", "package", "install", Tkg_Extention_names.FLUENT_BIT.lower(),
-                                     "--package-name", Tkg_Extention_names.FLUENT_BIT.lower() + ".tanzu.vmware.com",
-                                     "--version", version, "--values-file", yamlFile, "--namespace", namespace,
-                                     "--create-namespace"]
-        state_extention_apply = runShellCommandAndReturnOutputAsList(deploy_fluent_bit_command)
-        if state_extention_apply[1] != 0:
-           logger.error(Tkg_Extention_names.FLUENT_BIT.lower() + " install command failed. "
-                                                                              "Checking for reconciliation status...")
+        if Upgrade_Extensions.UPGRADE_EXTN:
+            upgrade_fluent_bit_command = ["tanzu", "package", "installed", "update", Tkg_Extention_names.FLUENT_BIT.lower(),
+                                         "--package-name", Tkg_Extention_names.FLUENT_BIT.lower() + ".tanzu.vmware.com",
+                                         "--version", version, "--values-file", yamlFile, "--namespace", namespace,
+                                         "--create-namespace"]
+            state_extention_apply = runShellCommandAndReturnOutputAsList(upgrade_fluent_bit_command)
+            if state_extention_apply[1] != 0:
+                logger.error(Tkg_Extention_names.FLUENT_BIT.lower() + " update command failed. "
+                                                                      "Checking for reconciliation status...")
+        else:
+            deploy_fluent_bit_command = ["tanzu", "package", "install", Tkg_Extention_names.FLUENT_BIT.lower(),
+                                         "--package-name", Tkg_Extention_names.FLUENT_BIT.lower() + ".tanzu.vmware.com",
+                                         "--version", version, "--values-file", yamlFile, "--namespace", namespace,
+                                         "--create-namespace"]
+            state_extention_apply = runShellCommandAndReturnOutputAsList(deploy_fluent_bit_command)
+            if state_extention_apply[1] != 0:
+               logger.error(Tkg_Extention_names.FLUENT_BIT.lower() + " install command failed. "
+                                                                                  "Checking for reconciliation status...")
 
         extention_validate_command = ["kubectl", "get", "app", Tkg_Extention_names.FLUENT_BIT.lower(), "-n", namespace]
 

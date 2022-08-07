@@ -814,3 +814,6 @@ class VeleroAPI:
     GET_CRED_INFO = "{tmc_url}v1alpha1/account/credentials/{credential}"
     GET_CLUSTER_INFO = "{tmc_url}v1alpha1/clusters/{cluster}"
     ENABLE_DP = "{tmc_url}v1alpha1/clusters/{cluster}/dataprotection"
+
+class Upgrade_Extensions:
+    UPGRADE_EXTN = False
