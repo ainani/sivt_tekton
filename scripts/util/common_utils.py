@@ -2824,8 +2824,9 @@ def connect_to_workload(vCenter, vcenter_username, password, cluster, workload_n
         
 def verifyCluster(cluster_name):
     #Init tanzu cli plugins
+    rcmd = RunCmd()
     tanzu_init_cmd = "tanzu plugin sync"
-    command_status = RunCmd.run_cmd_output(tanzu_init_cmd)
+    command_status = rcmd.run_cmd_output(tanzu_init_cmd)
     logger.debug("Tanzu plugin output: {}".format(command_status))
     podRunninng = ["tanzu", "cluster", "list", "--include-management-cluster"]
     command_status = runShellCommandAndReturnOutputAsList(podRunninng)
