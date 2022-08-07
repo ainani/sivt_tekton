@@ -151,6 +151,24 @@ class RaSharedClusterWorkflow:
             }
             return json.dumps(d), 500
 
+        logger.info("Checking if AKO Deployment Config already exists for Shared services cluster: " + shared_cluster_name)
+        command_main = ["kubectl", "get", "adc"]
+        command_grep = ["grep", "install-ako-for-shared-services-cluster"]
+        command_status_adc = grabPipeOutput(command_main, command_grep)
+        if command_status_adc[1] == 0:
+            logger.debug("Found an already existing AKO Deployment Config: "
+                                    "install-ako-for-shared-services-cluster")
+            command = ["kubectl", "delete", "adc", "install-ako-for-shared-services-cluster"]
+            status = runShellCommandAndReturnOutputAsList(command)
+            if status[1] != 0:
+                logger.error("Failed to delete an already present AKO Deployment config")
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to delete an already present AKO Deployment config",
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+
         if self.isAviHaEnabled():
             avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviClusterFqdn']
         else:
@@ -693,10 +711,13 @@ class RaSharedClusterWorkflow:
                         return json.dumps(d), 500
                     logger.info("Deploying shared cluster using tanzu 1.5")
                     deploy_status = deployCluster(shared_cluster_name, cluster_plan,
-                                                data_center, data_store, shared_folder_path, shared_network_path,
-                                                vsphere_password,
-                                                shared_resource_path, vcenter_ip, ssh_key, vcenter_username, machineCount,
-                                                size, self.env, ClusterType.SHARED, vsSpec)
+                                      data_center, data_store, shared_folder_path,
+                                      shared_network_path,
+                                      vsphere_password, shared_resource_path, vcenter_ip,
+                                      ssh_key, vcenter_username, machineCount, size,
+                                      ClusterType.SHARED, vsSpec, self.jsonspec)
+
+
                     if deploy_status[0] is None:
                         logger.error("Failed to deploy cluster " + deploy_status[1])
                         d = {
