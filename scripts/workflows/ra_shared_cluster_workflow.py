@@ -976,11 +976,11 @@ class RaSharedClusterWorkflow:
                 logger.info(is_enabled[1])
             else:
                 logger.info("Data protection not enabled for cluster " + shared_cluster_name)
-        elif checkTmcEnabled(self.env):
+        elif checkTmcEnabled(self.env, self.jsonspec):
             logger.info("Cluster is already deployed via TMC")
         else:
             logger.info("TMC is disabled")
-        to = registerTanzuObservability(shared_cluster_name, self.env, size)
+        to = registerTanzuObservability(shared_cluster_name, size, self.jsonspec)
         if to[1] != 200:
             logger.error(to[0].json['msg'])
             return to[0], to[1]
