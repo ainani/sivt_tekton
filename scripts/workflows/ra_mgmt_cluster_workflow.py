@@ -12,7 +12,8 @@ from tqdm import tqdm
 import base64
 from constants.constants import Constants, Paths, TKGCommands, ComponentPrefix, AkoType, \
     ControllerLocation, KubernetesOva, Cloud, VrfType, ResourcePoolAndFolderName, RegexPattern, CertName, Avi_Version,\
-    Avi_Tkgs_Version
+    Avi_Tkgs_Version, ServiceName
+from constants.alb_api_constants import AlbEndpoint, AlbPayload
 from lib.tkg_cli_client import TkgCliClient
 from model.run_config import RunConfig
 from model.spec import Bootstrap
@@ -34,7 +35,7 @@ import traceback
 from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, \
     getCloudStatus, seperateNetmaskAndIp, getSECloudStatus, getSeNewBody, getVrfAndNextRoutId, \
     addStaticRoute, getVipNetworkIpNetMask, getClusterStatusOnTanzu, runSsh, checkenv, \
-    switchToManagementContext, getClusterID, getPolicyID, \
+    switchToManagementContext, getClusterID, getPolicyID, create_virtual_service,\
     convertStringToCommaSeperated, cidr_to_netmask, getCountOfIpAdress, getLibraryId, getAviCertificate, \
     checkTmcEnabled, createSubscribedLibrary, checkAndWaitForAllTheServiceEngineIsUp, configureKubectl, registerTMCTKGs
 from util.replace_value import generateVsphereConfiguredSubnets, replaceValueSysConfig, \
@@ -1244,6 +1245,229 @@ class RaMgmtClusterWorkflow:
             return None, response_csrf.text
         return "SUCCESS", 200
 
+
+    def create_virtual_service(self,ip, csrf2, avi_cloud_uuid, se_name, vip_network_url, se_count, avi_version):
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Cookie": csrf2[1],
+            "referer": "https://" + ip + "/login",
+            "x-avi-version": avi_version,
+            "x-csrftoken": csrf2[0]
+        }
+        body = {}
+        url = AlbEndpoint.AVI_SERVICE_ENGINE.format(ip=ip, se_name=se_name, avi_cloud_uuid=avi_cloud_uuid)
+        response_csrf = requests.request("GET", url, headers=headers, data=body, verify=False)
+        if response_csrf.status_code != 200:
+            return None, response_csrf.text
+        else:
+            json_out = response_csrf.json()["results"][0]
+
+            cloud_ref = json_out["cloud_ref"]
+            service_engine_group_url = json_out["url"]
+            se_uuid = json_out["uuid"]
+            type = VrfType.GLOBAL
+            cloud_ref_ = cloud_ref[cloud_ref.rindex("/") + 1:]
+            se_group_url = AlbEndpoint.AVI_SE_GROUP.format(ip=ip, cloud_ref=cloud_ref_, service_engine_uuid=se_uuid)
+            response = requests.request("GET", se_group_url, headers=headers, data=body, verify=False)
+            if response.status_code != 200:
+                return None, response.text
+            createVs = False
+            try:
+                service_engines = response.json()["results"][0]["serviceengines"]
+                if len(service_engines) > (se_count - 1):
+                    logger.info("Required service engines are already creeated")
+                else:
+                    createVs = True
+            except:
+                createVs = True
+            if createVs:
+                logger.info("Creating  virtual service")
+                vrf_get_url = "https://" + ip + "/api/vrfcontext/?name.in=" + type + "&cloud_ref.uuid=" + avi_cloud_uuid
+                response_csrf = requests.request("GET", vrf_get_url, headers=headers, data=body, verify=False)
+                if response_csrf.status_code != 200:
+                    return None, response_csrf.text
+                vrf_url = ""
+                for re in response_csrf.json()['results']:
+                    if re['name'] == type:
+                        vrf_url = re["url"]
+                        break
+                if not vrf_url:
+                    return None, "VRF_URL_NOT_FOUND"
+                startIp = self.jsonspec["tkgComponentSpec"]['tkgClusterVipNetwork'][
+                    "tkgClusterVipIpStartRange"]
+                endIp = self.jsonspec["tkgComponentSpec"]['tkgClusterVipNetwork'][
+                    "tkgClusterVipIpEndRange"]
+                prefixIpNetmask = seperateNetmaskAndIp(
+                    self.jsonspec["tkgComponentSpec"]['tkgClusterVipNetwork'][
+                        "tkgClusterVipNetworkGatewayCidr"])
+                getVIPNetworkDetails = self.getNetworkDetailsVip(ip, csrf2, vip_network_url, startIp, endIp, prefixIpNetmask[0],
+                                                            prefixIpNetmask[1], avi_version)
+                if getVIPNetworkDetails[0] is None:
+                    return None, "Failed to get vip network details " + str(getVIPNetworkDetails[2])
+                if getVIPNetworkDetails[0] == "AlreadyConfigured":
+                    logger.info("Vip Ip pools are already configured.")
+                    ip_pre = getVIPNetworkDetails[2]["subnet_ip"]
+                    mask = getVIPNetworkDetails[2]["subnet_mask"]
+                else:
+                    return None, "Vip Ip pools are not configured."
+                virtual_service_vip_url = AlbEndpoint.AVI_VIRTUAL_SERVICE_VIP.format(ip=ip)
+                response = requests.request("GET", virtual_service_vip_url, headers=headers, data=body, verify=False)
+                if response.status_code != 200:
+                    return None, response.text
+                isVipCreated = False
+                vip_url = ""
+                try:
+                    for r in response.json()["results"]:
+                        if r["name"] == ServiceName.SIVT_SERVICE_VIP:
+                            isVipCreated = True
+                            vip_url = r["url"]
+                            break
+                except:
+                    logger.info("No virtual service vip created")
+                if not isVipCreated:
+                    body = AlbPayload.VIRTUAL_SERVICE_VIP.format(cloud_ref=cloud_ref,
+                                                                virtual_service_name_vip=ServiceName.SIVT_SERVICE_VIP,
+                                                                vrf_context_ref=vrf_url
+                                                                , network_ref=vip_network_url, addr=ip_pre, mask=mask)
+                    response = requests.request("POST", virtual_service_vip_url, headers=headers, data=body, verify=False)
+                    if response.status_code != 201:
+                        return None, response.text
+                    vip_url = response.json()["url"]
+                if not vip_url:
+                    return None, "virtual service vip url not found"
+                virtual_service_url = AlbEndpoint.AVI_VIRTUAL_SERVICE.format(ip=ip)
+                response = requests.request("GET", virtual_service_url, headers=headers, data=body, verify=False)
+                if response.status_code != 200:
+                    return None, response.text
+                isVsCreated = False
+                try:
+                    for r in response.json()["results"]:
+                        if r["name"] == ServiceName.SIVT_SERVICE:
+                            isVsCreated = True
+                            break
+                except:
+                    logger.info("No virtual service created")
+                if not isVsCreated:
+                    body = AlbPayload.VIRTUAL_SERVICE.format(cloud_ref=cloud_ref,
+                                                            se_group_ref=service_engine_group_url
+                                                            , vsvip_ref=vip_url)
+                    response = requests.request("POST", virtual_service_url, headers=headers, data=body, verify=False)
+                    if response.status_code != 201:
+                        return None, response.text
+                body = {}
+                counter = 0
+                counter_se = 0
+                initialized = False
+                try:
+                    if se_count == 2:
+                        for i in range(1):
+                            while counter_se < 60:
+                                response = requests.request("GET", se_group_url, headers=headers, data=body, verify=False)
+                                if response.status_code != 200:
+                                    return None, response.text
+                                config = response.json()["results"][0]
+                                try:
+                                    seurl = config["serviceengines"][i]
+                                    initialized = True
+                                    break
+                                except:
+                                    logger.info(
+                                        "Waited " + str(counter_se * 10) + "s for service engines to be "
+                                                                        "initialized")
+                                counter_se = counter_se + 1
+                                time.sleep(30)
+                            if not initialized:
+                                return None, "Service engines not initialized  in 30m"
+                            logger.info("Checking status of service engine " + str(seurl))
+                            response = requests.request("GET", seurl, headers=headers, data=body, verify=False)
+                            if response.status_code != 200:
+                                return None, response.text
+                            isConnected = False
+                            try:
+                                status = response.json()["se_connected"]
+                                while not status and counter < 60:
+                                    response = requests.request("GET", seurl, headers=headers, data=body, verify=False)
+                                    if response.status_code != 200:
+                                        return None, response.text
+                                    status = response.json()["se_connected"]
+                                    if status:
+                                        isConnected = True
+                                        break
+                                    counter = counter + 1
+                                    time.sleep(30)
+                                    logger.info(
+                                        "Waited " + str(counter * 30) + "s,to check se  connected status retrying")
+                                if not isConnected:
+                                    return None, "Waited " + str(
+                                        counter * 30) + "s,to check se  connected and is not in connected state"
+                                else:
+                                    logger.info(str(seurl) + " is  now in connected state")
+                                counter = 0
+                            except Exception as e:
+                                return None, str(e)
+
+                    if se_count == 4:
+                        for i in range(2, 3):
+                            seurl = config["serviceengines"][i]
+                            logger.info("Checking status of service engine " + str(seurl))
+                            response = requests.request("GET", seurl, headers=headers, data=body, verify=False)
+                            if response.status_code != 200:
+                                return None, response.text
+                            logger.info(response.json())
+                            isConnected = False
+                            try:
+                                status = response.json()["se_connected"]
+                                while not status and counter < 60:
+                                    response = requests.request("GET", seurl, headers=headers, data=body, verify=False)
+                                    if response.status_code != 200:
+                                        return None, response.text
+                                    if status:
+                                        isConnected = True
+                                        break
+                                    counter = counter + 1
+                                    time.sleep(10)
+                                    logger.info(
+                                        "Waited " + str(counter * 10) + "s,to check se  connected status retrying")
+                                if not isConnected:
+                                    return None, "Waited " + str(
+                                        counter * 10) + "s,to check se  connected and is not in connected state"
+                            except Exception as e:
+                                return None, str(e)
+                except Exception as e:
+                    return None, str(e)
+                try:
+                    logger.info("Deleting Virtual service")
+                    response = requests.request("GET", virtual_service_vip_url, headers=headers, data=body, verify=False)
+                    if response.status_code != 200:
+                        return None, response.text
+                    vip_url = ""
+                    try:
+                        for r in response.json()["results"]:
+                            if r["name"] == ServiceName.SIVT_SERVICE_VIP:
+                                vip_url = r["url"]
+                                break
+                    except:
+                        logger.info("No virtual service vip created")
+                    vs_url = ""
+                    virtual_service_url = AlbEndpoint.AVI_VIRTUAL_SERVICE.format(ip=ip)
+                    response = requests.request("GET", virtual_service_url, headers=headers, data=body, verify=False)
+                    try:
+                        for r in response.json()["results"]:
+                            if r["name"] == ServiceName.SIVT_SERVICE:
+                                vs_url = r["url"]
+                                break
+                    except:
+                        logger.info("No virtual service created")
+                    requests.request("DELETE", vs_url, headers=headers, data=body, verify=False)
+                    requests.request("DELETE", vip_url, headers=headers, data=body, verify=False)
+                except Exception as e:
+                    pass
+                return "SUCCESS", "Required Service engines sucessfully  created"
+            else:
+                return "SUCCESS", "Required Service engines are already present"
+
+
     @log("Configuring cloud")
     def configCloud(self):
         aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
@@ -1688,6 +1912,18 @@ class RaMgmtClusterWorkflow:
                                 "ERROR_CODE": 500
                             }
                             return json.dumps(d), 500
+
+                virtual_service, error = self.create_virtual_service(ip, csrf2, uuid, Cloud.SE_GROUP_NAME_VSPHERE, get_vip[0], 2,
+                                                        aviVersion)
+                if virtual_service is None:
+                    logger.error("Failed to create virtual service " + str(error))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to create virtual service " + str(error),
+                        "ERROR_CODE": 500
+                        }
+                    return json.dumps(d), 500
+
             logger.info("Configured management cluster cloud successfully")
             d = {
                 "responseType": "SUCCESS",

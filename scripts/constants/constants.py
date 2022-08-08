@@ -683,7 +683,7 @@ class AlbVrfContext(str, Enum):
     GLOBAL = "global"
     MANAGEMENT = "management"
 
-class AlbEndpoint:
+class AlbEndpoint:    # Need to remove as its already defined in alb_api_constants.py
     CRUD_SSL_CERT = "https://{ip}/api/sslkeyandcertificate"
     IMPORT_SSL_CERTIFICATE = CRUD_SSL_CERT+"/validate"
     CRUD_SYSTEM_CONFIG = url = "https://{ip}/api/systemconfiguration"
@@ -691,6 +691,14 @@ class AlbEndpoint:
     AVI_HA = "https://{ip}/api/cluster"
     AVI_HA_RUNTIME = "https://{ip}/api/cluster/runtime"
 
+class ServiceName:
+    KUBE_VIP_SERVICE = "tkgvmc-kube-api"
+    KUBE_VIP_VCF_SERVICE = "tkg-vsphere-nsxt-kube-api"
+    KUBE_VIP_SERVICE_SE = "tkgvmc-kube-api-se"
+    ARCAS_SVC = "arcas-svc"
+    ARCAS_BACKEND_SVC = "arcas-backend-svc"
+    SIVT_SERVICE_VIP = "sivt-virtual-service-vip"
+    SIVT_SERVICE = "sivt-virtual-service"
 class CertName:
     NAME = "tkgvmc-avi-cert"
     VSPHERE_CERT_NAME = "tkgvsphere-avi-cert"
