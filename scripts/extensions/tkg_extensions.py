@@ -374,7 +374,7 @@ def monitoringDeployment(monitoringType, jsonspec):
 
             command_fluent_bit = runShellCommandAndReturnOutputAsList(extention_validate_command)
             if not verifyPodsAreRunning(appName, command_fluent_bit[0],
-                                        RegexPattern.RECONCILE_SUCCEEDED):
+                                        RegexPattern.RECONCILE_SUCCEEDED) or Upgrade_Extensions.UPGRADE_EXTN:
                 logger.info("Deploying " + extention)
                 version = getVersionOfPackage(extention.lower() + ".tanzu.vmware.com")
                 if version is None:
@@ -473,7 +473,7 @@ def monitoringDeployment(monitoringType, jsonspec):
 def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
     try:
         is_already_installed = checkFluentBitInstalled()
-        if not is_already_installed[0]:
+        if not is_already_installed[0] or Upgrade_Extensions.UPGRADE_EXTN:
             """
             Env check commented and hardcoded the env variable with value vpshere
             env = envCheck()

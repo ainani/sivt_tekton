@@ -1479,7 +1479,7 @@ def installExtentionFor14(service_name, cluster, jsonspec):
     if service == "certmanager" or service == "all":
         sub_command = ["grep", AppName.CERT_MANAGER]
         command_cert = grabPipeOutput(main_command, sub_command)
-        if not verifyPodsAreRunning(AppName.CERT_MANAGER, command_cert[0], RegexPattern.RECONCILE_SUCCEEDED):
+        if not verifyPodsAreRunning(AppName.CERT_MANAGER, command_cert[0], RegexPattern.RECONCILE_SUCCEEDED) or Upgrade_Extensions.UPGRADE_EXTN:
             state = getVersionOfPackage("cert-manager.tanzu.vmware.com")
             if state is None:
                 d = {
@@ -1550,7 +1550,7 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                 return json.dumps(d), 500"""
         sub_command = ["grep", AppName.CONTOUR]
         command_cert = grabPipeOutput(main_command, sub_command)
-        if not verifyPodsAreRunning(AppName.CONTOUR, command_cert[0], RegexPattern.RECONCILE_SUCCEEDED):
+        if not verifyPodsAreRunning(AppName.CONTOUR, command_cert[0], RegexPattern.RECONCILE_SUCCEEDED) or Upgrade_Extensions.UPGRADE_EXTN:
             createContourDataValues(cluster)
             state = getVersionOfPackage("contour.tanzu.vmware.com")
             if state is None:
