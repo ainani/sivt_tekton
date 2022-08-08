@@ -572,8 +572,9 @@ class RaWorkloadClusterWorkflow:
             }
             raise Exception
         try:
-            with open('/root/.ssh/id_rsa.pub', 'r') as f:
-                re = f.readline()
+            #with open('/root/.ssh/id_rsa.pub', 'r') as f:
+            #   re = f.readline()
+            re = runSsh(vcenter_username)
         except Exception as e:
             logger.error("Failed to ssh key from config file " + str(e))
             d = {
