@@ -1276,7 +1276,7 @@ class RaMgmtClusterWorkflow:
             try:
                 service_engines = response.json()["results"][0]["serviceengines"]
                 if len(service_engines) > (se_count - 1):
-                    logger.info("Required service engines are already creeated")
+                    logger.info("Required service engines are already created")
                 else:
                     createVs = True
             except:

@@ -199,17 +199,11 @@ class RaWorkloadClusterWorkflow:
         else:
             return response_csrf.json()["url"], "SUCCESS"
 
-    def networkConfig(self):
+    def networkConfig(self, aviVersion, cluster_name, data_store):
 
-        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_ns(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
-        vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
-        password = CmdHelper.decode_base64(vcpass_base64)
-        vcenter_username = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
-        vcenter_ip = self.jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
-        cluster_name = self.jsonspec['envSpec']['vcenterDetails']['vcenterCluster']
-        data_center = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
-        data_store = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
         refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
+        avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']
+        ha_field = self.jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
         if refToken:
             if not (self.isEnvTkgs_wcp or self.isEnvTkgs_ns):
                 logger.info("Kubernetes OVA configs for workload cluster")
@@ -552,35 +546,17 @@ class RaWorkloadClusterWorkflow:
         data_center = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
         data_store = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
         parent_resourcepool = self.jsonspec['envSpec']['vcenterDetails']['resourcePoolName']
-        refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
-        kubernetes_ova_os = self.jsonspec["tkgWorkloadComponents"]["tkgWorkloadBaseOs"]
-        kubernetes_ova_version = self.jsonspec["tkgWorkloadComponents"]["tkgWorkloadKubeVersion"]
 
-        avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']
-        ha_field = self.jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
-        ssh_key = runSsh(vcenter_username)
-        if isAviHaEnabled(ha_field):
-            ip = self.jsonspec['tkgComponentSpec']['aviComponents']['aviClusterFqdn']
-        else:
-            ip = avi_fqdn
-        if ip is None:
-            logger.error("Failed to get ip of avi controller")
+        logger.info("Setting up SE groups for workload cluster...")
+        network_config = self.networkConfig(aviVersion, cluster_name,data_store)
+        if network_config[1] != 200:
+            logger.error(network_config[0].json['msg'])
             d = {
-                "responseType": "ERROR",
-                "msg": "Failed to get ip of avi controller",
+                "responseType": "ERROR",  
+                "msg": "Failed to Config workload cluster " + str(network_config[0].json['msg']),
                 "ERROR_CODE": 500
             }
-            raise Exception
-        avienc_pass = self.jsonspec['tkgComponentSpec']['aviComponents']['aviPasswordBase64']
-        csrf2 = obtain_second_csrf(ip, avienc_pass)
-        if csrf2 is None:
-            logger.error("Failed to get csrf from new set password")
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to get csrf from new set password",
-                "ERROR_CODE": 500
-            }
-            raise Exception
+            return json.dumps(d), 500
         create = createResourceFolderAndWait(vcenter_ip, vcenter_username, password,
                                              cluster_name, data_center,
                                              ResourcePoolAndFolderName.WORKLOAD_RESOURCE_POOL_VSPHERE,
@@ -931,189 +907,6 @@ class RaWorkloadClusterWorkflow:
             "msg": "Successfully Completed SaaS Integration",
             "ERROR_CODE": 200
         }
-        return json.dumps(d), 200
-
-    @log("Updating Grafana Admin password")
-    def _update_grafana_admin_password(self, grafana_pas):
-        remote_file = Paths.REMOTE_GRAFANA_DATA_VALUES
-        local_file = Paths.LOCAL_GRAFANA_DATA_VALUES.format(root_dir=self.run_config.root_dir)
-        logger.info(f"Fetching and saving data values yml to {local_file}")
-        self.runcmd.local_file_copy(remote_file, local_file)
-        encoded_password = CmdHelper.encode_base64(grafana_pas)
-        logger.info(f"Updating admin password in local copy of grafana-data-values.yaml")
-        # Replacing string with pattern matching instead of loading yaml because comments
-        # in yaml file will be lost during boxing/unboxing of yaml data
-        FileHelper.replace_pattern(
-            src=local_file,
-            target=local_file,
-            pattern_replacement_list=[(Constants.GRAFANA_ADMIN_PASSWORD_TOKEN,
-                                       Constants.GRAFANA_ADMIN_PASSWORD_VALUE.format(password=encoded_password))],
-        )
-
-        self.runcmd.local_file_copy (local_file, remote_file)
-
-    @log("Updating namespace in grafana-data-values.yaml")
-    def _update_grafana_namespace(self, remote_file):
-        local_file = Paths.LOCAL_GRAFANA_DATA_VALUES.format(root_dir=self.run_config.root_dir)
-
-        logger.info(f"Fetching and saving data values yml to {local_file}")
-        self.runcmd.local_file_copy(remote_file, local_file)
-
-        new_namespace = "tanzu-system-dashboards"
-        FileHelper.replace_pattern(
-            src=local_file,
-            target=local_file,
-            pattern_replacement_list=[(Constants.GRAFANA_DATA_VALUES_NAMESPACE,
-                                       Constants.GRAFANA_DATA_VALUES_NEW_NAMESPACE.format(
-                                           namespace=new_namespace))],
-        )
-        self.runcmd.local_file_copy(local_file, remote_file)
-
-    def _install_grafana(self, clustername):
-        version = self.common_workflow.get_available_package_version(
-            cluster_name=clustername,
-            package=Constants.GRAFANA_PACKAGE,
-            name=Constants.GRAFANA_APP)
-
-        logger.info("Generating Grafana configuration template")
-        self.common_workflow.generate_spec_template(name=Constants.GRAFANA_APP,
-                                                    package=Constants.GRAFANA_PACKAGE,
-                                                    version=version,
-                                                    template_path=Paths.REMOTE_GRAFANA_DATA_VALUES,
-                                                    on_docker=False)
-
-        logger.info("Updating Grafana admin password")
-        grafana_pass = self.jsonspec['tanzuExtensions']['monitoring']['grafanaPasswordBase64']
-        self._update_grafana_admin_password(grafana_pas=grafana_pass)
-        logger.info("Creating namespace for grafana")
-        self.kubectl_client.set_cluster_context(cluster_name=clustername)
-
-        logger.info("Updating namespace in grafana config file")
-        self._update_grafana_namespace(remote_file=Paths.REMOTE_GRAFANA_DATA_VALUES)
-
-        logger.info("Removing comments from grafana-data-values.yaml")
-        self.runcmd.run_cmd_only(
-            f"yq -i eval '... comments=\"\"' {Paths.REMOTE_GRAFANA_DATA_VALUES}")
-        # self.ssh.run_cmd(f"yq -i eval '... comments=\"\"' {Paths.REMOTE_GRAFANA_DATA_VALUES}")
-        namespace = clustername + 'grafana_extensions'
-        self.common_workflow.install_package(cluster_name=self.cluster_to_deploy,
-                                             package=Constants.GRAFANA_PACKAGE,
-                                             namespace=namespace,
-                                             name=Constants.GRAFANA_APP, version=version,
-                                             values=Paths.REMOTE_GRAFANA_DATA_VALUES)
-
-        logger.debug(self.kubectl_client.get_all_pods())
-        logger.info('Grafana installation complete')
-
-    @log("Installing prometheus package")
-    def _install_prometheus(self, clustername):
-        version = self.common_workflow.get_available_package_version(cluster_name=clustername,
-                                                                package=Constants.PROMETHEUS_PACKAGE,
-                                                                name=Constants.PROMETHEUS_APP)
-
-        logger.info("Generating prometheus configuration template")
-        self.common_workflow.generate_spec_template(name=Constants.PROMETHEUS_APP,
-                                                    package=Constants.PROMETHEUS_PACKAGE,
-                                                    version=version,
-                                                    template_path=Paths.REMOTE_PROMETHEUS_DATA_VALUES,
-                                                    on_docker=False)
-
-        logger.info("Removing comments from prometheus-data-values.yml")
-        self.runcmd.run_cmd_only(f"yq -i eval '... comments=\"\"' {Paths.REMOTE_PROMETHEUS_DATA_VALUES}")
-        namespace = 'prometheus_{}'.format(clustername)
-        self.common_workflow.install_package(cluster_name=self.cluster_to_deploy,
-                                             package=Constants.PROMETHEUS_PACKAGE,
-                                             namespace=namespace,
-                                             name=Constants.PROMETHEUS_APP,
-                                             version=version,
-                                             values=Paths.REMOTE_PROMETHEUS_DATA_VALUES)
-        logger.debug(self.kubectl_client.get_all_pods())
-        logger.info('Prometheus installation complete')
-
-    def deploy_workload_cluster(self):
-        logger.info("Setting up SE groups for workload cluster...")
-        network_config = self.networkConfig()
-        if network_config[1] != 200:
-            logger.error(network_config[0].json['msg'])
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to Config workload cluster " + str(network_config[0].json['msg']),
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        deploy_workload = self.deploy()
-        if deploy_workload[1] != 200:
-            logger.error(str(deploy_workload[0].json['msg']))
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to deploy extention " + str(deploy_workload[0].json['msg']),
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-
-        logger.info("Checking for SaaS Integration..")
-        saas_integration_output = self.deploy_saas_workload()
-        if saas_integration_output[1] != 200:
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to enable SaaS Integartions " +
-                       str(saas_integration_output[0].json['msg']),
-                "ERROR_CODE": 500
-                }
-            return json.dumps(d), 500
-        extension_check = str(self.jsonspec['tanzuExtensions']['enableEntensions']).lower
-        if extension_check == "true":
-            repo_address = Repo.PUBLIC_REPO
-            if not repo_address.endswith("/"):
-                repo_address = repo_address + "/"
-            repo_address = repo_address.replace("https://", "").replace("http://", "")
-            logger.info('Setting up Cert and Contour...')
-            workload_cluster_name = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadClusterName']
-            cert_ext_status = installCertManagerAndContour(self.jsonspec, workload_cluster_name,
-                                                           repo_address)
-            if cert_ext_status[1] != 200:
-                logger.error(cert_ext_status[0].json['msg'])
-                d = {
-                    "responseType": "ERROR",
-                    "msg": cert_ext_status[0].json['msg'],
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-
-            logger.info("Check for monitoring extensions deployment...")
-            monitor_extension_check = str(self.jsonspec['tanzuExtensions']['monitoring']).lower
-            if monitor_extension_check == "true":
-                try:
-                    logger.info("Starting grafana deployment...")
-                    self._install_grafana(workload_cluster_name)
-                except:
-                    d = {
-                        "responseType": "ERROR",
-                        "msg": "Unable to setup grafana extension",
-                        "ERROR_CODE": 500
-                    }
-                    logger.error("Error Encountered: {}".format(traceback.format_exc()))
-                    return json.dumps(d), 500
-                try:
-                    logger.info("Starting prometheus deployment...")
-                    self._install_prometheus(workload_cluster_name)
-                except:
-                    d = {
-                        "responseType": "ERROR",
-                        "msg": "Unable to setup prometheus extension",
-                        "ERROR_CODE": 500
-                    }
-                    logger.error("Error Encountered: {}".format(traceback.format_exc()))
-                    return json.dumps(d), 500
-
-        logger.info("Not Enabling Extensions, since user has not opted for.")
-        d = {
-            "responseType": "SUCCESS",
-            "msg": "Workload cluster configured Successfully",
-            "ERROR_CODE": 200
-        }
-
-        logger.info("Workload cluster configured Successfully")
         return json.dumps(d), 200
 
     # TKGs Code
