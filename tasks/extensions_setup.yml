@@ -67,7 +67,6 @@ spec:
         privileged: true
       env:
       # Write generated certs to the path shared with the client.
-      env:
       - name: "KUBECONFIG"
         value: "/root/.kube/config"
       - name: DOCKER_TLS_CERTDIR
