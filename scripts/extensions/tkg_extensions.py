@@ -32,13 +32,13 @@ logger = LoggerHelper.get_logger(Path(__file__).stem)
 
 
 class deploy_tkg_extensions():
-    def __init__(self, extension_name, jsonspec):
-        self.extension_name = extension_name
+    def __init__(self, jsonspec):
+        self.extension_name = None
         self.jsonspec = jsonspec
         logger.info("Deploying extentions: {}".format(self.extension_name))
 
-    def deploy(self):       
-
+    def deploy(self, extention):       
+        self.extension_name  = extention
         if str(self.extension_name).__contains__("Fluent"):
             status = self.fluent_bit(self.extension_name)
             return status[0], status[1]
@@ -55,10 +55,10 @@ class deploy_tkg_extensions():
     def fluent_bit(self, fluent_bit_type):
         fluent_bit_response = deploy_extension_fluent(fluent_bit_type, self.jsonspec)
         if fluent_bit_response[1] != 200:
-            logger.error(fluent_bit_response[0].json['msg'])
+            logger.error(fluent_bit_response[0])
             d = {
                 "responseType": "ERROR",
-                "msg": fluent_bit_response[0].json['msg'],
+                "msg": fluent_bit_response[0],
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -74,10 +74,10 @@ class deploy_tkg_extensions():
     def grafana(self):
         monitoring = monitoringDeployment(Tkg_Extention_names.GRAFANA, self.jsonspec)
         if monitoring[1] != 200:
-            logger.error(monitoring[0].json['msg'])
+            logger.error(monitoring[0])
             d = {
                 "responseType": "ERROR",
-                "msg": monitoring[0].json['msg'],
+                "msg": monitoring[0],
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -93,10 +93,10 @@ class deploy_tkg_extensions():
     def prometheus(self):
         monitoring = monitoringDeployment(Tkg_Extention_names.PROMETHEUS, self.jsonspec)
         if monitoring[1] != 200:
-            logger.error(monitoring[0].json['msg'])
+            logger.error(monitoring[0])
             d = {
                 "responseType": "ERROR",
-                "msg": monitoring[0].json['msg'],
+                "msg": monitoring[0],
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -122,6 +122,19 @@ class deploy_tkg_extensions():
 
 def getImageName(server_image):
     return server_image[server_image.rindex("/") + 1:len(server_image)]
+
+
+def createClusterFolder(clusterName):
+    try:
+        command = ["mkdir", "-p", Paths.CLUSTER_PATH + clusterName + "/"]
+        create_output = runShellCommandAndReturnOutputAsList(command)
+        if create_output[1] != 0:
+            return False
+        else:
+            return True
+    except Exception as e:
+        logger.error("Exception occurred while creating directory - " + Paths.CLUSTER_PATH + clusterName)
+        return False
 
 def getRepo(jsonspec):
     try:
@@ -288,10 +301,10 @@ def monitoringDeployment(monitoringType, jsonspec):
 
             pre = preChecks()
             if pre[1] != 200:
-                logger.error(pre[0].json['msg'])
+                logger.error(pre[0])
                 d = {
                     "responseType": "ERROR",
-                    "msg": pre[0].json['msg'],
+                    "msg": pre[0],
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
@@ -307,7 +320,16 @@ def monitoringDeployment(monitoringType, jsonspec):
                 }
                 return json.dumps(d), 500
             """
-            env = "vsphere"
+            #env = "vsphere"
+            cluster_name = jsonspec['tanzuExtensions']['tkgClustersName']
+            if not createClusterFolder(cluster_name):
+                error = {
+                "responseType": "ERROR",
+                "msg": "Failed to create directory: " + Paths.CLUSTER_PATH + cluster_name,
+                "ERROR_CODE": 500
+                }
+                return json.dumps(error), 500
+            logger.info("The yml files will be located at: " + Paths.CLUSTER_PATH + cluster_name)
             if checkToEnabled(jsonspec):
                 logger.info("Tanzu observability is enabled, skipping prometheus and grafana deployment")
                 d = {
@@ -316,7 +338,7 @@ def monitoringDeployment(monitoringType, jsonspec):
                     "ERROR_CODE": 200
                 }
                 return json.dumps(d), 200
-            if checkAirGappedIsEnabled(env, jsonspec):
+            if checkAirGappedIsEnabled(jsonspec):
                 repo_address = str(
                     jsonspec['envSpec']['customRepositorySpec'][
                         'tkgCustomImageRepository'])
@@ -325,6 +347,7 @@ def monitoringDeployment(monitoringType, jsonspec):
             cluster = str(
                 jsonspec['tanzuExtensions']['tkgClustersName'])
             listOfClusters = cluster.split(",")
+            load_bom = ""
             for listOfCluster in listOfClusters:
                 if not verifyCluster(listOfCluster):
                     logger.info("Cluster " + listOfCluster + " is not deployed and not running")
@@ -352,12 +375,12 @@ def monitoringDeployment(monitoringType, jsonspec):
                     }
                     return json.dumps(d), 500
                 else:
-                    switch = switchToContext(str(listOfCluster).strip(), env)
+                    switch = switchToContext(str(listOfCluster).strip())
                     if switch[1] != 200:
-                        logger.info(switch[0].json['msg'])
+                        logger.info(switch[0])
                         d = {
                             "responseType": "ERROR",
-                            "msg": switch[0].json['msg'],
+                            "msg": switch[0],
                             "ERROR_CODE": 500
                         }
                         return json.dumps(d), 500
@@ -370,23 +393,23 @@ def monitoringDeployment(monitoringType, jsonspec):
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
-                repo = getRepo(env, jsonspec)
+                repo = getRepo(jsonspec)
                 repository = repo[1]
                 os.system(f"chmod +x {Paths.INJECT_VALUE_SH}")
             if monitoringType == Tkg_Extention_names.PROMETHEUS:
                 password = None
                 extention = Tkg_Extention_names.PROMETHEUS
                 bom_map = getBomMap(load_bom, Tkg_Extention_names.PROMETHEUS)
-                appName = AppName.PROMETHEUS
+                appName = AppName.PROMETHUS
                 namespace = "package-tanzu-system-monitoring"
                 yamlFile = Paths.CLUSTER_PATH + cluster + "/prometheus-data-values.yaml"
                 service = "all"
-                cert_ext_status = installCertManagerAndContour(env, str(listOfCluster).strip(), repo_address, service, jsonspec)
+                cert_ext_status = installCertManagerAndContour(str(listOfCluster).strip(), repo_address, service, jsonspec)
                 if cert_ext_status[1] != 200:
-                    logger.error(cert_ext_status[0].json['msg'])
+                    logger.error(cert_ext_status[0])
                     d = {
                         "responseType": "ERROR",
-                        "msg": cert_ext_status[0].json['msg'],
+                        "msg": cert_ext_status[0],
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
@@ -521,7 +544,7 @@ def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
                 return json.dumps(d), 500
             env = env[0]
             """
-            env = "vsphere"
+            #env = "vsphere"
             cluster = str(jsonspec['tanzuExtensions']['tkgClustersName'])
             listOfClusters = cluster.split(",")
             for listOfCluster in listOfClusters:
@@ -552,21 +575,21 @@ def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
                     }
                     return json.dumps(d), 500
                 else:
-                    switch = switchToContext(str(listOfCluster).strip(), env)
+                    switch = switchToContext(str(listOfCluster).strip())
                     if switch[1] != 200:
-                        logger.info(switch[0].json['msg'])
+                        logger.info(switch[0])
                         d = {
                             "responseType": "ERROR",
-                            "msg": switch[0].json['msg'],
+                            "msg": switch[0],
                             "ERROR_CODE": 500
                         }
                         return json.dumps(d), 500
                 response = deploy_fluent_bit(fluent_bit_endpoint, cluster, jsonspec)
                 if response[1] != 200:
-                    logger.error(response[0].json['msg'])
+                    logger.error(response[0])
                     d = {
                         "responseType": "ERROR",
-                        "msg": response[0].json['msg'],
+                        "msg": response[0],
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500

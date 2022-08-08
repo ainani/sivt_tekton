@@ -105,8 +105,8 @@ class Paths(str, Enum):
     CONTOUR_NAMESPACE_CONFIG = "ingress/contour/namespace-role.yaml"
     VSPHERE_ALB_CONTOUR_CONFIG_EXAMPLE = "ingress/contour/vsphere/contour-data-values-lb.yaml.example"
     VSPHERE_ALB_CONTOUR_CONFIG = "ingress/contour/vsphere/contour-data-values.yaml"
-    LOCAL_VSPHERE_ALB_CONTOUR_CONFIG = "scripts/template/contour-data-values.yaml"
-    LOCAL_VSPHERE_WORKLOAD_PROMETHEUS_CONFIG = "scripts/template/prometheus-data-values.yaml"
+    LOCAL_VSPHERE_ALB_CONTOUR_CONFIG = "/workspace/task-shared-data/arcas-tekton-cicd/scripts/template/contour-data-values.yaml"
+    LOCAL_VSPHERE_WORKLOAD_PROMETHEUS_CONFIG = "./scripts/template/prometheus-data-values.yaml"
     REMOTE_VSPHERE_WORKLOAD_PROMETHEUS_CONFIG = "/tmp/prometheus-data-values.yaml"
     REMOTE_VSPHERE_ALB_CONTOUR_CONFIG = "/tmp/contour-data-values.yaml"
     CONTOUR_EXTENSION_CONFIG = "ingress/contour/contour-extension.yaml"
@@ -738,6 +738,7 @@ class AkoType:
     KEY = 'type'
     VALUE = 'management'
     type_ako_set = "workload-set01"
+    SHARED_CLUSTER_SELECTOR = "shared-services-cluster"
 
 class AppName:
     AKO = "ako"
