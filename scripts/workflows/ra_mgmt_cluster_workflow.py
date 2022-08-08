@@ -35,7 +35,7 @@ import traceback
 from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, \
     getCloudStatus, seperateNetmaskAndIp, getSECloudStatus, getSeNewBody, getVrfAndNextRoutId, \
     addStaticRoute, getVipNetworkIpNetMask, getClusterStatusOnTanzu, runSsh, checkenv, \
-    switchToManagementContext, getClusterID, getPolicyID, create_virtual_service,\
+    switchToManagementContext, getClusterID, getPolicyID,\
     convertStringToCommaSeperated, cidr_to_netmask, getCountOfIpAdress, getLibraryId, getAviCertificate, \
     checkTmcEnabled, createSubscribedLibrary, checkAndWaitForAllTheServiceEngineIsUp, configureKubectl, registerTMCTKGs
 from util.replace_value import generateVsphereConfiguredSubnets, replaceValueSysConfig, \
