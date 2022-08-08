@@ -1493,8 +1493,7 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                 logger.info("Updating cert manager - " + state)
                 update_command = ["tanzu", "package", "installed", "update", AppName.CERT_MANAGER, "--package-name",
                                    "cert-manager.tanzu.vmware.com", "--namespace", "package-" + AppName.CERT_MANAGER,
-                                   "--version", state,
-                                   "--create-namespace"]
+                                   "--version", state]
                 states = runShellCommandAndReturnOutputAsList(update_command)
                 if states[1] != 0:
                     logger.error(
@@ -1565,8 +1564,7 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                 update_command = ["tanzu", "package", "installed", "update", AppName.CONTOUR, "--package-name",
                                    "contour.tanzu.vmware.com", "--version", state, "--values-file",
                                    Paths.LOCAL_VSPHERE_ALB_CONTOUR_CONFIG, "--namespace",
-                                   "package-tanzu-system-contour",
-                                   "--create-namespace"]
+                                   "package-tanzu-system-contour"]
                 states = runShellCommandAndReturnOutputAsList(update_command)
                 if states[1] != 0:
                     for r in states[0]:
@@ -2712,8 +2710,7 @@ def deploy_fluent_bit(end_point, cluster, jsonspec):
         if Upgrade_Extensions.UPGRADE_EXTN:
             upgrade_fluent_bit_command = ["tanzu", "package", "installed", "update", Tkg_Extention_names.FLUENT_BIT.lower(),
                                          "--package-name", Tkg_Extention_names.FLUENT_BIT.lower() + ".tanzu.vmware.com",
-                                         "--version", version, "--values-file", yamlFile, "--namespace", namespace,
-                                         "--create-namespace"]
+                                         "--version", version, "--values-file", yamlFile, "--namespace", namespace]
             state_extention_apply = runShellCommandAndReturnOutputAsList(upgrade_fluent_bit_command)
             if state_extention_apply[1] != 0:
                 logger.error(Tkg_Extention_names.FLUENT_BIT.lower() + " update command failed. "
