@@ -3,17 +3,11 @@
 
 import subprocess
 import re
-from pathlib import Path
 from subprocess import Popen, PIPE, STDOUT
 from util.logger_helper import LoggerHelper, log
 from pathlib import Path
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
-
-from util.logger_helper import LoggerHelper
-
-logger = LoggerHelper.get_logger(Path(__file__).stem)
-
 
 def runShellCommandAndReturnOutput(fin):
     try:
