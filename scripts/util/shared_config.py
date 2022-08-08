@@ -5,7 +5,7 @@ from constants.constants import ControllerLocation, Repo, AppName, RegexPattern,
     Avi_Tkgs_Version
 from pathlib import Path
 import base64
-from util.common_utils import getVersionOfPackage, waitForGrepProcessWithoutChangeDir
+from util.common_utils import installCertManagerAndContour, getVersionOfPackage, waitForGrepProcessWithoutChangeDir
 import json
 from util.logger_helper import LoggerHelper
 import logging
