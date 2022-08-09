@@ -683,7 +683,7 @@ class AlbVrfContext(str, Enum):
     GLOBAL = "global"
     MANAGEMENT = "management"
 
-class AlbEndpoint:    # Need to remove as its already defined in alb_api_constants.py
+class AlbEndpoint:
     CRUD_SSL_CERT = "https://{ip}/api/sslkeyandcertificate"
     IMPORT_SSL_CERTIFICATE = CRUD_SSL_CERT+"/validate"
     CRUD_SYSTEM_CONFIG = url = "https://{ip}/api/systemconfiguration"
