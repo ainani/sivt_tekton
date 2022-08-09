@@ -141,9 +141,10 @@ class TkgCliClient:
         logger.debug('Upgrade output: {}'.format(upgrade_output))
         return upgrade_output
 
-    def tanzu_cluster_upgrade(self, cluster_name, timeout="60m0s", verbose=True):
+    def tanzu_cluster_upgrade(self, cluster_name, k8s_version, timeout="60m0s", verbose=True):
         logger.info(f"Upgrading tanzu kubernetes cluster: {cluster_name}")
-        cmd_option = TKGCommands.TIMEOUT_OPTION.format(timeout=timeout) if timeout else ""
+        cmd_option = f" --tkr {k8s_version}" if k8s_version else ""
+        cmd_option += TKGCommands.TIMEOUT_OPTION.format(timeout=timeout) if timeout else ""
         cmd_option += " -v 9" if verbose else ""
         cluster_upgrade_cmd = TKGCommands.CLUSTER_UPGRADE.format(cluster_name=cluster_name,
                                                                  options=cmd_option)

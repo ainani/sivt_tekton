@@ -296,7 +296,7 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
         data_read = f.read()
     if 'HTTP/1.1 200 OK' in data_read:
         logger.info('Proceed to Download')
-        ova_path = "/tmp/" + filename
+        ova_path = "/tmp/" + ovaName
         curl_download_cmd = 'curl -X GET {d_url} --output {tmp_path}'.format(d_url=download_url,
                                                                              tmp_path=ova_path)
         rcmd.run_cmd_only(curl_download_cmd)
@@ -304,42 +304,45 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
         logger.info('Error in presigned url/key: {} '.format(data_read.split('\n')[0]))
         return None, "Invalid key/url"
 
-    return filename, "Kubernetes OVA download successful"
+    return ovaName, "Kubernetes OVA download successful"
 
 
 def downloadAndPushToVCMarketPlace(file, datacenter, datastore, networkName, clusterName,
                                    refresToken, ovaVersion, ovaOS, jsonspec, upgrade):
-    my_file = Path("/tmp/" + file + ".ova")
+    my_file = Path("/tmp/" + file)
     rcmd = cmd_runner.RunCmd()
     if not my_file.exists():
         logger.info("Downloading kubernetes ova from MarketPlace")
         download_status = getOvaMarketPlace(file, refresToken, ovaVersion, ovaOS, upgrade)
         if download_status[0] is None:
             return None, download_status[1]
-        logger.info("Kubernetes ova downloaded  at location " + "/tmp/" + file)
+        logger.info("Kubernetes ova downloaded  at location " + "/tmp/" + download_status[0])
+        kube_config = FileHelper.read_resource(Paths.KUBE_OVA_CONFIG)
+        kube_config_file = "/tmp/kubeova.json"
+        FileHelper.write_to_file(kube_config, kube_config_file)
+        replaceValueSysConfig(kube_config_file, "Name", "name", download_status[0])
+        replaceValue(kube_config_file, "NetworkMapping", "Network", networkName)
+        logger.info("Pushing " + ovaVersion + " to vcenter and making as template")
+        vcenter_ip = jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
+        vcenter_username = jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
+        enc_password = jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
+        password = CmdHelper.decode_base64(enc_password)
+        os.putenv("GOVC_URL", "https://" + vcenter_ip + "/sdk")
+        os.putenv("GOVC_USERNAME", vcenter_username)
+        os.putenv("GOVC_PASSWORD", password)
+        os.putenv("GOVC_INSECURE", "true")
+        command_template = ["govc", "import.ova", "-options", kube_config_file, "-dc=" + datacenter,
+                            "-ds=" + datastore, "-pool=" + clusterName + "/Resources",
+                            "/tmp/" + download_status[0]]
+        output = rcmd.runShellCommandAndReturnOutputAsList(command_template)
+        if output[1] != 0:
+            return None, "Failed export kubernetes ova to vCenter"
+        return "SUCCESS", "DEPLOYED"
+
+
     else:
         logger.info("Kubernetes ova is already downloaded")
-    kube_config = FileHelper.read_resource(Paths.KUBE_OVA_CONFIG)
-    kube_config_file = "/tmp/kubeova.json"
-    FileHelper.write_to_file(kube_config, kube_config_file)
-    replaceValueSysConfig(kube_config_file, "Name", "name", file)
-    replaceValue(kube_config_file, "NetworkMapping", "Network", networkName)
-    logger.info("Pushing " + file + " to vcenter and making as template")
-    vcenter_ip = jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
-    vcenter_username = jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
-    enc_password = jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
-    password = CmdHelper.decode_base64(enc_password)
-    os.putenv("GOVC_URL", "https://" + vcenter_ip + "/sdk")
-    os.putenv("GOVC_USERNAME", vcenter_username)
-    os.putenv("GOVC_PASSWORD", password)
-    os.putenv("GOVC_INSECURE", "true")
-    command_template = ["govc", "import.ova", "-options", kube_config_file, "-dc="+datacenter,
-                        "-ds=" + datastore, "-pool=" + clusterName + "/Resources",
-                        "/tmp/" + file + ".ova"]
-    output = rcmd.runShellCommandAndReturnOutputAsList(command_template)
-    if output[1] != 0:
-        return None, "Failed export kubernetes ova to vCenter"
-    return "SUCCESS", "DEPLOYED"
+        return "SUCCESS", "ALREADY DOWNLOADED"
 
 def downloadAndPushKubernetesOvaMarketPlace(jsonspec, version, baseOS, upgrade=False):
     try:
