@@ -356,6 +356,7 @@ class RaSharedClusterWorkflow:
                     'tkgSharedserviceClusterCidr']
         service_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                     'tkgSharedserviceServiceCidr']
+        isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
         if refToken:
             logger.info("Kubernetes OVA configs for shared services cluster")
             down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec,
@@ -573,7 +574,7 @@ class RaSharedClusterWorkflow:
             }
             return json.dumps(d), 500
         logger.info("The config files for shared services cluster will be located at: " + Paths.CLUSTER_PATH + shared_cluster_name)
-        if Tkg_version.TKG_VERSION == "1.5" and checkTmcEnabled(self.env, self.jsonspec):
+        if Tkg_version.TKG_VERSION == "1.5" and checkTmcEnabled(self.jsonspec, self.env):
             if self.env == Env.VCF:
                 clusterGroup = self.jsonspec['tkgComponentSpec']["tkgSharedserviceSpec"]['tkgSharedserviceClusterGroupName']
             else:
@@ -676,7 +677,7 @@ class RaSharedClusterWorkflow:
                                         "--service-cidr-blocks", service_cidr]
         isCheck = False
         if command_status[0] is None:
-            if Tkg_version.TKG_VERSION == "1.5" and checkTmcEnabled(self.env, self.jsonspec):
+            if Tkg_version.TKG_VERSION == "1.5" and checkTmcEnabled(self.jsonspec, self.env):
                 logger.info("Creating AkoDeploymentConfig for shared services cluster")
                 ako_deployment_config_status = self.akoDeploymentConfigSharedCluster(shared_cluster_name, aviVersion)
                 if ako_deployment_config_status[1] != 200:
@@ -702,7 +703,7 @@ class RaSharedClusterWorkflow:
         else:
             if not verifyPodsAreRunning(shared_cluster_name, command_status[0], RegexPattern.running):
                 isCheck = True
-                if not checkTmcEnabled(self.env, self.jsonspec):
+                if not checkTmcEnabled(self.jsonspec, self.env):
                     logger.info("Creating AkoDeploymentConfig for shared services cluster")
                     ako_deployment_config_status = self.akoDeploymentConfigSharedCluster(shared_cluster_name, aviVersion)
                     if ako_deployment_config_status[1] != 200:
@@ -731,7 +732,7 @@ class RaSharedClusterWorkflow:
                         }
                         return json.dumps(d), 500
                 else:
-                    if checkTmcEnabled(self.env, self.jsonspec):
+                    if checkTmcEnabled(self.jsonspec, self.env):
                         logger.info("Creating AkoDeploymentConfig for shared services cluster")
                         ako_deployment_config_status = self.akoDeploymentConfigSharedCluster(shared_cluster_name, aviVersion)
                         if ako_deployment_config_status[1] != 200:
@@ -956,7 +957,7 @@ class RaSharedClusterWorkflow:
             isSharedProxy = "false"
             if checkSharedServiceProxyEnabled(self.env, self.jsonspec):
                 isSharedProxy = "true"
-            state = registerWithTmcOnSharedAndWorkload(self.env, shared_cluster_name, isSharedProxy, "shared")
+            state = registerWithTmcOnSharedAndWorkload(self.jsonspec, shared_cluster_name, "shared")
             if state[1] != 200:
                 logger.error(state[0].json['msg'])
                 d = {
@@ -965,10 +966,10 @@ class RaSharedClusterWorkflow:
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
-        elif checkTmcEnabled(self.env, self.jsonspec) and Tkg_version.TKG_VERSION == "1.5":
+        elif checkTmcEnabled(self.jsonspec, self.env) and Tkg_version.TKG_VERSION == "1.5":
             logger.info("Cluster is already deployed via TMC")
-            if checkDataProtectionEnabled(self.env, "shared", self.jsonspec):
-                is_enabled = enable_data_protection(self.env, shared_cluster_name, management_cluster, self.jsonspec)
+            if checkDataProtectionEnabled(self.jsonspec, "shared", isEnvTkgs_ns):
+                is_enabled = enable_data_protection(self.jsonspec, shared_cluster_name, management_cluster, isEnvTkgs_ns)
                 if not is_enabled[0]:
                     logger.error(is_enabled[1])
                     d = {
@@ -980,7 +981,7 @@ class RaSharedClusterWorkflow:
                 logger.info(is_enabled[1])
             else:
                 logger.info("Data protection not enabled for cluster " + shared_cluster_name)
-        elif checkTmcEnabled(self.env, self.jsonspec):
+        elif checkTmcEnabled(self.jsonspec, self.env):
             logger.info("Cluster is already deployed via TMC")
         else:
             logger.info("TMC is disabled")
