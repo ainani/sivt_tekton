@@ -112,22 +112,22 @@ spec:
           -  start-shared-upgrade
 
     - name: dind-extns-upgrade
-        when:
-            - input: "$(params.targetcluster)"
-              operator: in
-              values: [ "all" ]
-        taskRef:
-          name: dind-extns-upgrade
-        workspaces:
-          - name: task-shared-data
-            workspace: pipeline-shared-data
-        params:
-          - name: imagename
-            value: $(params.imagename)
-          - name: imagepullpolicy
-            value: "$(params.imagepullpolicy)"
+      when:
+          - input: "$(params.targetcluster)"
+            operator: in
+            values: [ "all" ]
+      taskRef:
+        name: dind-extns-upgrade
+      workspaces:
+        - name: task-shared-data
+          workspace: pipeline-shared-data
+      params:
+        - name: imagename
+          value: $(params.imagename)
+        - name: imagepullpolicy
+          value: "$(params.imagepullpolicy)"
 
-        runAfter:
-          - start-workload-upgrade
+      runAfter:
+        - start-workload-upgrade
 
 
