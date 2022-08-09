@@ -556,7 +556,7 @@ class RaWorkloadClusterWorkflow:
                 "msg": "Failed to Config workload cluster " + str(network_config[0].json['msg']),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            raise Exception
         create = createResourceFolderAndWait(vcenter_ip, vcenter_username, password,
                                              cluster_name, data_center,
                                              ResourcePoolAndFolderName.WORKLOAD_RESOURCE_POOL_VSPHERE,
