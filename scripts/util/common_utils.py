@@ -1854,12 +1854,529 @@ def isSasRegistred(clusterName, management, provisoner, pr, sasType):
             logger.error(str(e))
         return False
 
-def checkTmcEnabled(jsonspec):
-    tmc_required = jsonspec['envSpec']["saasEndpoints"]['tmcDetails']['tmcAvailability']
+def checkTmcEnabled(env,jsonspec):
+    if env == Env.VMC:
+        try:
+            tmc_required = str(jsonspec["saasEndpoints"]['tmcDetails']['tmcAvailability'])
+        except:
+            return False
+    else:
+        try:
+            tmc_required = str(
+                jsonspec['envSpec']["saasEndpoints"]['tmcDetails']['tmcAvailability'])
+        except:
+            return False
     if tmc_required.lower() == "true":
         return True
     else:
         return False
+
+
+def checkDataProtectionEnabled(env, type, jsonspec):
+    if type == "shared":
+        if env == Env.VMC:
+            is_enabled = jsonspec['componentSpec']['tkgSharedServiceSpec'][
+                'tkgSharedserviceEnableDataProtection']
+        elif env == Env.VCF:
+            is_enabled = jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                'tkgSharedserviceEnableDataProtection']
+        elif env == Env.VSPHERE:
+            is_enabled = jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                'tkgSharedserviceEnableDataProtection']
+    elif type == "workload":
+        if TkgUtil.isEnvTkgs_ns(env):
+            is_enabled = jsonspec["tkgsComponentSpec"]["tkgsVsphereNamespaceSpec"][
+                "tkgsVsphereWorkloadClusterSpec"]["tkgsWorkloadEnableDataProtection"]
+        elif env == Env.VCF or env == Env.VSPHERE:
+            is_enabled = jsonspec['tkgWorkloadComponents']['tkgWorkloadEnableDataProtection']
+        elif env == Env.VMC:
+            is_enabled = jsonspec['componentSpec']['tkgWorkloadSpec'][
+                'tkgWorkloadEnableDataProtection']
+    if is_enabled.lower() == "true":
+        return True
+    else:
+        return False
+
+
+
+
+def enable_data_protection(env, cluster, mgmt_cluster, jsonspec):
+    try:
+        tmc_header = fetchTMCHeaders(env)
+        if tmc_header[0] is None:
+            return False, tmc_header[1]
+
+        headers = tmc_header[0]
+        tmc_url = tmc_header[1]
+
+        logger.info("Enabling data protection on cluster " + cluster)
+        url = VeleroAPI.GET_CLUSTER_INFO.format(tmc_url=tmc_url, cluster=cluster)
+
+        if TkgUtil.isEnvTkgs_ns(env):
+            provisionerName = jsonspec['tkgsComponentSpec']["tkgsVsphereNamespaceSpec"][
+                'tkgsVsphereWorkloadClusterSpec']['tkgsVsphereNamespaceName']
+        else:
+            provisionerName = "default"
+
+        payload = {
+            "full_name.managementClusterName": mgmt_cluster,
+            "full_name.provisionerName": provisionerName
+        }
+
+        response = requests.request("GET", url, headers=headers, params=payload, verify=False)
+        if response.status_code != 200:
+            logger.error(response.json())
+            return False, "Failed to fetch cluster details to enable data protection"
+
+        orgId = response.json()["cluster"]["fullName"]["orgId"]
+        url = VeleroAPI.ENABLE_DP.format(tmc_url=tmc_url, cluster=cluster)
+
+        payload = {
+            "dataProtection": {
+                "fullName": {
+                    "orgId": orgId,
+                    "managementClusterName": mgmt_cluster,
+                    "provisionerName": provisionerName,
+                    "clusterName": cluster
+                },
+                "spec": {
+                }
+            }
+        }
+
+        json_payload = json.dumps(payload, indent=4)
+
+        if not isDataprotectionEnabled(tmc_url, headers, json_payload, cluster):
+
+            enable_response = requests.request("POST", url, headers=headers, data=json_payload, verify=False)
+            if enable_response.status_code != 200:
+                logger.error(enable_response.json())
+                return False, "Failed to enable data protection on cluster " + cluster
+
+            count = 0
+            enabled = False
+
+            status = requests.request("GET", url, headers=headers, data=json_payload, verify=False)
+            try:
+                if status.json()["dataProtections"][0]["status"]["phase"] == "READY":
+                    enabled = True
+                else:
+                    logger.info("Waiting for data protection enablement to complete...")
+            except:
+                pass
+
+            while count < 90 and not enabled:
+                status = requests.request("GET", url, headers=headers, data=json_payload, verify=False)
+                if status.json()["dataProtections"][0]["status"]["phase"] == "READY":
+                    enabled = True
+                    break
+                elif status.json()["dataProtections"][0]["status"]["phase"] == "ERROR":
+                    logger.error("Data protection is enabled but its status is ERROR")
+                    logger.error(status.json()["dataProtections"][0]["status"]["phaseInfo"])
+                    enabled = True
+                    break
+                else:
+                    logger.info("Data protection status "
+                                            + status.json()["dataProtections"][0]["status"]["phase"])
+                    logger.info("Waited for " + str(count * 10) + "s, retrying...")
+                    time.sleep(10)
+                    count = count + 1
+
+            if not enabled:
+                logger.error("Data protection not enabled even after " + str(count * 10) + "s wait")
+                return False, "Timed out waiting for data protection to be enabled"
+            else:
+                return True, "Data protection on cluster " + cluster + " enabled successfully"
+        else:
+            return True, "Data protection is already enabled on cluster " + cluster
+    except Exception as e:
+        logger.error(str(e))
+        return False, "Exception enabled while enabling data protection on cluster"
+
+
+def getKubeVersionFullName(kube_version):
+    try:
+        listOfCmd = ["kubectl", "get", "tkr"]
+        kube_version_full = runShellCommandAndReturnOutputAsList(listOfCmd)
+        lu = []
+        for version in kube_version_full[0]:
+            if str(version).__contains__(kube_version) and str(version).__contains__("True"):
+                list_ = version.split(" ")
+                for l in list_:
+                    if l:
+                        lu.append(l)
+                logger.info(lu)
+                return lu[1], 200
+        return None, 500
+    except:
+        return None, 500
+
+
+def createProxyCredentialsTMC(env, clusterName, isProxy, type, jsonspec, register=True):
+    try:
+        if register and type != "management":
+            file = "kubeconfig_cluster.yaml"
+            os.system("rm -rf " + file)
+        pod_cidr = ""
+        service_cidr = ""
+        if env == Env.VMC:
+            os.putenv("TMC_API_TOKEN",
+                      jsonspec["saasEndpoints"]['tmcDetails']['tmcRefreshToken'])
+            user = TmcUser.USER
+            if type == "management":
+                pod_cidr = jsonspec['componentSpec']['tkgMgmtSpec']['tkgMgmtClusterCidr']
+                service_cidr = jsonspec['componentSpec']['tkgMgmtSpec']['tkgMgmtServiceCidr']
+            elif type == "shared":
+                pod_cidr = jsonspec['componentSpec']['tkgSharedServiceSpec'][
+                    'tkgSharedserviceClusterCidr']
+                service_cidr = jsonspec['componentSpec']['tkgSharedServiceSpec'][
+                    'tkgSharedserviceServiceCidr']
+            elif type == "workload":
+                pod_cidr = jsonspec['componentSpec']['tkgWorkloadSpec']['tkgWorkloadClusterCidr']
+                service_cidr = jsonspec['componentSpec']['tkgWorkloadSpec'][
+                    'tkgWorkloadServiceCidr']
+        else:
+            os.putenv("TMC_API_TOKEN",
+                      jsonspec['envSpec']["saasEndpoints"]['tmcDetails'][
+                          'tmcRefreshToken'])
+            user = TmcUser.USER_VSPHERE
+            if type == "management":
+                pod_cidr = jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtClusterCidr']
+                service_cidr = jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                    'tkgMgmtServiceCidr']
+            elif type == "shared":
+                if env == Env.VSPHERE:
+                    pod_cidr = jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                        'tkgSharedserviceClusterCidr']
+                    service_cidr = jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                        'tkgSharedserviceServiceCidr']
+                elif env == Env.VCF:
+                    pod_cidr = jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                        'tkgSharedserviceClusterCidr']
+                    service_cidr = jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                        'tkgSharedserviceServiceCidr']
+            elif type == "workload":
+                pod_cidr = jsonspec['tkgWorkloadComponents']['tkgWorkloadClusterCidr']
+                service_cidr = jsonspec['tkgWorkloadComponents']['tkgWorkloadServiceCidr']
+
+        listOfCmdTmcLogin = ["tmc", "login", "--no-configure", "-name", user]
+        runProcess(listOfCmdTmcLogin)
+        if register and type != "management":
+            logger.info("Registering to tmc on cluster " + clusterName)
+            tmc_command = ["tanzu", "cluster", "kubeconfig", "get", clusterName, "--admin", "--export-file",
+                           file]
+            runProcess(tmc_command)
+            logger.info("Got kubeconfig successfully")
+
+        if str(isProxy).lower() == "true":
+            logger.info("Attaching cluster to tmc using proxy command")
+            name = "arcas-" + clusterName + "-tmc-proxy"
+
+            if type == "workload":
+                httpProxy = str(
+                    jsonspec['envSpec']['proxySpec']['tkgWorkload']['httpProxy'])
+                httpsProxy = str(
+                    jsonspec['envSpec']['proxySpec']['tkgWorkload']['httpsProxy'])
+                noProxy = str(jsonspec['envSpec']['proxySpec']['tkgWorkload']['noProxy'])
+                noProxy = noProxy.strip("\n").strip(" ").strip("\r")
+            elif type == "shared":
+                httpProxy = str(
+                    jsonspec['envSpec']['proxySpec']['tkgSharedservice']['httpProxy'])
+                httpsProxy = str(
+                    jsonspec['envSpec']['proxySpec']['tkgSharedservice']['httpsProxy'])
+                noProxy = str(
+                    jsonspec['envSpec']['proxySpec']['tkgSharedservice']['noProxy'])
+                noProxy = noProxy.strip("\n").strip(" ").strip("\r")
+            elif type == "management":
+                httpProxy = str(
+                    jsonspec['envSpec']['proxySpec']['tkgMgmt']['httpProxy'])
+                httpsProxy = str(
+                    jsonspec['envSpec']['proxySpec']['tkgMgmt']['httpsProxy'])
+                noProxy = str(
+                    jsonspec['envSpec']['proxySpec']['tkgMgmt']['noProxy'])
+                noProxy = noProxy.strip("\n").strip(" ").strip("\r")
+
+            if noProxy:
+                noProxy = noProxy + ", " + pod_cidr + ", " + service_cidr
+            try:
+                if '@' in httpProxy:
+                    http_proxy = httpProxy.split(":")
+                    http_user = http_proxy[1].replace("//", "")
+                    http_user = requests.utils.unquote(http_user)
+                    _base64_bytes = http_user.encode('ascii')
+                    _enc_bytes = base64.b64encode(_base64_bytes)
+                    http_user = _enc_bytes.decode('ascii')
+
+                    http_password = http_proxy[2].split("@")[0]
+                    http_password = requests.utils.unquote(http_password)
+                    _base64_bytes = http_password.encode('ascii')
+                    _enc_bytes = base64.b64encode(_base64_bytes)
+                    http_password = _enc_bytes.decode('ascii')
+                else:
+                    http_user = ""
+                    http_password = ""
+
+                if '@' in httpsProxy:
+                    https_proxy = httpsProxy.split(":")
+                    https_user = https_proxy[1].replace("//", "")
+                    https_user = requests.utils.unquote(https_user)
+                    _base64_bytes = https_user.encode('ascii')
+                    _enc_bytes = base64.b64encode(_base64_bytes)
+                    https_user = _enc_bytes.decode('ascii')
+
+                    https_password = https_proxy[2].split("@")[0]
+                    https_password = requests.utils.unquote(https_password)
+                    _base64_bytes = https_password.encode('ascii')
+                    _enc_bytes = base64.b64encode(_base64_bytes)
+                    https_password = _enc_bytes.decode('ascii')
+                else:
+                    https_user = ""
+                    https_password = ""
+
+            except Exception as e:
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Proxy url must be in the format http://<Proxy_User>:<URI_EncodedProxy_Password>@<Proxy_IP>:<Proxy_Port> or http://<Proxy_IP>:<Proxy_Port> ",
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+            generateTmcProxyYaml(name, httpProxy, httpsProxy, noProxy, http_user, http_password, https_user,
+                                 https_password)
+            credential = ["tmc", "account", "credential", "create", "-f", "tmc_proxy.yaml"]
+            state_cred = runShellCommandAndReturnOutput(credential)
+            if state_cred[1] != 0:
+                logger.error("Failed to run create credential" + str(state_cred[0]))
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to run validate repository added command " + str(state_cred[0]),
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+            logger.info("Successfully created credentials for TMC Proxy")
+            return name, 200
+        logger.info("Proxy credential configuration not required")
+        return "Proxy credential configuration not required", 200
+    except Exception as e:
+        d = {
+            "responseType": "ERROR",
+            "msg": "Proxy credential creation on TMC failed for cluster " + clusterName + " " + str(e),
+            "ERROR_CODE": 200
+        }
+        return json.dumps(d), 200
+
+
+
+
+def getNetworkPathTMC(networkName, vcenter_ip, vcenter_username, password):
+    os.putenv("GOVC_URL", "https://" + vcenter_ip + "/sdk")
+    os.putenv("GOVC_USERNAME", vcenter_username)
+    os.putenv("GOVC_PASSWORD", password)
+    os.putenv("GOVC_INSECURE", "true")
+    find_command = ["govc", "find", "-name", networkName]
+    count = 0
+    net = ""
+    while count < 120:
+        output = runShellCommandAndReturnOutputAsList(find_command)
+        if str(output[0]).__contains__(networkName) and str(output[0]).__contains__("/network"):
+            for o in output[0]:
+                if str(o).__contains__("/network"):
+                    net = o
+                    break
+            if net:
+                logger.info("Network is available " + str(net))
+                return net
+        time.sleep(5)
+        count = count + 1
+    return None
+
+
+
+def checkTmcRegister(cluster, ifManagement):
+    try:
+        if ifManagement:
+            list = ["tmc", "managementcluster", "list"]
+        else:
+            list = ["tmc", "cluster", "list"]
+        o = runShellCommandAndReturnOutput(list)
+        if o[0].__contains__(cluster):
+            logger.info("here ")
+            state = checkClusterStateOnTmc(cluster, ifManagement)
+            if state[0] == "SUCCESS":
+                return True
+            else:
+                return False
+        else:
+            return False
+    except:
+        return False
+
+
+def checkSharedServiceProxyEnabled(env,jsonspec):
+    if env == Env.VMC:
+        shared_proxy = "false"
+    else:
+        try:
+            shared_proxy = jsonspec['envSpec']['proxySpec']['tkgSharedservice']['enableProxy']
+        except:
+            return False
+    if shared_proxy.lower() == "true":
+        return True
+    else:
+        return False
+
+
+def checkEnableIdentityManagement(env, jsonspec):
+    try:
+        if not TkgUtil.isEnvTkgs_ns(env) and not TkgUtil.isEnvTkgs_wcp(env):
+            if env == Env.VMC:
+                idm = jsonspec["componentSpec"]["identityManagementSpec"]["identityManagementType"]
+            elif env == Env.VSPHERE or env == Env.VCF:
+                idm = jsonspec["tkgComponentSpec"]["identityManagementSpec"][
+                    "identityManagementType"]
+            if (idm.lower() == "oidc") or (idm.lower() == "ldap"):
+                return True
+            else:
+                return False
+        else:
+            return False
+    except Exception:
+        return False
+
+
+def checkPinnipedInstalled():
+    main_command = ["tanzu", "package", "installed", "list", "-A"]
+    sub_command = ["grep", AppName.PINNIPED]
+    command_pinniped = grabPipeOutput(main_command, sub_command)
+    if not verifyPodsAreRunning(AppName.PINNIPED, command_pinniped[0], RegexPattern.RECONCILE_SUCCEEDED):
+        count_pinniped = 0
+        found = False
+        command_status_pinniped = grabPipeOutput(main_command, sub_command)
+        while not verifyPodsAreRunning(AppName.PINNIPED, command_status_pinniped[0],
+                                       RegexPattern.RECONCILE_SUCCEEDED) and count_pinniped < 20:
+            command_status_pinniped = grabPipeOutput(main_command, sub_command)
+            if verifyPodsAreRunning(AppName.PINNIPED, command_status_pinniped[0], RegexPattern.RECONCILE_SUCCEEDED):
+                found = True
+                break
+            count_pinniped = count_pinniped + 1
+            time.sleep(30)
+            logger.info("Waited for  " + str(count_pinniped * 30) + "s, retrying.")
+        if not found:
+            logger.error(
+                "Pinniped is not in RECONCILE SUCCEEDED state on waiting " + str(count_pinniped * 30))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Pinniped is not in RECONCILE SUCCEEDED state on waiting " + str(count_pinniped * 30),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+    logger.info("Successfully validated Pinniped installation")
+    d = {
+        "responseType": "SUCCESS",
+        "msg": "Successfully validated Pinniped installation",
+        "ERROR_CODE": 200
+    }
+    return json.dumps(d), 200
+
+
+def createRbacUsers(clusterName, isMgmt, env, cluster_admin_users, admin_users, edit_users, view_users):
+    try:
+        if isMgmt:
+            switch = switchToManagementContext(clusterName)
+            if switch[1] != 200:
+                logger.info(switch[0].json['msg'])
+                d = {
+                    "responseType": "ERROR",
+                    "msg": switch[0].json['msg'],
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+        else:
+            switch = switchToContext(clusterName, env=env)
+            if switch[1] != 200:
+                logger.info(switch[0].json['msg'])
+                d = {
+                    "responseType": "ERROR",
+                    "msg": switch[0].json['msg'],
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+        if isMgmt:
+            exportCmd = ["tanzu", "management-cluster", "kubeconfig", "get",
+                         clusterName, "--export-file",
+                         Paths.CLUSTER_PATH + clusterName + "/" + "crb-kubeconfig"]
+        else:
+            exportCmd = ["tanzu", "cluster", "kubeconfig", "get",
+                         clusterName, "--export-file",
+                         Paths.CLUSTER_PATH + clusterName + "/" + "crb-kubeconfig"]
+
+        output = runShellCommandAndReturnOutputAsList(exportCmd)
+        if output[1] == 0:
+            logger.info(
+                "Exported kubeconfig at  " + Paths.CLUSTER_PATH + clusterName + "/" + "crb-kubeconfig")
+        else:
+            logger.error(
+                "Failed to export config file to " + Paths.CLUSTER_PATH + clusterName + "/" + "crb-kubeconfig")
+            logger.error(output[0])
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to export config file to " + Paths.CLUSTER_PATH + clusterName + "/" + "crb-kubeconfig",
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+        rbac_dict = dict()
+        rbac_dict.update({"cluster-admin": cluster_admin_users})
+        rbac_dict.update({"admin": admin_users})
+        rbac_dict.update({"edit": edit_users})
+        rbac_dict.update({"view": view_users})
+
+        for key in rbac_dict:
+            users = rbac_dict[key]
+            if users:
+                users_list = users.split(",")
+                for username in users_list:
+                    logger.info("Checking if Cluster Role binding exists for the user: " + username)
+                    main_command = ["kubectl", "get", "clusterrolebindings"]
+                    sub_command = ["grep", username + "-crb"]
+                    output = grabPipeOutput(main_command, sub_command)
+                    if output[1] == 0:
+                        if output[0].__contains__(key):
+                            logger.info(key + " role binding for user: " + username + " already exists!")
+                            continue
+                    logger.info("Creating Cluster Role binding for user: " + username)
+                    listOfCmd = ["kubectl", "create", "clusterrolebinding", username + "-crb",
+                                 "--clusterrole", key, "--user", username]
+                    output = runShellCommandAndReturnOutputAsList(listOfCmd)
+                    if output[1] == 0:
+                        logger.info("Created RBAC for user: " + username + " SUCCESSFULLY")
+                        logger.info("Kubeconfig file has been generated and stored at " +
+                                                Paths.CLUSTER_PATH + clusterName + "/" + "crb-kubeconfig")
+                    else:
+                        logger.error("Failed to created Cluster Role Binding for user: " + username)
+                        logger.error(output[0])
+                        d = {
+                            "responseType": "ERROR",
+                            "msg": "Failed to created Cluster Role Binding for user: " + username,
+                            "ERROR_CODE": 500
+                        }
+                        return json.dumps(d), 500
+
+        d = {
+            "responseType": "SUCCESS",
+            "msg": "Created RBAC successfully for all the provided users",
+            "ERROR_CODE": 200
+        }
+        return json.dumps(d), 200
+
+    except Exception as e:
+        logger.info("Some error occurred while creating cluster role bindings")
+        d = {
+            "responseType": "ERROR",
+            "msg": "Some error occurred while creating cluster role bindings",
+            "ERROR_CODE": 500
+        }
+        return json.dumps(d), 500
+
 
 def generateToJsonFile(management_cluster, provisioner_name, cluster_name, toUrl, toSecrets):
     fileName = "to_json.json"
@@ -2334,6 +2851,11 @@ def connect_to_workload(vCenter, vcenter_username, password, cluster, workload_n
         return None, "Exception occurred while connecting to workload cluster"
         
 def verifyCluster(cluster_name):
+    #Init tanzu cli plugins
+    rcmd = RunCmd()
+    tanzu_init_cmd = "tanzu plugin sync"
+    command_status = rcmd.run_cmd_output(tanzu_init_cmd)
+    logger.debug("Tanzu plugin output: {}".format(command_status))
     podRunninng = ["tanzu", "cluster", "list", "--include-management-cluster"]
     command_status = runShellCommandAndReturnOutputAsList(podRunninng)
     if not verifyPodsAreRunning(cluster_name, command_status[0], RegexPattern.running):
