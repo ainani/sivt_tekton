@@ -38,7 +38,7 @@ class deploy_tkg_extensions():
         logger.info("Deploying extentions: {}".format(self.extension_name))
 
     def deploy(self, extention):       
-        self.extension_name  = extention
+        self.extension_name = extention
         if str(self.extension_name).__contains__("Fluent"):
             status = self.fluent_bit(self.extension_name)
             return status[0], status[1]
@@ -51,14 +51,15 @@ class deploy_tkg_extensions():
 
     def fluent_bit(self, fluent_bit_type):
         fluent_bit_response = deploy_extension_fluent(fluent_bit_type, self.jsonspec)
-        if fluent_bit_response[1] != 200:
-            logger.error(fluent_bit_response[0])
+        if fluent_bit_response[1] == 200:
+            logger.info("Successfully deployed fluent bit syslog")
             d = {
-                "responseType": "ERROR",
-                "msg": fluent_bit_response[0],
-                "ERROR_CODE": 500
+                "responseType": "SUCCESS",
+                "msg": "Successfully deployed fluent bit syslog",
+                "ERROR_CODE": 200
             }
-            return json.dumps(d), 500
+            return json.dumps(d), 200
+
         elif fluent_bit_response[1] == 299:
             logger.error(fluent_bit_response[0])
             d = {
@@ -69,13 +70,14 @@ class deploy_tkg_extensions():
             return json.dumps(d), 299
 
         else:
-            logger.info("Successfully deployed fluent bit syslog")
+            logger.error(fluent_bit_response[0])
             d = {
-                "responseType": "SUCCESS",
-                "msg": "Successfully deployed fluent bit syslog",
-                "ERROR_CODE": 200
+                "responseType": "ERROR",
+                "msg": fluent_bit_response[0],
+                "ERROR_CODE": 500
             }
-            return json.dumps(d), 200
+            return json.dumps(d), 500
+
 
     def grafana(self):
         monitoring = monitoringDeployment(Tkg_Extention_names.GRAFANA, self.jsonspec)

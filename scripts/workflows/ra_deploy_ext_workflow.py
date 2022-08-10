@@ -179,7 +179,7 @@ class RaDeployExtWorkflow:
                             }
                             return json.dumps(d), 299
 
-                        else :
+                        else:
                             logger.info("Failed to deploy extension "+str(status[0]))
                             d = {
                                 "responseType": "ERROR",
