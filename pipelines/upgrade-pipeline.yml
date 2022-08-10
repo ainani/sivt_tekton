@@ -92,7 +92,7 @@ spec:
       runAfter:
           - start-mgmt-upgrade-all
 
-    - name: dind-workload-upgrade
+    - name: start-workload-upgrade
       when:
         - input: "$(params.targetcluster)"
           operator: in
@@ -111,7 +111,7 @@ spec:
       runAfter:
           -  start-shared-upgrade
 
-    - name: dind-extns-upgrade
+    - name: start-extns-upgrade
       when:
           - input: "$(params.targetcluster)"
             operator: in

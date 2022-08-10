@@ -375,7 +375,7 @@ def monitoringDeployment(monitoringType, jsonspec):
             command_fluent_bit = runShellCommandAndReturnOutputAsList(extention_validate_command)
             if not verifyPodsAreRunning(appName, command_fluent_bit[0],
                                         RegexPattern.RECONCILE_SUCCEEDED) or Upgrade_Extensions.UPGRADE_EXTN:
-                logger.info("Deploying " + extention)
+
                 version = getVersionOfPackage(extention.lower() + ".tanzu.vmware.com")
                 if version is None:
                     logger.error("Failed Capture the available Prometheus version")
@@ -395,7 +395,7 @@ def monitoringDeployment(monitoringType, jsonspec):
                     }
                     return json.dumps(d), 500
                 if Upgrade_Extensions.UPGRADE_EXTN:
-
+                    logger.info("Upgrading " + extention)
                     upgrade_extension_cmd = ["tanzu", "package", "installed", "update", extention.lower(), "--package-name",
                                            extention.lower() + ".tanzu.vmware.com", "--version", version,
                                            "--values-file", yamlFile, "--namespace", namespace]
@@ -404,6 +404,7 @@ def monitoringDeployment(monitoringType, jsonspec):
                         logger.error(
                             extention + " update command failed. Checking for reconciliation status...")
                 else:
+                    logger.info("Deploying " + extention)
                     deply_extension_command = ["tanzu", "package", "install", extention.lower(), "--package-name",
                                            extention.lower() + ".tanzu.vmware.com", "--version", version,
                                            "--values-file", yamlFile, "--namespace", namespace, "--create-namespace"]
@@ -527,7 +528,7 @@ def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
                             "ERROR_CODE": 500
                         }
                         return json.dumps(d), 500
-                response = deploy_fluent_bit(fluent_bit_endpoint, cluster, jsonspec)
+                response = (fluent_bit_endpoint, cluster, jsonspec)
                 if response[1] != 200:
                     logger.error(response[0])
                     d = {
