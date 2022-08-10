@@ -3,7 +3,7 @@ clientOptions:
   cli:
     discoverySources:
     - oci:
-        image: projects.registry.vmware.com/tkg/packages/standalone/standalone-plugins:v0.11.6-1-g90440e2b_vmware.1
+        image: projects.registry.vmware.com/tkg/packages/standalone/standalone-plugins:v0.11.4-1-gcc9fde8d_vmware.1
         name: default
     edition: tkg
     repositories:
