@@ -1,6 +1,6 @@
 ---
 version:
-  tkgs: 1.5
+  tkgm: 1.5.4
 
 Description: >
   The desired-state.yml file is responsible to refer that what should be desired state of the system after deployment.
