@@ -398,11 +398,12 @@ def monitoringDeployment(monitoringType, jsonspec):
                     cmdOutput = checkExtentionDeployed(extention.lower())
                     if cmdOutput[1] != 0:
                         d = {
-                            "responseType": "ERROR",
-                            "msg": extention.lower() + "is not deployed, but is enabled in deployment json file...hence skipping upgrade",
-                            "ERROR_CODE": 500
+                            "responseType": "WARNING",
+                            "msg": extention.lower() + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                            "ERROR_CODE": 200
                         }
-                        return json.dumps(d), 500
+                        # returning 200 status code, because we have to check if other extensions have to be upgraded
+                        return json.dumps(d), 200
                     upgrade_extension_cmd = ["tanzu", "package", "installed", "update", extention.lower(), "--package-name",
                                            extention.lower() + ".tanzu.vmware.com", "--version", version,
                                            "--values-file", yamlFile, "--namespace", namespace]

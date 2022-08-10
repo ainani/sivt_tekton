@@ -1440,11 +1440,12 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                 cmdOutput = checkExtentionDeployed(AppName.CERT_MANAGER)
                 if cmdOutput[1] != 0:
                     d = {
-                        "responseType": "ERROR",
-                        "msg": AppName.CERT_MANAGER + "is not deployed, but is enabled in deployment json file...hence skipping upgrade",
-                        "ERROR_CODE": 500
+                        "responseType": "WARNING",
+                        "msg": AppName.CERT_MANAGER + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 200
                     }
-                    return json.dumps(d), 500
+                    # returning 200 status code, because we have to check if other extensions have to be upgraded
+                    return json.dumps(d), 200
 
                 logger.info("Updating cert manager - " + state)
                 update_command = ["tanzu", "package", "installed", "update", AppName.CERT_MANAGER, "--package-name",
@@ -1521,11 +1522,12 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                 cmdOutput = checkExtentionDeployed(AppName.CONTOUR)
                 if cmdOutput[1] != 0:
                     d = {
-                        "responseType": "ERROR",
-                        "msg": AppName.CONTOUR + "is not deployed, but is enabled in deployment json file...hence skipping upgrade",
-                        "ERROR_CODE": 500
+                        "responseType": "WARNING",
+                        "msg": AppName.CONTOUR + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 200
                     }
-                    return json.dumps(d), 500
+                    # returning 200 status code, because we have to check if other extensions have to be upgraded
+                    return json.dumps(d), 200
 
             logger.info("Updating contour - " + state)
             update_command = ["tanzu", "package", "installed", "update", AppName.CONTOUR, "--package-name",
@@ -3103,11 +3105,12 @@ def deploy_fluent_bit(end_point, cluster, jsonspec):
             cmdOutput = checkExtentionDeployed(Tkg_Extention_names.FLUENT_BIT.lower())
             if cmdOutput[1] != 0:
                 d = {
-                    "responseType": "ERROR",
-                    "msg": Tkg_Extention_names.FLUENT_BIT.lower() + "is not deployed, but is enabled in deployment json file...hence skipping upgrade",
-                    "ERROR_CODE": 500
+                    "responseType": "WARNING",
+                    "msg": Tkg_Extention_names.FLUENT_BIT.lower() + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                    "ERROR_CODE": 200
                 }
-                return json.dumps(d), 500
+                #returning 200 status code, because we have to check if other extensions have to be upgraded
+                return json.dumps(d), 200
             upgrade_fluent_bit_command = ["tanzu", "package", "installed", "update",
                                           Tkg_Extention_names.FLUENT_BIT.lower(),
                                           "--package-name",
