@@ -128,12 +128,6 @@ class RaDeployExtWorkflow:
                             logger.info("Successfully deployed " + str(logginglistOfExtention))
                         elif status[1] == 299:
                             logger.info(extn + " is not deployed, but is enabled in deployment json file...hence skipping upgrade")
-                            d = {
-                                "responseType": "WARNING",
-                                "msg": extn + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
-                                "ERROR_CODE": 299
-                            }
-                            return json.dumps(d), 299
                         else:
                             logger.info("Failed to deploy extension " + str(status[0]))
                             d = {
@@ -167,18 +161,11 @@ class RaDeployExtWorkflow:
                 if Tkg_version.TKG_VERSION == "1.5":
                     for extn in monitoringListOfExtention:
                         status = self.extension_obj.deploy(extn)
+
                         if status[1] == 200:
                             logger.info("Successfully deployed " + str(monitoringListOfExtention))
-
                         elif status[1] == 299:
                             logger.info(extn + " is not deployed, but is enabled in deployment json file...hence skipping upgrade")
-                            d = {
-                                "responseType": "WARNING",
-                                "msg": extn + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
-                                "ERROR_CODE": 299
-                            }
-                            return json.dumps(d), 299
-
                         else:
                             logger.info("Failed to deploy extension "+str(status[0]))
                             d = {
@@ -187,13 +174,6 @@ class RaDeployExtWorkflow:
                                 "ERROR_CODE": 500
                             }
                             return json.dumps(d), 500
-
-                    d = {
-                        "responseType": "SUCCESS",
-                        "msg": "Successfully deployed logging extension "+str(monitoringListOfExtention),
-                        "ERROR_CODE": 200
-                    }
-                    return json.dumps(d), 200
                     
                 else:
                     logger.info("Unsupported TKG version")

@@ -1442,10 +1442,10 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                     d = {
                         "responseType": "WARNING",
                         "msg": AppName.CERT_MANAGER + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
-                        "ERROR_CODE": 200
+                        "ERROR_CODE": 299
                     }
                     # returning 200 status code, because we have to check if other extensions have to be upgraded
-                    return json.dumps(d), 200
+                    return json.dumps(d), 299
 
                 logger.info("Updating cert manager - " + state)
                 update_command = ["tanzu", "package", "installed", "update", AppName.CERT_MANAGER, "--package-name",
@@ -1505,6 +1505,7 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                 }
                 return json.dumps(d), 500"""
         sub_command = ["grep", AppName.CONTOUR]
+        import pdb; pdb.set_trace()
         command_cert = grabPipeOutput(main_command, sub_command)
         if not verifyPodsAreRunning(AppName.CONTOUR, command_cert[0],
                                     RegexPattern.RECONCILE_SUCCEEDED) or Upgrade_Extensions.UPGRADE_EXTN:
@@ -1517,17 +1518,17 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
-            if Upgrade_Extensions.UPGRADE_EXTN:
+        if Upgrade_Extensions.UPGRADE_EXTN:
 
-                cmdOutput = checkExtentionDeployed(AppName.CONTOUR)
-                if cmdOutput[1] != 0:
-                    d = {
-                        "responseType": "WARNING",
-                        "msg": AppName.CONTOUR + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
-                        "ERROR_CODE": 200
-                    }
-                    # returning 200 status code, because we have to check if other extensions have to be upgraded
-                    return json.dumps(d), 200
+            cmdOutput = checkExtentionDeployed(AppName.CONTOUR)
+            if cmdOutput[1] != 0:
+                d = {
+                    "responseType": "WARNING",
+                    "msg": AppName.CONTOUR + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                    "ERROR_CODE": 299
+                }
+                # returning 200 status code, because we have to check if other extensions have to be upgraded
+                return json.dumps(d), 299
 
             logger.info("Updating contour - " + state)
             update_command = ["tanzu", "package", "installed", "update", AppName.CONTOUR, "--package-name",

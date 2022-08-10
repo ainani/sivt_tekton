@@ -81,14 +81,14 @@ class deploy_tkg_extensions():
 
     def grafana(self):
         monitoring = monitoringDeployment(Tkg_Extention_names.GRAFANA, self.jsonspec)
-        if monitoring[1] != 200:
-            logger.error(monitoring[0])
+        if monitoring[1] == 200:
+            logger.info("Successfully deployed GRAFANA")
             d = {
-                "responseType": "ERROR",
-                "msg": monitoring[0],
-                "ERROR_CODE": 500
+                "responseType": "SUCCESS",
+                "msg": "Successfully deployed GRAFANA",
+                "ERROR_CODE": 200
             }
-            return json.dumps(d), 500
+            return json.dumps(d), 200
         elif monitoring[1] == 299:
             logger.error(monitoring[0])
             d = {
@@ -98,17 +98,6 @@ class deploy_tkg_extensions():
             }
             return json.dumps(d), 299
         else:
-            logger.info("Successfully deployed GRAFANA")
-            d = {
-                "responseType": "SUCCESS",
-                "msg": "Successfully deployed GRAFANA",
-                "ERROR_CODE": 200
-            }
-            return json.dumps(d), 200
-
-    def prometheus(self):
-        monitoring = monitoringDeployment(Tkg_Extention_names.PROMETHEUS, self.jsonspec)
-        if monitoring[1] != 200:
             logger.error(monitoring[0])
             d = {
                 "responseType": "ERROR",
@@ -116,6 +105,17 @@ class deploy_tkg_extensions():
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
+
+    def prometheus(self):
+        monitoring = monitoringDeployment(Tkg_Extention_names.PROMETHEUS, self.jsonspec)
+        if monitoring[1] == 200:
+            logger.info("Successfully deployed prometheus")
+            d = {
+                "responseType": "SUCCESS",
+                "msg": "Successfully deployed promethus",
+                "ERROR_CODE": 200
+            }
+            return json.dumps(d), 200
         elif monitoring[1] == 299:
             logger.error(monitoring[0])
             d = {
@@ -125,13 +125,14 @@ class deploy_tkg_extensions():
             }
             return json.dumps(d), 299
         else:
-            logger.info("Successfully deployed prometheus")
+            logger.error(monitoring[0])
             d = {
-                "responseType": "SUCCESS",
-                "msg": "Successfully deployed promethus",
-                "ERROR_CODE": 200
+                "responseType": "ERROR",
+                "msg": monitoring[0],
+                "ERROR_CODE": 500
             }
-            return json.dumps(d), 200
+            return json.dumps(d), 500
+
 
 def getImageName(server_image):
     return server_image[server_image.rindex("/") + 1:len(server_image)]
@@ -354,6 +355,17 @@ def monitoringDeployment(monitoringType, jsonspec):
                 namespace = "package-tanzu-system-monitoring"
                 yamlFile = Paths.CLUSTER_PATH + cluster + "/prometheus-data-values.yaml"
                 service = "all"
+                if Upgrade_Extensions.UPGRADE_EXTN:
+                    cmdOutput = checkExtentionDeployed(extention.lower())
+                    if cmdOutput[1] != 0:
+                        d = {
+                            "responseType": "WARNING",
+                            "msg": extention.lower() + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                            "ERROR_CODE": 299
+                        }
+                        # returning 200 status code, because we have to check if other extensions have to be upgraded
+                        return json.dumps(d), 299
+
                 cert_ext_status = installCertManagerAndContour(str(listOfCluster).strip(), repo_address, service, jsonspec)
                 if cert_ext_status[1] == 299:
                     logger.error(cert_ext_status[0])
@@ -392,6 +404,16 @@ def monitoringDeployment(monitoringType, jsonspec):
                 certKey_Path = jsonspec['tanzuExtensions']['monitoring'][
                     'grafanaCertKeyPath']
 
+            if Upgrade_Extensions.UPGRADE_EXTN:
+                cmdOutput = checkExtentionDeployed(extention.lower())
+                if cmdOutput[1] != 0:
+                    d = {
+                        "responseType": "WARNING",
+                        "msg": extention.lower() + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 299
+                    }
+                    # returning 200 status code, because we have to check if other extensions have to be upgraded
+                    return json.dumps(d), 299
             extention_validate_command = ["kubectl", "get", "app", appName, "-n", namespace]
 
             command_fluent_bit = runShellCommandAndReturnOutputAsList(extention_validate_command)
@@ -417,15 +439,7 @@ def monitoringDeployment(monitoringType, jsonspec):
                     }
                     return json.dumps(d), 500
                 if Upgrade_Extensions.UPGRADE_EXTN:
-                    cmdOutput = checkExtentionDeployed(extention.lower())
-                    if cmdOutput[1] != 0:
-                        d = {
-                            "responseType": "WARNING",
-                            "msg": extention.lower() + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
-                            "ERROR_CODE": 200
-                        }
-                        # returning 200 status code, because we have to check if other extensions have to be upgraded
-                        return json.dumps(d), 200
+
                     upgrade_extension_cmd = ["tanzu", "package", "installed", "update", extention.lower(), "--package-name",
                                            extention.lower() + ".tanzu.vmware.com", "--version", version,
                                            "--values-file", yamlFile, "--namespace", namespace]
@@ -518,6 +532,16 @@ def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
             env = env[0]
             """
             #env = "vsphere"
+            if Upgrade_Extensions.UPGRADE_EXTN:
+                cmdOutput = checkExtentionDeployed(Tkg_Extention_names.FLUENT_BIT.lower())
+                if cmdOutput[1] != 0:
+                    d = {
+                        "responseType": "WARNING",
+                        "msg": Tkg_Extention_names.FLUENT_BIT.lower() + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 299
+                    }
+                    # returning 200 status code, because we have to check if other extensions have to be upgraded
+                    return json.dumps(d), 299
             cluster = str(jsonspec['tanzuExtensions']['tkgClustersName'])
             listOfClusters = cluster.split(",")
             for listOfCluster in listOfClusters:
