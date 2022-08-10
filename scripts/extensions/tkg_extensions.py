@@ -355,6 +355,15 @@ def monitoringDeployment(monitoringType, jsonspec):
                 yamlFile = Paths.CLUSTER_PATH + cluster + "/prometheus-data-values.yaml"
                 service = "all"
                 cert_ext_status = installCertManagerAndContour(str(listOfCluster).strip(), repo_address, service, jsonspec)
+                if cert_ext_status[1] == 299:
+                    logger.error(cert_ext_status[0])
+                    d = {
+                        "responseType": "WARNING",
+                        "msg": "Prometheus is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 299
+                    }
+                    return json.dumps(d), 299
+
                 if cert_ext_status[1] != 200:
                     logger.error(cert_ext_status[0])
                     d = {
@@ -549,15 +558,16 @@ def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
                         }
                         return json.dumps(d), 500
                 response = deploy_fluent_bit(fluent_bit_endpoint, cluster, jsonspec)
-                if response[1] != 200:
-                    logger.error(response[0])
+                if response[1] == 200:
+                    logger.info("Fluent-bit with endpoint - " + fluent_bit_endpoint + " installed successfully")
                     d = {
-                        "responseType": "ERROR",
-                        "msg": response[0],
-                        "ERROR_CODE": 500
+                        "responseType": "SUCCESS",
+                        "msg": "Fluent-bit deployed successfully",
+                        "ERROR_CODE": 200
                     }
-                    return json.dumps(d), 500
-                if response[1] == 299:
+                    return json.dumps(d), 200
+
+                elif response[1] == 299:
                     logger.error(response[0])
                     d = {
                         "responseType": "WARNING",
@@ -565,14 +575,15 @@ def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
                         "ERROR_CODE": 299
                     }
                     return json.dumps(d), 299
+                else:
+                    logger.error(response[0])
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": response[0],
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
 
-            logger.info("Fluent-bit with endpoint - " + fluent_bit_endpoint + " installed successfully")
-            d = {
-                "responseType": "SUCCESS",
-                "msg": "Fluent-bit deployed successfully",
-                "ERROR_CODE": 200
-            }
-            return json.dumps(d), 200
         else:
             logger.info("Fluent-bit is already deployed and its status is - " + is_already_installed[1])
             d = {
