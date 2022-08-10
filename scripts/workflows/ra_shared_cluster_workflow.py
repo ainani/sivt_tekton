@@ -10,7 +10,7 @@ import base64
 import ruamel
 from model.vsphereSpec import VsphereMasterSpec
 from constants.constants import TKG_EXTENSIONS_ROOT, ControllerLocation, KubectlCommands, \
-    Paths, Task, ResourcePoolAndFolderName, PLAN, Sizing, ClusterType, RegexPattern, AkoType, \
+    Paths, Task, ResourcePoolAndFolderName, PLAN, Sizing, ClusterType, RegexPattern, AkoType,\
     AppName, Avi_Tkgs_Version, Avi_Version, Cloud, Env, Tkg_version, SegmentsName
 
 from jinja2 import Template
@@ -30,15 +30,16 @@ from util.cmd_runner import RunCmd
 from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, runSsh, getNetworkFolder, \
     deployCluster, registerWithTmcOnSharedAndWorkload, registerTanzuObservability, checkenv, getVipNetworkIpNetMask, \
     obtain_second_csrf, createClusterFolder, createResourceFolderAndWait, checkTmcEnabled, getKubeVersionFullName, \
-    getNetworkPathTMC, checkSharedServiceProxyEnabled, checkTmcRegister, createProxyCredentialsTMC, \
-    enable_data_protection, \
+    getNetworkPathTMC, checkSharedServiceProxyEnabled, checkTmcRegister, createProxyCredentialsTMC, enable_data_protection,\
     checkEnableIdentityManagement, checkPinnipedInstalled, createRbacUsers, checkDataProtectionEnabled
 from util.vcenter_operations import createResourcePool, create_folder
-from util.ShellHelper import runShellCommandAndReturnOutputAsList, verifyPodsAreRunning, \
+from util.ShellHelper import runShellCommandAndReturnOutputAsList, verifyPodsAreRunning,\
     grabKubectlCommand, grabPipeOutput, grabPipeOutputChagedDir, runShellCommandWithPolling
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 from util.shared_config import deployExtentions
 from util.tkg_util import TkgUtil
+
+
 
 logger = LoggerHelper.get_logger(Path(__file__).stem)
 
@@ -50,7 +51,7 @@ class RaSharedClusterWorkflow:
         self.tkg_util_obj = TkgUtil(run_config=self.run_config)
         self.tkg_version_dict = self.tkg_util_obj.get_desired_state_tkg_version()
         self.desired_state_tkg_version = None
-        self.env = "vsphere"  # keeping code for env check, so hardcoding env as vsphere
+        self.env = "vsphere"         #keeping code for env check, so hardcoding env as vsphere
         if "tkgs" in self.tkg_version_dict:
             self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_WCP_MASTER_SPEC_PATH)
             self.desired_state_tkg_version = self.tkg_version_dict['tkgs']
@@ -59,14 +60,14 @@ class RaSharedClusterWorkflow:
             self.desired_state_tkg_version = self.tkg_version_dict['tkgm']
         else:
             raise Exception(f"Could not find supported TKG version: {self.tkg_version_dict}")
-
-        # self.extensions_root = TKG_EXTENSIONS_ROOT[self.desired_state_tkg_version]
-        # self.extensions_dir = Paths.TKG_EXTENSIONS_DIR.format(extensions_root=self.extensions_root)
+        
+        #self.extensions_root = TKG_EXTENSIONS_ROOT[self.desired_state_tkg_version]
+        #self.extensions_dir = Paths.TKG_EXTENSIONS_DIR.format(extensions_root=self.extensions_root)
         # Specifies current running version as per state.yml
         self.current_version = self.run_config.state.shared_services.version
         self.prev_version = self.run_config.state.shared_services.upgradedFrom or self.run_config.state.shared_services.version
         self.tkg_cli_client = TkgCliClient()
-        self.kubectl_client = KubectlClient()
+        self.kubectl_client =  KubectlClient()
         self.common_workflow = ClusterCommonWorkflow()
         # Following values must be set in upgrade scenarios
         self.prev_extensions_root = None
@@ -82,10 +83,12 @@ class RaSharedClusterWorkflow:
                   "incorrect spec provided."
             raise Exception(msg)
 
+
     def _template_deploy_yaml(self):
         deploy_yaml = FileHelper.read_resource(Paths.VSPHERE_SHARED_SERVICES_SPEC_J2)
         t = Template(deploy_yaml)
         return t.render(spec=self.run_config.spec)
+
 
     def isAviHaEnabled(self):
         try:
@@ -100,7 +103,8 @@ class RaSharedClusterWorkflow:
         except:
             return False
 
-    def akoDeploymentConfigSharedCluster(self, shared_cluster_name, aviVersion):
+
+    def akoDeploymentConfigSharedCluster(self,shared_cluster_name, aviVersion):
         management_cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
             'tkgMgmtClusterName']
         commands = ["tanzu", "management-cluster", "kubeconfig", "get", management_cluster, "--admin"]
@@ -147,14 +151,13 @@ class RaSharedClusterWorkflow:
             }
             return json.dumps(d), 500
 
-        logger.info(
-            "Checking if AKO Deployment Config already exists for Shared services cluster: " + shared_cluster_name)
+        logger.info("Checking if AKO Deployment Config already exists for Shared services cluster: " + shared_cluster_name)
         command_main = ["kubectl", "get", "adc"]
         command_grep = ["grep", "install-ako-for-shared-services-cluster"]
         command_status_adc = grabPipeOutput(command_main, command_grep)
         if command_status_adc[1] == 0:
             logger.debug("Found an already existing AKO Deployment Config: "
-                         "install-ako-for-shared-services-cluster")
+                                    "install-ako-for-shared-services-cluster")
             command = ["kubectl", "delete", "adc", "install-ako-for-shared-services-cluster"]
             status = runShellCommandAndReturnOutputAsList(command)
             if status[1] != 0:
@@ -183,12 +186,12 @@ class RaSharedClusterWorkflow:
             tkg_cluster_vip_name = self.jsonspec['tkgComponentSpec']['tkgClusterVipNetwork']['tkgClusterVipNetworkName']
         except Exception as e:
             logger.error("One of the following values is not present in input file: "
-                         "tkgMgmtDataNetworkName, tkgClusterVipNetworkName")
+                                    "tkgMgmtDataNetworkName, tkgClusterVipNetworkName")
             logger.error(str(e))
             d = {
                 "responseType": "ERROR",
                 "msg": "One of the following values is not present in input file: tkgMgmtDataNetworkName, "
-                       "tkgClusterVipNetworkName",
+                    "tkgClusterVipNetworkName",
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -245,7 +248,9 @@ class RaSharedClusterWorkflow:
         }
         return json.dumps(d), 200
 
-    def createAkoFile(self, ip, shared_cluster_name, tkgMgmtDataVipCidr, tkgMgmtDataPg):
+
+
+    def createAkoFile(self,ip, shared_cluster_name, tkgMgmtDataVipCidr, tkgMgmtDataPg):
         repository = 'projects.registry.vmware.com/tkg/ako'
 
         data = dict(
@@ -276,12 +281,11 @@ class RaSharedClusterWorkflow:
                 serviceEngineGroup=Cloud.SE_GROUP_NAME_VSPHERE
             )
         )
-        with open(Paths.CLUSTER_PATH + shared_cluster_name + '/tkgvsphere-ako-shared-services-cluster.yaml',
-                  'w') as outfile:
+        with open(Paths.CLUSTER_PATH + shared_cluster_name + '/tkgvsphere-ako-shared-services-cluster.yaml', 'w') as outfile:
             yaml = ruamel.yaml.YAML()
             yaml.indent(mapping=2, sequence=4, offset=3)
             yaml.dump(data, outfile)
-
+        
     @log("Updating state file")
     def _update_state(self, task: Task, msg="Successful shared cluster deployment"):
         state_file_path = os.path.join(self.run_config.root_dir, Paths.STATE_PATH)
@@ -336,8 +340,7 @@ class RaSharedClusterWorkflow:
     def deploy(self):
         json_dict = self.jsonspec
         vsSpec = VsphereMasterSpec.parse_obj(json_dict)
-        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(
-            self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
+        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
         vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
         password = CmdHelper.decode_base64(vcpass_base64)
         vcenter_username = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
@@ -350,9 +353,10 @@ class RaSharedClusterWorkflow:
         kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"]["tkgSharedserviceBaseOs"]
         kubernetes_ova_version = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"]["tkgSharedserviceKubeVersion"]
         pod_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
-            'tkgSharedserviceClusterCidr']
+                    'tkgSharedserviceClusterCidr']
         service_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
-            'tkgSharedserviceServiceCidr']
+                    'tkgSharedserviceServiceCidr']
+        isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
         if refToken:
             logger.info("Kubernetes OVA configs for shared services cluster")
             down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec,
@@ -386,8 +390,8 @@ class RaSharedClusterWorkflow:
             return json.dumps(d), 500
         try:
             isCreated1 = create_folder(vcenter_ip, vcenter_username, password,
-                                       data_center,
-                                       ResourcePoolAndFolderName.SHARED_FOLDER_NAME_VSPHERE)
+                                    data_center,
+                                    ResourcePoolAndFolderName.SHARED_FOLDER_NAME_VSPHERE)
             if isCreated1 is not None:
                 logger.info("Created folder " + ResourcePoolAndFolderName.SHARED_FOLDER_NAME_VSPHERE)
         except Exception as e:
@@ -412,7 +416,7 @@ class RaSharedClusterWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        # Init tanzu cli plugins
+        #Init tanzu cli plugins
         tanzu_init_cmd = "tanzu plugin sync"
         command_status = self.rcmd.run_cmd_output(tanzu_init_cmd)
         logger.debug("Tanzu plugin output: {}".format(command_status))
@@ -483,11 +487,11 @@ class RaSharedClusterWorkflow:
             pass
         else:
             logger.error("Provided cluster size: " + size + "is not supported, please provide one of: "
-                                                            "small/medium/large/extra-large/custom")
+                                                                        "small/medium/large/extra-large/custom")
             d = {
                 "responseType": "ERROR",
                 "msg": "Provided cluster size: " + size + "is not supported, please provide one of: "
-                                                          "small/medium/large/extra-large/custom",
+                                                        "small/medium/large/extra-large/custom",
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -526,11 +530,11 @@ class RaSharedClusterWorkflow:
                 memory = str(int(control_plane_mem_gb) * 1024)
         else:
             logger.error("Provided cluster size: " + size + "is not supported, please provide one of: "
-                                                            "small/medium/large/extra-large/custom")
+                                                                        "small/medium/large/extra-large/custom")
             d = {
                 "responseType": "ERROR",
                 "msg": "Provided cluster size: " + size + "is not supported, please provide one of: "
-                                                          "small/medium/large/extra-large/custom",
+                                                        "small/medium/large/extra-large/custom",
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -569,15 +573,12 @@ class RaSharedClusterWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        logger.info(
-            "The config files for shared services cluster will be located at: " + Paths.CLUSTER_PATH + shared_cluster_name)
-        if Tkg_version.TKG_VERSION == "1.5" and checkTmcEnabled(self.env, self.jsonspec):
+        logger.info("The config files for shared services cluster will be located at: " + Paths.CLUSTER_PATH + shared_cluster_name)
+        if Tkg_version.TKG_VERSION == "1.5" and checkTmcEnabled(self.jsonspec, self.env):
             if self.env == Env.VCF:
-                clusterGroup = self.jsonspec['tkgComponentSpec']["tkgSharedserviceSpec"][
-                    'tkgSharedserviceClusterGroupName']
+                clusterGroup = self.jsonspec['tkgComponentSpec']["tkgSharedserviceSpec"]['tkgSharedserviceClusterGroupName']
             else:
-                clusterGroup = self.jsonspec['tkgComponentSpec']["tkgMgmtComponents"][
-                    'tkgSharedserviceClusterGroupName']
+                clusterGroup = self.jsonspec['tkgComponentSpec']["tkgMgmtComponents"]['tkgSharedserviceClusterGroupName']
 
             if not clusterGroup:
                 clusterGroup = "default"
@@ -612,12 +613,9 @@ class RaSharedClusterWorkflow:
                 return json.dumps(d), 500
             else:
                 version = version_status[0]
-            shared_network_folder_path = getNetworkPathTMC(shared_service_network, vcenter_ip, vcenter_username,
-                                                           password)
-            if checkSharedServiceProxyEnabled(self.env, self.jsonspec) and not checkTmcRegister(shared_cluster_name,
-                                                                                                False):
-                proxy_name_state = createProxyCredentialsTMC(self.env, shared_cluster_name, "true", "shared",
-                                                             self.jsonspec, register=False)
+            shared_network_folder_path = getNetworkPathTMC(shared_service_network, vcenter_ip, vcenter_username, password)
+            if checkSharedServiceProxyEnabled(self.env, self.jsonspec) and not checkTmcRegister(shared_cluster_name, False):
+                proxy_name_state = createProxyCredentialsTMC(self.env, shared_cluster_name, "true", "shared", self.jsonspec, register=False)
                 if proxy_name_state[1] != 200:
                     d = {
                         "responseType": "ERROR",
@@ -627,71 +625,59 @@ class RaSharedClusterWorkflow:
                     return json.dumps(d), 500
                 proxy_name = "arcas-" + shared_cluster_name + "-tmc-proxy"
                 if cluster_plan.lower() == PLAN.PROD_PLAN:
-                    createSharedCluster = ["tmc", "cluster", "create", "-t", "tkg-vsphere", "-n", shared_cluster_name,
-                                           "-m",
-                                           management_cluster, "-p", "default", "--cluster-group", clusterGroup,
-                                           "--ssh-key", ssh_key, "--version", version, "--datacenter", datacenter_path,
-                                           "--datastore",
-                                           datastore_path, "--folder", shared_folder_path, "--resource-pool",
-                                           shared_resource_path,
-                                           "--workspace-network", shared_network_folder_path, "--control-plane-cpu",
-                                           cpu,
-                                           "--control-plane-disk-gib", disk, "--control-plane-memory-mib", memory,
-                                           "--worker-node-count", machineCount, "--worker-cpu", cpu,
-                                           "--worker-disk-gib",
-                                           disk, "--worker-memory-mib", memory, "--pods-cidr-blocks", pod_cidr,
-                                           "--service-cidr-blocks", service_cidr, "--high-availability", "--proxy-name",
-                                           proxy_name]
+                    createSharedCluster = ["tmc", "cluster", "create", "-t", "tkg-vsphere", "-n", shared_cluster_name, "-m",
+                                        management_cluster, "-p", "default", "--cluster-group", clusterGroup,
+                                        "--ssh-key", ssh_key, "--version", version, "--datacenter", datacenter_path,
+                                        "--datastore",
+                                        datastore_path, "--folder", shared_folder_path, "--resource-pool",
+                                        shared_resource_path,
+                                        "--workspace-network", shared_network_folder_path, "--control-plane-cpu", cpu,
+                                        "--control-plane-disk-gib", disk, "--control-plane-memory-mib", memory,
+                                        "--worker-node-count", machineCount, "--worker-cpu", cpu, "--worker-disk-gib",
+                                        disk, "--worker-memory-mib", memory, "--pods-cidr-blocks", pod_cidr,
+                                        "--service-cidr-blocks", service_cidr, "--high-availability", "--proxy-name",
+                                        proxy_name]
                 else:
-                    createSharedCluster = ["tmc", "cluster", "create", "-t", "tkg-vsphere", "-n", shared_cluster_name,
-                                           "-m",
-                                           management_cluster, "-p", "default", "--cluster-group", clusterGroup,
-                                           "--ssh-key", ssh_key, "--version", version, "--datacenter", datacenter_path,
-                                           "--datastore",
-                                           datastore_path, "--folder", shared_folder_path, "--resource-pool",
-                                           shared_resource_path,
-                                           "--workspace-network", shared_network_folder_path, "--control-plane-cpu",
-                                           cpu,
-                                           "--control-plane-disk-gib", disk, "--control-plane-memory-mib", memory,
-                                           "--worker-node-count", machineCount, "--worker-cpu", cpu,
-                                           "--worker-disk-gib",
-                                           disk, "--worker-memory-mib", memory, "--pods-cidr-blocks", pod_cidr,
-                                           "--service-cidr-blocks", service_cidr, "--proxy-name",
-                                           proxy_name]
+                    createSharedCluster = ["tmc", "cluster", "create", "-t", "tkg-vsphere", "-n", shared_cluster_name, "-m",
+                                        management_cluster, "-p", "default", "--cluster-group", clusterGroup,
+                                        "--ssh-key", ssh_key, "--version", version, "--datacenter", datacenter_path,
+                                        "--datastore",
+                                        datastore_path, "--folder", shared_folder_path, "--resource-pool",
+                                        shared_resource_path,
+                                        "--workspace-network", shared_network_folder_path, "--control-plane-cpu", cpu,
+                                        "--control-plane-disk-gib", disk, "--control-plane-memory-mib", memory,
+                                        "--worker-node-count", machineCount, "--worker-cpu", cpu, "--worker-disk-gib",
+                                        disk, "--worker-memory-mib", memory, "--pods-cidr-blocks", pod_cidr,
+                                        "--service-cidr-blocks", service_cidr,"--proxy-name",
+                                        proxy_name]
             else:
                 if cluster_plan.lower() == PLAN.PROD_PLAN:
-                    createSharedCluster = ["tmc", "cluster", "create", "-t", "tkg-vsphere", "-n", shared_cluster_name,
-                                           "-m",
-                                           management_cluster, "-p", "default", "--cluster-group", clusterGroup,
-                                           "--ssh-key", ssh_key, "--version", version, "--datacenter", datacenter_path,
-                                           "--datastore",
-                                           datastore_path, "--folder", shared_folder_path, "--resource-pool",
-                                           shared_resource_path,
-                                           "--workspace-network", shared_network_folder_path, "--control-plane-cpu",
-                                           cpu,
-                                           "--control-plane-disk-gib", disk, "--control-plane-memory-mib", memory,
-                                           "--worker-node-count", machineCount, "--worker-cpu", cpu,
-                                           "--worker-disk-gib",
-                                           disk, "--worker-memory-mib", memory, "--pods-cidr-blocks", pod_cidr,
-                                           "--service-cidr-blocks", service_cidr, "--high-availability"]
+                    createSharedCluster = ["tmc", "cluster", "create", "-t", "tkg-vsphere", "-n", shared_cluster_name, "-m",
+                                        management_cluster, "-p", "default", "--cluster-group", clusterGroup,
+                                        "--ssh-key", ssh_key, "--version", version, "--datacenter", datacenter_path,
+                                        "--datastore",
+                                        datastore_path, "--folder", shared_folder_path, "--resource-pool",
+                                        shared_resource_path,
+                                        "--workspace-network", shared_network_folder_path, "--control-plane-cpu", cpu,
+                                        "--control-plane-disk-gib", disk, "--control-plane-memory-mib", memory,
+                                        "--worker-node-count", machineCount, "--worker-cpu", cpu, "--worker-disk-gib",
+                                        disk, "--worker-memory-mib", memory, "--pods-cidr-blocks", pod_cidr,
+                                        "--service-cidr-blocks", service_cidr, "--high-availability"]
                 else:
-                    createSharedCluster = ["tmc", "cluster", "create", "-t", "tkg-vsphere", "-n", shared_cluster_name,
-                                           "-m",
-                                           management_cluster, "-p", "default", "--cluster-group", clusterGroup,
-                                           "--ssh-key", ssh_key, "--version", version, "--datacenter", datacenter_path,
-                                           "--datastore",
-                                           datastore_path, "--folder", shared_folder_path, "--resource-pool",
-                                           shared_resource_path,
-                                           "--workspace-network", shared_network_folder_path, "--control-plane-cpu",
-                                           cpu,
-                                           "--control-plane-disk-gib", disk, "--control-plane-memory-mib", memory,
-                                           "--worker-node-count", machineCount, "--worker-cpu", cpu,
-                                           "--worker-disk-gib",
-                                           disk, "--worker-memory-mib", memory, "--pods-cidr-blocks", pod_cidr,
-                                           "--service-cidr-blocks", service_cidr]
+                    createSharedCluster = ["tmc", "cluster", "create", "-t", "tkg-vsphere", "-n", shared_cluster_name, "-m",
+                                        management_cluster, "-p", "default", "--cluster-group", clusterGroup,
+                                        "--ssh-key", ssh_key, "--version", version, "--datacenter", datacenter_path,
+                                        "--datastore",
+                                        datastore_path, "--folder", shared_folder_path, "--resource-pool",
+                                        shared_resource_path,
+                                        "--workspace-network", shared_network_folder_path, "--control-plane-cpu", cpu,
+                                        "--control-plane-disk-gib", disk, "--control-plane-memory-mib", memory,
+                                        "--worker-node-count", machineCount, "--worker-cpu", cpu, "--worker-disk-gib",
+                                        disk, "--worker-memory-mib", memory, "--pods-cidr-blocks", pod_cidr,
+                                        "--service-cidr-blocks", service_cidr]
         isCheck = False
         if command_status[0] is None:
-            if Tkg_version.TKG_VERSION == "1.5" and checkTmcEnabled(self.env, self.jsonspec):
+            if Tkg_version.TKG_VERSION == "1.5" and checkTmcEnabled(self.jsonspec, self.env):
                 logger.info("Creating AkoDeploymentConfig for shared services cluster")
                 ako_deployment_config_status = self.akoDeploymentConfigSharedCluster(shared_cluster_name, aviVersion)
                 if ako_deployment_config_status[1] != 200:
@@ -717,10 +703,9 @@ class RaSharedClusterWorkflow:
         else:
             if not verifyPodsAreRunning(shared_cluster_name, command_status[0], RegexPattern.running):
                 isCheck = True
-                if not checkTmcEnabled(self.env, self.jsonspec):
+                if not checkTmcEnabled(self.jsonspec, self.env):
                     logger.info("Creating AkoDeploymentConfig for shared services cluster")
-                    ako_deployment_config_status = self.akoDeploymentConfigSharedCluster(shared_cluster_name,
-                                                                                         aviVersion)
+                    ako_deployment_config_status = self.akoDeploymentConfigSharedCluster(shared_cluster_name, aviVersion)
                     if ako_deployment_config_status[1] != 200:
                         logger.info("Failed to create AKO Deployment Config for shared services cluster")
                         d = {
@@ -731,11 +716,12 @@ class RaSharedClusterWorkflow:
                         return json.dumps(d), 500
                     logger.info("Deploying shared cluster using tanzu 1.5")
                     deploy_status = deployCluster(shared_cluster_name, cluster_plan,
-                                                  data_center, data_store, shared_folder_path,
-                                                  shared_network_path,
-                                                  vsphere_password, shared_resource_path, vcenter_ip,
-                                                  ssh_key, vcenter_username, machineCount, size,
-                                                  ClusterType.SHARED, vsSpec, self.jsonspec)
+                                      data_center, data_store, shared_folder_path,
+                                      shared_network_path,
+                                      vsphere_password, shared_resource_path, vcenter_ip,
+                                      ssh_key, vcenter_username, machineCount, size,
+                                      ClusterType.SHARED, vsSpec, self.jsonspec)
+
 
                     if deploy_status[0] is None:
                         logger.error("Failed to deploy cluster " + deploy_status[1])
@@ -746,10 +732,9 @@ class RaSharedClusterWorkflow:
                         }
                         return json.dumps(d), 500
                 else:
-                    if checkTmcEnabled(self.env, self.jsonspec):
+                    if checkTmcEnabled(self.jsonspec, self.env):
                         logger.info("Creating AkoDeploymentConfig for shared services cluster")
-                        ako_deployment_config_status = self.akoDeploymentConfigSharedCluster(shared_cluster_name,
-                                                                                             aviVersion)
+                        ako_deployment_config_status = self.akoDeploymentConfigSharedCluster(shared_cluster_name, aviVersion)
                         if ako_deployment_config_status[1] != 200:
                             logger.info("Failed to create AKO Deployment Config for shared services cluster")
                             d = {
@@ -767,9 +752,8 @@ class RaSharedClusterWorkflow:
                                         command_status_v[0]))
                             else:
                                 logger.info("Waiting for folders to be available in tmc…")
-                                for i in tqdm(range(150), desc="Waiting for folders to be available in tmc…",
-                                              ascii=False,
-                                              ncols=75):
+                                for i in tqdm(range(150), desc="Waiting for folders to be available in tmc…", ascii=False,
+                                            ncols=75):
                                     time.sleep(1)
                                 command_status_v = runShellCommandAndReturnOutputAsList(createSharedCluster)
                                 if command_status_v[1] != 0:
@@ -777,8 +761,7 @@ class RaSharedClusterWorkflow:
                                         "Failed to run command to create shared cluster " + str(command_status_v[0]))
                                     d = {
                                         "responseType": "ERROR",
-                                        "msg": "Failed to run command to create shared cluster " + str(
-                                            command_status_v[0]),
+                                        "msg": "Failed to run command to create shared cluster " + str(command_status_v[0]),
                                         "ERROR_CODE": 500
                                     }
                                     return json.dumps(d), 500
@@ -794,7 +777,7 @@ class RaSharedClusterWorkflow:
                         }
                         return json.dumps(d), 500
                     while not verifyPodsAreRunning(shared_cluster_name, command_status[0],
-                                                   RegexPattern.running) and count < 60:
+                                                RegexPattern.running) and count < 60:
                         command_status = runShellCommandAndReturnOutputAsList(podRunninng)
                         if command_status[1] != 0:
                             logger.error("Failed to check pods are running " + str(command_status[0]))
@@ -847,8 +830,7 @@ class RaSharedClusterWorkflow:
                     }
                     return json.dumps(d), 500
                 lisOfCommand = ["kubectl", "label", "cluster",
-                                shared_cluster_name, AkoType.KEY + "=" + AkoType.SHARED_CLUSTER_SELECTOR,
-                                "--overwrite=true"]
+                                shared_cluster_name, AkoType.KEY + "=" + AkoType.SHARED_CLUSTER_SELECTOR, "--overwrite=true"]
                 status = runShellCommandAndReturnOutputAsList(lisOfCommand)
                 if status[1] != 0:
                     if not str(status[0]).__contains__("already has a value"):
@@ -927,10 +909,9 @@ class RaSharedClusterWorkflow:
                             self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
                                 'tkgSharedserviceRbacUserRoleSpec'][
                                 'viewUsers']
-                    rbac_user_status = createRbacUsers(shared_cluster_name, isMgmt=False, env=self.env,
-                                                       edit_users=edit_users,
-                                                       cluster_admin_users=cluster_admin_users, admin_users=admin_users,
-                                                       view_users=view_users)
+                    rbac_user_status = createRbacUsers(shared_cluster_name, isMgmt=False, env=self.env, edit_users=edit_users,
+                                                    cluster_admin_users=cluster_admin_users, admin_users=admin_users,
+                                                    view_users=view_users)
                     if rbac_user_status[1] != 200:
                         logger.error(rbac_user_status[0].json['msg'])
                         d = {
@@ -951,8 +932,7 @@ class RaSharedClusterWorkflow:
                 found = False
                 if verifyPodsAreRunning(AppName.AKO, command_status_ako[0], RegexPattern.RUNNING):
                     found = True
-                while not verifyPodsAreRunning(AppName.AKO, command_status_ako[0],
-                                               RegexPattern.RUNNING) and count_ako < 20:
+                while not verifyPodsAreRunning(AppName.AKO, command_status_ako[0], RegexPattern.RUNNING) and count_ako < 20:
                     command_status = grabPipeOutput(podRunninng_ako_main, podRunninng_ako_grep)
                     if verifyPodsAreRunning(AppName.AKO, command_status[0], RegexPattern.RUNNING):
                         found = True
@@ -977,7 +957,7 @@ class RaSharedClusterWorkflow:
             isSharedProxy = "false"
             if checkSharedServiceProxyEnabled(self.env, self.jsonspec):
                 isSharedProxy = "true"
-            state = registerWithTmcOnSharedAndWorkload(self.env, shared_cluster_name, isSharedProxy, "shared")
+            state = registerWithTmcOnSharedAndWorkload(self.jsonspec, shared_cluster_name, "shared")
             if state[1] != 200:
                 logger.error(state[0].json['msg'])
                 d = {
@@ -986,10 +966,10 @@ class RaSharedClusterWorkflow:
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
-        elif checkTmcEnabled(self.env, self.jsonspec) and Tkg_version.TKG_VERSION == "1.5":
+        elif checkTmcEnabled(self.jsonspec, self.env) and Tkg_version.TKG_VERSION == "1.5":
             logger.info("Cluster is already deployed via TMC")
-            if checkDataProtectionEnabled(self.env, "shared", self.jsonspec):
-                is_enabled = enable_data_protection(self.env, shared_cluster_name, management_cluster, self.jsonspec)
+            if checkDataProtectionEnabled(self.jsonspec, "shared", isEnvTkgs_ns):
+                is_enabled = enable_data_protection(self.jsonspec, shared_cluster_name, management_cluster, isEnvTkgs_ns)
                 if not is_enabled[0]:
                     logger.error(is_enabled[1])
                     d = {
@@ -1001,7 +981,7 @@ class RaSharedClusterWorkflow:
                 logger.info(is_enabled[1])
             else:
                 logger.info("Data protection not enabled for cluster " + shared_cluster_name)
-        elif checkTmcEnabled(self.env, self.jsonspec):
+        elif checkTmcEnabled(self.jsonspec, self.env):
             logger.info("Cluster is already deployed via TMC")
         else:
             logger.info("TMC is disabled")
@@ -1016,81 +996,83 @@ class RaSharedClusterWorkflow:
         }
         return json.dumps(d), 200
 
-    def waitForGrepProcess(self, list1, list2, podName, dir):
-        cert_state = grabPipeOutputChagedDir(list1, list2, dir)
-        if cert_state[1] != 0:
-            logger.error("Failed to apply " + podName + " " + cert_state[0])
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to apply " + podName + " " + cert_state[0],
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500, 0
-        count_cert = 0
-        while verifyPodsAreRunning(podName, cert_state[0], RegexPattern.RUNNING) and count_cert < 10:
+
+    def waitForGrepProcess(self,list1, list2, podName, dir):
             cert_state = grabPipeOutputChagedDir(list1, list2, dir)
-            time.sleep(30)
-            count_cert = count_cert + 1
-            logger.info("Waited for  " + str(count_cert * 30) + "s, retrying.")
-        if not verifyPodsAreRunning(podName, cert_state[0], RegexPattern.RUNNING):
-            logger.error(podName + " is not running on waiting " + str(count_cert * 30) + "s")
-            d = {
-                "responseType": "ERROR",
-                "msg": podName + " is not running on waiting " + str(count_cert * 30) + "s",
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500, count_cert
-        d = {
-            "responseType": "ERROR",
-            "msg": "Failed to apply " + podName + " " + cert_state[0],
-            "ERROR_CODE": 500
-        }
-
-        return json.dumps(d), 200, count_cert
-
-    def changeNetworks(self, vcenter_ip, vcenter_username, password, engine_name):
-        os.putenv("GOVC_URL", "https://" + vcenter_ip + "/sdk")
-        os.putenv("GOVC_USERNAME", vcenter_username)
-        os.putenv("GOVC_PASSWORD", password)
-        os.putenv("GOVC_INSECURE", "true")
-        change_VM_Net = ["govc", "vm.network.change", "-vm=" + engine_name, "-net",
-                         SegmentsName.DISPLAY_NAME_TKG_WORKLOAD,
-                         "ethernet-2"]
-        connect_VM_Net = ["govc", "device.connect", "-vm=" + engine_name, "ethernet-2"]
-        try:
-            runShellCommandWithPolling(change_VM_Net)
-            runShellCommandWithPolling(connect_VM_Net)
-        except Exception as e:
-            return str(e), 500
-        return "SUCCEES", 200
-
-    def waitForProcess(self, list1, podName):
-        cert_state = runShellCommandAndReturnOutputAsList(list1)
-        if cert_state[1] != 0:
-            logger.error("Failed to apply " + podName + " " + cert_state[0])
+            if cert_state[1] != 0:
+                logger.error("Failed to apply " + podName + " " + cert_state[0])
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to apply " + podName + " " + cert_state[0],
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500, 0
+            count_cert = 0
+            while verifyPodsAreRunning(podName, cert_state[0], RegexPattern.RUNNING) and count_cert < 10:
+                cert_state = grabPipeOutputChagedDir(list1, list2, dir)
+                time.sleep(30)
+                count_cert = count_cert + 1
+                logger.info("Waited for  " + str(count_cert * 30) + "s, retrying.")
+            if not verifyPodsAreRunning(podName, cert_state[0], RegexPattern.RUNNING):
+                logger.error(podName + " is not running on waiting " + str(count_cert * 30) + "s")
+                d = {
+                    "responseType": "ERROR",
+                    "msg": podName + " is not running on waiting " + str(count_cert * 30) + "s",
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500, count_cert
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to apply " + podName + " " + cert_state[0],
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500, 0
-        count_cert = 0
-        while verifyPodsAreRunning(podName, cert_state[0], RegexPattern.RUNNING) and count_cert < 50:
+
+            return json.dumps(d), 200, count_cert
+
+
+    def changeNetworks(self,vcenter_ip, vcenter_username, password, engine_name):
+            os.putenv("GOVC_URL", "https://" + vcenter_ip + "/sdk")
+            os.putenv("GOVC_USERNAME", vcenter_username)
+            os.putenv("GOVC_PASSWORD", password)
+            os.putenv("GOVC_INSECURE", "true")
+            change_VM_Net = ["govc", "vm.network.change", "-vm=" + engine_name, "-net", SegmentsName.DISPLAY_NAME_TKG_WORKLOAD,
+                            "ethernet-2"]
+            connect_VM_Net = ["govc", "device.connect", "-vm=" + engine_name, "ethernet-2"]
+            try:
+                runShellCommandWithPolling(change_VM_Net)
+                runShellCommandWithPolling(connect_VM_Net)
+            except Exception as e:
+                return str(e), 500
+            return "SUCCEES", 200
+
+
+    def waitForProcess(self,list1, podName):
             cert_state = runShellCommandAndReturnOutputAsList(list1)
-            time.sleep(30)
-            count_cert = count_cert + 1
-            logger.info("Waited for  " + str(count_cert * 30) + "s, retrying.")
-        if not verifyPodsAreRunning(podName, cert_state[0], RegexPattern.RECONCILE_SUCCEEDED):
-            logger.error(podName + " is not running on waiting " + str(count_cert * 30) + "s")
+            if cert_state[1] != 0:
+                logger.error("Failed to apply " + podName + " " + cert_state[0])
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to apply " + podName + " " + cert_state[0],
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500, 0
+            count_cert = 0
+            while verifyPodsAreRunning(podName, cert_state[0], RegexPattern.RUNNING) and count_cert < 50:
+                cert_state = runShellCommandAndReturnOutputAsList(list1)
+                time.sleep(30)
+                count_cert = count_cert + 1
+                logger.info("Waited for  " + str(count_cert * 30) + "s, retrying.")
+            if not verifyPodsAreRunning(podName, cert_state[0], RegexPattern.RECONCILE_SUCCEEDED):
+                logger.error(podName + " is not running on waiting " + str(count_cert * 30) + "s")
+                d = {
+                    "responseType": "ERROR",
+                    "msg": podName + " is not running on waiting " + str(count_cert * 30) + "s",
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500, count_cert
             d = {
                 "responseType": "ERROR",
-                "msg": podName + " is not running on waiting " + str(count_cert * 30) + "s",
+                "msg": "Failed to apply " + podName + " " + cert_state[0],
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500, count_cert
-        d = {
-            "responseType": "ERROR",
-            "msg": "Failed to apply " + podName + " " + cert_state[0],
-            "ERROR_CODE": 500
-        }
-        return json.dumps(d), 200, count_cert
+            return json.dumps(d), 200, count_cert
