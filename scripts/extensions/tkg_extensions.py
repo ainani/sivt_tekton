@@ -21,7 +21,7 @@ from constants.constants import Tkg_Extention_names, Repo, RegexPattern, Extenti
 import json, requests
 from util.common_utils import getVersionOfPackage, switchToContext, loadBomFile, \
      checkAirGappedIsEnabled, installCertManagerAndContour, getManagementCluster, verifyCluster, \
-     checkToEnabled, checkFluentBitInstalled, deploy_fluent_bit
+     checkToEnabled, checkFluentBitInstalled, deploy_fluent_bit, checkExtentionDeployed
 from util.ShellHelper import runShellCommandAndReturnOutputAsList, \
     verifyPodsAreRunning, runShellCommandAndReturnOutput \
     
@@ -38,15 +38,12 @@ class deploy_tkg_extensions():
         logger.info("Deploying extentions: {}".format(self.extension_name))
 
     def deploy(self, extention):       
-        self.extension_name  = extention
+        self.extension_name = extention
         if str(self.extension_name).__contains__("Fluent"):
             status = self.fluent_bit(self.extension_name)
             return status[0], status[1]
         elif str(self.extension_name) == Tkg_Extention_names.GRAFANA:
             status = self.grafana()
-            return status[0], status[1]
-        elif str(self.extension_name) == Tkg_Extention_names.LOGGING:
-            status = self.logging()
             return status[0], status[1]
         elif str(self.extension_name) == Tkg_Extention_names.PROMETHEUS:
             status = self.prometheus()
@@ -54,15 +51,7 @@ class deploy_tkg_extensions():
 
     def fluent_bit(self, fluent_bit_type):
         fluent_bit_response = deploy_extension_fluent(fluent_bit_type, self.jsonspec)
-        if fluent_bit_response[1] != 200:
-            logger.error(fluent_bit_response[0])
-            d = {
-                "responseType": "ERROR",
-                "msg": fluent_bit_response[0],
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        else:
+        if fluent_bit_response[1] == 200:
             logger.info("Successfully deployed fluent bit syslog")
             d = {
                 "responseType": "SUCCESS",
@@ -71,17 +60,28 @@ class deploy_tkg_extensions():
             }
             return json.dumps(d), 200
 
-    def grafana(self):
-        monitoring = monitoringDeployment(Tkg_Extention_names.GRAFANA, self.jsonspec)
-        if monitoring[1] != 200:
-            logger.error(monitoring[0])
+        elif fluent_bit_response[1] == 299:
+            logger.error(fluent_bit_response[0])
+            d = {
+                "responseType": "WARNING",
+                "msg": "Fluent-bit syslog is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                "ERROR_CODE": 299
+            }
+            return json.dumps(d), 299
+
+        else:
+            logger.error(fluent_bit_response[0])
             d = {
                 "responseType": "ERROR",
-                "msg": monitoring[0],
+                "msg": fluent_bit_response[0],
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        else:
+
+
+    def grafana(self):
+        monitoring = monitoringDeployment(Tkg_Extention_names.GRAFANA, self.jsonspec)
+        if monitoring[1] == 200:
             logger.info("Successfully deployed GRAFANA")
             d = {
                 "responseType": "SUCCESS",
@@ -89,10 +89,15 @@ class deploy_tkg_extensions():
                 "ERROR_CODE": 200
             }
             return json.dumps(d), 200
-
-    def prometheus(self):
-        monitoring = monitoringDeployment(Tkg_Extention_names.PROMETHEUS, self.jsonspec)
-        if monitoring[1] != 200:
+        elif monitoring[1] == 299:
+            logger.error(monitoring[0])
+            d = {
+                "responseType": "WARNING",
+                "msg": "Grafana is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                "ERROR_CODE": 299
+            }
+            return json.dumps(d), 299
+        else:
             logger.error(monitoring[0])
             d = {
                 "responseType": "ERROR",
@@ -100,25 +105,34 @@ class deploy_tkg_extensions():
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        else:
-            logger.info("Successfully deployed promethus")
+
+    def prometheus(self):
+        monitoring = monitoringDeployment(Tkg_Extention_names.PROMETHEUS, self.jsonspec)
+        if monitoring[1] == 200:
+            logger.info("Successfully deployed prometheus")
             d = {
                 "responseType": "SUCCESS",
                 "msg": "Successfully deployed promethus",
                 "ERROR_CODE": 200
             }
             return json.dumps(d), 200
+        elif monitoring[1] == 299:
+            logger.error(monitoring[0])
+            d = {
+                "responseType": "WARNING",
+                "msg": "Prometheus is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                "ERROR_CODE": 299
+            }
+            return json.dumps(d), 299
+        else:
+            logger.error(monitoring[0])
+            d = {
+                "responseType": "ERROR",
+                "msg": monitoring[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
 
-    def logging(self):
-        logger.info("Successfully deployed fluent bit logging")
-        d = {
-            "responseType": "SUCCESS",
-            "msg": "Successfully deployed fluent bit logging",
-            "ERROR_CODE": 200
-        }
-        return json.dumps(d), 200
-
-    
 
 def getImageName(server_image):
     return server_image[server_image.rindex("/") + 1:len(server_image)]
@@ -341,7 +355,27 @@ def monitoringDeployment(monitoringType, jsonspec):
                 namespace = "package-tanzu-system-monitoring"
                 yamlFile = Paths.CLUSTER_PATH + cluster + "/prometheus-data-values.yaml"
                 service = "all"
+                if Upgrade_Extensions.UPGRADE_EXTN:
+                    cmdOutput = checkExtentionDeployed(extention.lower())
+                    if cmdOutput[1] != 0:
+                        d = {
+                            "responseType": "WARNING",
+                            "msg": extention.lower() + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                            "ERROR_CODE": 299
+                        }
+                        # returning 200 status code, because we have to check if other extensions have to be upgraded
+                        return json.dumps(d), 299
+
                 cert_ext_status = installCertManagerAndContour(str(listOfCluster).strip(), repo_address, service, jsonspec)
+                if cert_ext_status[1] == 299:
+                    logger.error(cert_ext_status[0])
+                    d = {
+                        "responseType": "WARNING",
+                        "msg": "Prometheus is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 299
+                    }
+                    return json.dumps(d), 299
+
                 if cert_ext_status[1] != 200:
                     logger.error(cert_ext_status[0])
                     d = {
@@ -370,15 +404,25 @@ def monitoringDeployment(monitoringType, jsonspec):
                 certKey_Path = jsonspec['tanzuExtensions']['monitoring'][
                     'grafanaCertKeyPath']
 
+            if Upgrade_Extensions.UPGRADE_EXTN:
+                cmdOutput = checkExtentionDeployed(extention.lower())
+                if cmdOutput[1] != 0:
+                    d = {
+                        "responseType": "WARNING",
+                        "msg": extention.lower() + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 299
+                    }
+                    # returning 200 status code, because we have to check if other extensions have to be upgraded
+                    return json.dumps(d), 299
             extention_validate_command = ["kubectl", "get", "app", appName, "-n", namespace]
 
             command_fluent_bit = runShellCommandAndReturnOutputAsList(extention_validate_command)
             if not verifyPodsAreRunning(appName, command_fluent_bit[0],
                                         RegexPattern.RECONCILE_SUCCEEDED) or Upgrade_Extensions.UPGRADE_EXTN:
-
+                logger.info("Deploying " + extention)
                 version = getVersionOfPackage(extention.lower() + ".tanzu.vmware.com")
                 if version is None:
-                    logger.error("Failed Capture the available Prometheus version")
+                    logger.error("Failed to capture the available Prometheus version")
                     d = {
                         "responseType": "ERROR",
                         "msg": "Capture the available Prometheus version",
@@ -395,7 +439,7 @@ def monitoringDeployment(monitoringType, jsonspec):
                     }
                     return json.dumps(d), 500
                 if Upgrade_Extensions.UPGRADE_EXTN:
-                    logger.info("Upgrading " + extention)
+
                     upgrade_extension_cmd = ["tanzu", "package", "installed", "update", extention.lower(), "--package-name",
                                            extention.lower() + ".tanzu.vmware.com", "--version", version,
                                            "--values-file", yamlFile, "--namespace", namespace]
@@ -404,7 +448,6 @@ def monitoringDeployment(monitoringType, jsonspec):
                         logger.error(
                             extention + " update command failed. Checking for reconciliation status...")
                 else:
-                    logger.info("Deploying " + extention)
                     deply_extension_command = ["tanzu", "package", "install", extention.lower(), "--package-name",
                                            extention.lower() + ".tanzu.vmware.com", "--version", version,
                                            "--values-file", yamlFile, "--namespace", namespace, "--create-namespace"]
@@ -489,6 +532,16 @@ def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
             env = env[0]
             """
             #env = "vsphere"
+            if Upgrade_Extensions.UPGRADE_EXTN:
+                cmdOutput = checkExtentionDeployed(Tkg_Extention_names.FLUENT_BIT.lower())
+                if cmdOutput[1] != 0:
+                    d = {
+                        "responseType": "WARNING",
+                        "msg": Tkg_Extention_names.FLUENT_BIT.lower() + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 299
+                    }
+                    # returning 200 status code, because we have to check if other extensions have to be upgraded
+                    return json.dumps(d), 299
             cluster = str(jsonspec['tanzuExtensions']['tkgClustersName'])
             listOfClusters = cluster.split(",")
             for listOfCluster in listOfClusters:
@@ -528,8 +581,25 @@ def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
                             "ERROR_CODE": 500
                         }
                         return json.dumps(d), 500
-                response = (fluent_bit_endpoint, cluster, jsonspec)
-                if response[1] != 200:
+                response = deploy_fluent_bit(fluent_bit_endpoint, cluster, jsonspec)
+                if response[1] == 200:
+                    logger.info("Fluent-bit with endpoint - " + fluent_bit_endpoint + " installed successfully")
+                    d = {
+                        "responseType": "SUCCESS",
+                        "msg": "Fluent-bit deployed successfully",
+                        "ERROR_CODE": 200
+                    }
+                    return json.dumps(d), 200
+
+                elif response[1] == 299:
+                    logger.error(response[0])
+                    d = {
+                        "responseType": "WARNING",
+                        "msg": "Fluent-bit is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 299
+                    }
+                    return json.dumps(d), 299
+                else:
                     logger.error(response[0])
                     d = {
                         "responseType": "ERROR",
@@ -537,13 +607,7 @@ def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
-            logger.info("Fluent-bit with endpoint - " + fluent_bit_endpoint + " installed successfully")
-            d = {
-                "responseType": "SUCCESS",
-                "msg": "Fluent-bit deployed successfully",
-                "ERROR_CODE": 200
-            }
-            return json.dumps(d), 200
+
         else:
             logger.info("Fluent-bit is already deployed and its status is - " + is_already_installed[1])
             d = {

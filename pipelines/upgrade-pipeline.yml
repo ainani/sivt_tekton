@@ -130,4 +130,17 @@ spec:
       runAfter:
         - start-workload-upgrade
 
-
+  finally:
+      - name: gitcommit
+        taskRef:
+          name: git-commit-task
+        workspaces:
+          - name: task-shared-data
+            workspace: pipeline-shared-data
+        params:
+          - name: imagename
+            value: "$(params.imagename)"
+          - name: imagepullpolicy
+            value: "$(params.imagepullpolicy)"
+          - name: branch
+            value: "$(params.branch)"

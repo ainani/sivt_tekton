@@ -19,19 +19,19 @@ logger = LoggerHelper.get_logger(name='ra_mgmt_upgrade_workflow')
 class RaMgmtUpgradeWorkflow:
     def __init__(self, run_config: RunConfig):
         self.run_config = run_config
-        logger.info("Current deployment state: %s", self.run_config.state)
+        logger.info ("Current deployment state: %s", self.run_config.state)
         jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
         self.tanzu_client = TkgCliClient()
+        self.rcmd = RunCmd()
+
         with open(jsonpath) as f:
             self.jsonspec = json.load(f)
-        self.rcmd = RunCmd()
+
         check_env_output = checkenv(self.jsonspec)
         if check_env_output is None:
             msg = "Failed to connect to VC. Possible connection to VC is not available or " \
                   "incorrect spec provided."
             raise Exception(msg)
-        self.desired_state_tkg_version = None
-        self.get_desired_state_tkg_version()
 
     def get_desired_state_tkg_version(self):
         """

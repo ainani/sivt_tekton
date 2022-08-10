@@ -7,17 +7,20 @@ function usage() {
   echo "    --create-cluster    Create a cluster, using kind."
   echo "    --deploy-dashboard  Deploy the Tekton dashboard as well."
   echo "    --exec-day0         To trigger day0 pipline, bringup of TKGM"
-  echo "    --exec-tkgs-day0         To trigger day0 pipline, bringup of TKGS"
+  echo "    --exec-tkgs-day0    To trigger day0 pipline, bringup of TKGS"
+  echo "    --load-upgrade-imgs To load images onto kind cluster, for upgrade pipeline"
   echo "    --exec-upgrade-mgmt To trigger upgrade of mgmt cluster"
-  echo "    --exec-upgrade-all To trigger upgrade of all clusters"
+  echo "    --exec-upgrade-all  To trigger upgrade of all clusters"
   echo "    <pipeline.yaml,...> The paths to Tekton pipeline files (can be a local files or URLs)"
   echo "    <pipeline.yaml,...> The paths to Tekton pipeline files (can be a local files or URLs)"
 }
 
 DEFAULT_IMAGES="docker:dind"
 CLUSTER_IMAGE="kindest/node:v1.21.1"
-TARBALL_URL=""
+UPGRADE_IMAGES=""
+
 TARBALL_FILE_PATH=""
+UPGRADE_TARBALL_FILE_PATH=""
 
 CLUSTER_INIT_CONFIG_FILE="${CLUSTER_INIT_CONFIG_FILE:=./cluster_resources/kind-init-config.yaml}"
 NGINX_INGRESS_FILE="${NGINX_INGRESS_FILE:=https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml}"
@@ -92,43 +95,21 @@ function docker_pull_imgs() {
 
 function kind_load_tar_imgs() {
 
-  local tar_url_list="$@"
-  
-  if [ -n "${TARBALL_FILE_PATH}" ]; then
-     if [ -f $TARBALL_FILE_PATH ]; then
-        if ! kind load image-archive $TARBALL_FILE_PATH --name $CLUSTER_NAME; then
-           echo "failed to load tarball image file:- $i" >&2
-        fi
-     else
-        echo "Mentioned Tarball file ${TARBALL_FILE_PATH} is not found "
-        exit 1
-     fi
-  elif [ -n "${tar_url_list}" ]; then
-    for i in $tar_url_list
+  local tar_list="$@"
+    for i in $tar_list
       do
-        if ! echo $i | grep -q "\.tar"; then
-          echo "Invalid URL format:- $i" >&2
-        fi
-
-        tar_file=$(echo $i | rev | cut -d "." -f2 | cut -d "/" -f1 | rev)
-
-        if [ -f $tar_file.tar ]; then
-           echo "$tar_file.tar is present"
+        if [ -f $i ]; then
+          echo "Loading tarball image file:- $i...."
+          if ! kind load image-archive $i --name $CLUSTER_NAME; then
+            echo "failed to load tarball image file:- $i" >&2
+          else
+            echo "Successfully loaded tarball image file:- $i"
+          fi
         else
-           if ! wget $i; then
-             echo "Failed to download tarball image:- $i" >&2
-           fi
-        fi
-        
-        echo "Loading tarball image file to kind cluster"
-        if ! kind load image-archive $tar_file.tar --name $CLUSTER_NAME; then
-           echo "failed to load tarball image file:- $i" >&2
-        fi
-    done
-  else
-      echo "Both TARBALL_FILE_PATH variable and TARBALL_URL is empty"
-      exit 1
-  fi
+            echo "Mentioned Tarball file ${TARBALL_FILE_PATH} is not found "
+            exit 1
+         fi
+      done
 
 }
 
@@ -138,15 +119,35 @@ function kind_load_docker_imgs() {
   
   for i in $image_names
     do
-      if ! kind load docker-image $i --name $CLUSTER_NAME; then
-         echo "failed to load docker image :- $i" >&2
+      if ! docker images $i; then
+        echo "$i image is not present locally.." >&2
       fi
-  done
+
+      echo "$i image is present locally..loading it to kind cluster"
+      if ! kind load docker-image $i --name $CLUSTER_NAME; then
+        echo "failed to load docker image :- $i" >&2
+      else
+         echo "Successfully loaded docker image :- $i"
+      fi
+    done
 }
 
+function load_cluster_images() {
+  echo "Preparing loading of images..."
+  if [ -n "${TARBALL_FILE_PATH}" ]; then
+    kind_load_tar_imgs $TARBALL_FILE_PATH
+  else
+    echo "TARBALL_FILE_PATH variable is empty"
+  fi
+  if [ -n "${DEFAULT_IMAGES}" ]; then
+    kind_load_docker_imgs $DEFAULT_IMAGES
+  else
+    echo "DEFAULT_IMAGES variable is empty"
+  fi
+}
 
 function create_cluster() {
-  echo "Creating cluster ${CLUSTER_NAME}..."
+
   if kind get clusters | grep "${CLUSTER_NAME}" &> /dev/null; then
     echo "Cluster ${CLUSTER_NAME} already created"
 
@@ -161,6 +162,7 @@ function create_cluster() {
      printf "Done\n\n"
   elif ! kind get clusters | grep "${CLUSTER_NAME}" &> /dev/null; then
   
+    echo "Creating cluster ${CLUSTER_NAME}..."
 
     CLUSTER_IMAGE_ARG=""
     if [ -n "${CLUSTER_IMAGE}" ]; then
@@ -179,20 +181,14 @@ function create_cluster() {
       exit 1
       #return 1
     fi
-    echo "Preparing loading of images..."
-    kind_load_tar_imgs $TARBALL_URL
-    kind_load_docker_imgs $DEFAULT_IMAGES
-
-    kubectl apply -f ${NGINX_INGRESS_FILE}
-    printf "Done\n\n"
 
   fi
 
-    kind_load_tar_imgs $TARBALL_URL
-    kind_load_docker_imgs $DEFAULT_IMAGES
+  load_cluster_images
 
-    kubectl apply -f ${NGINX_INGRESS_FILE}
-    printf "Done\n\n"
+  kubectl apply -f ${NGINX_INGRESS_FILE}
+  printf "Done\n\n"
+
 }
 
 function deploy_tekton() {
@@ -246,6 +242,21 @@ function print_tekton_dashboard_help() {
 
   echo "To access the Tekton Dashboard through Nginx-INgress, open:"
   echo " http://<vm-ip>:<exposed-port>/"
+}
+
+function load_upgrade_imgs() {
+  echo "Preparing loading of images..."
+  if [ -n "${UPGRADE_TARBALL_FILE_PATH}" ]; then
+    kind_load_tar_imgs $UPGRADE_TARBALL_FILE_PATH
+  else
+    echo "UPGRADE_TARBALL_FILE_PATH variable is empty"
+  fi
+  if [ -n "${UPGRADE_IMAGES}" ]; then
+    kind_load_docker_imgs $UPGRADE_IMAGES
+  else
+    echo "UPGRADE_IMAGES variable is empty"
+  fi
+
 }
 
 function execute_mgmt_upgrade() {
@@ -372,6 +383,10 @@ function main() {
         executeAllUpgrade=true
         shift 1
         ;;
+      --load-upgrade-imgs)
+        loadUpgradeImgs=true
+        shift 1
+        ;;
       -*) # unsupported flags
         echo "Error: Unsupported flag $1" >&2
         exit 1
@@ -410,6 +425,9 @@ function main() {
   fi
   if [ "${executeAllUpgrade}" == "true" ]; then
     execute_all_upgrade
+  fi
+  if [ "${loadUpgradeImgs}" == "true" ]; then
+    load_upgrade_imgs
   fi
 
   if [ ${#pipelineFiles[@]} -gt 0 ]; then
