@@ -3107,10 +3107,10 @@ def deploy_fluent_bit(end_point, cluster, jsonspec):
                 d = {
                     "responseType": "WARNING",
                     "msg": Tkg_Extention_names.FLUENT_BIT.lower() + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
-                    "ERROR_CODE": 200
+                    "ERROR_CODE": 299
                 }
                 #returning 200 status code, because we have to check if other extensions have to be upgraded
-                return json.dumps(d), 200
+                return json.dumps(d), 299
             upgrade_fluent_bit_command = ["tanzu", "package", "installed", "update",
                                           Tkg_Extention_names.FLUENT_BIT.lower(),
                                           "--package-name",

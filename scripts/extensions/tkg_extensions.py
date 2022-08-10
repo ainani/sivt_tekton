@@ -45,9 +45,6 @@ class deploy_tkg_extensions():
         elif str(self.extension_name) == Tkg_Extention_names.GRAFANA:
             status = self.grafana()
             return status[0], status[1]
-        elif str(self.extension_name) == Tkg_Extention_names.LOGGING:
-            status = self.logging()
-            return status[0], status[1]
         elif str(self.extension_name) == Tkg_Extention_names.PROMETHEUS:
             status = self.prometheus()
             return status[0], status[1]
@@ -62,6 +59,15 @@ class deploy_tkg_extensions():
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
+        elif fluent_bit_response[1] == 299:
+            logger.error(fluent_bit_response[0])
+            d = {
+                "responseType": "WARNING",
+                "msg": "Fluent-bit syslog is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                "ERROR_CODE": 299
+            }
+            return json.dumps(d), 299
+
         else:
             logger.info("Successfully deployed fluent bit syslog")
             d = {
@@ -81,6 +87,14 @@ class deploy_tkg_extensions():
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
+        elif monitoring[1] == 299:
+            logger.error(monitoring[0])
+            d = {
+                "responseType": "WARNING",
+                "msg": "Grafana is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                "ERROR_CODE": 299
+            }
+            return json.dumps(d), 299
         else:
             logger.info("Successfully deployed GRAFANA")
             d = {
@@ -100,25 +114,22 @@ class deploy_tkg_extensions():
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
+        elif monitoring[1] == 299:
+            logger.error(monitoring[0])
+            d = {
+                "responseType": "WARNING",
+                "msg": "Prometheus is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                "ERROR_CODE": 299
+            }
+            return json.dumps(d), 299
         else:
-            logger.info("Successfully deployed promethus")
+            logger.info("Successfully deployed prometheus")
             d = {
                 "responseType": "SUCCESS",
                 "msg": "Successfully deployed promethus",
                 "ERROR_CODE": 200
             }
             return json.dumps(d), 200
-
-    def logging(self):
-        logger.info("Successfully deployed fluent bit logging")
-        d = {
-            "responseType": "SUCCESS",
-            "msg": "Successfully deployed fluent bit logging",
-            "ERROR_CODE": 200
-        }
-        return json.dumps(d), 200
-
-    
 
 def getImageName(server_image):
     return server_image[server_image.rindex("/") + 1:len(server_image)]
@@ -544,6 +555,15 @@ def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
+                if response[1] == 299:
+                    logger.error(response[0])
+                    d = {
+                        "responseType": "WARNING",
+                        "msg": "Fluent-bit is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 299
+                    }
+                    return json.dumps(d), 299
+
             logger.info("Fluent-bit with endpoint - " + fluent_bit_endpoint + " installed successfully")
             d = {
                 "responseType": "SUCCESS",
