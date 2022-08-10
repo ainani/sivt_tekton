@@ -92,7 +92,7 @@ spec:
       runAfter:
           - start-mgmt-upgrade-all
 
-    - name: dind-workload-upgrade
+    - name: start-workload-upgrade
       when:
         - input: "$(params.targetcluster)"
           operator: in

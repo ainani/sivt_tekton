@@ -71,8 +71,21 @@ class RaSharedUpgradeWorkflow:
                     raise Exception(msg)
                 else:
 
-                    mgmt_cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtClusterName']
+                    tanzu_init_cmd = "tanzu plugin sync"
+                    command_status = self.rcmd.run_cmd_output(tanzu_init_cmd)
+                    logger.debug("Tanzu plugin output: {}".format(command_status))
+                    podRunninng = ["tanzu", "cluster", "list"]
+                    command_status = runShellCommandAndReturnOutputAsList(podRunninng)
+                    if command_status[1] != 0:
+                        logger.error("Failed to run command to check status of pods")
+                        d = {
+                            "responseType": "ERROR",
+                            "msg": "Failed to run command to check status of pods",
+                            "ERROR_CODE": 500
+                        }
+                        return json.dumps(d), 500
 
+                    mgmt_cluster = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtClusterName']
                     self.tanzu_client.login(cluster_name=mgmt_cluster)
                     if self.tanzu_client.tanzu_cluster_upgrade(cluster_name=cluster, k8s_version=kubernetes_ova_version) is None:
                         msg = "Failed to upgrade {} cluster".format(cluster)
