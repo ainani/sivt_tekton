@@ -21,7 +21,7 @@ from constants.constants import Tkg_Extention_names, Repo, RegexPattern, Extenti
 import json, requests
 from util.common_utils import getVersionOfPackage, switchToContext, loadBomFile, \
      checkAirGappedIsEnabled, installCertManagerAndContour, getManagementCluster, verifyCluster, \
-     checkToEnabled, checkFluentBitInstalled, deploy_fluent_bit
+     checkToEnabled, checkFluentBitInstalled, deploy_fluent_bit, checkExtentionDeployed
 from util.ShellHelper import runShellCommandAndReturnOutputAsList, \
     verifyPodsAreRunning, runShellCommandAndReturnOutput \
     
@@ -378,7 +378,7 @@ def monitoringDeployment(monitoringType, jsonspec):
                 logger.info("Deploying " + extention)
                 version = getVersionOfPackage(extention.lower() + ".tanzu.vmware.com")
                 if version is None:
-                    logger.error("Failed Capture the available Prometheus version")
+                    logger.error("Failed to capture the available Prometheus version")
                     d = {
                         "responseType": "ERROR",
                         "msg": "Capture the available Prometheus version",
@@ -395,7 +395,11 @@ def monitoringDeployment(monitoringType, jsonspec):
                     }
                     return json.dumps(d), 500
                 if Upgrade_Extensions.UPGRADE_EXTN:
-
+                    cmdOutput = checkExtentionDeployed(extention.lower())
+                    if cmdOutput[1] != 0:
+                        msg = f"{extention} is not deployed, but is enabled in deployment json file...hence skipping upgrade""
+                        logger.error(msg)
+                        raise Exception(msg)
                     upgrade_extension_cmd = ["tanzu", "package", "installed", "update", extention.lower(), "--package-name",
                                            extention.lower() + ".tanzu.vmware.com", "--version", version,
                                            "--values-file", yamlFile, "--namespace", namespace]

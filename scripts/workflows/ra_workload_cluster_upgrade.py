@@ -38,8 +38,6 @@ class RaWorkloadUpgradeWorkflow:
     def upgrade_workflow(self):
         try:
 
-            cluster = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadClusterName']
-
             tanzu_init_cmd = "tanzu plugin sync"
             command_status = self.rcmd.run_cmd_output(tanzu_init_cmd)
             logger.debug("Tanzu plugin output: {}".format(command_status))
@@ -47,13 +45,11 @@ class RaWorkloadUpgradeWorkflow:
             command_status = runShellCommandAndReturnOutputAsList(podRunninng)
             if command_status[1] != 0:
                 logger.error("Failed to run command to check status of pods")
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to run command to check status of pods",
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
+                msg = f"Failed to run command to check status of pods"
+                logger.error(msg)
+                raise Exception(msg)
 
+            cluster = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadClusterName']
             cmdList = ["tanzu", "cluster", "available-upgrades", "get", cluster]
             cmdOP = runShellCommandAndReturnOutputAsList(cmdList)
 
