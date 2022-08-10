@@ -1578,12 +1578,12 @@ def installExtentionFor14(service_name, cluster, jsonspec):
         return json.dumps(d), 200
 
 
-d = {
-    "responseType": "SUCCESS",
-    "msg": "Configured cert-manager and contour extensions successfully",
-    "ERROR_CODE": 200
-}
-return json.dumps(d), 200
+    d = {
+        "responseType": "SUCCESS",
+        "msg": "Configured cert-manager and contour extensions successfully",
+        "ERROR_CODE": 200
+    }
+    return json.dumps(d), 200
 
 
 def getClusterID(vCenter, vCenter_user, VC_PASSWORD, cluster, jsonspec):
@@ -3102,9 +3102,12 @@ def deploy_fluent_bit(end_point, cluster, jsonspec):
         if Upgrade_Extensions.UPGRADE_EXTN:
             cmdOutput = checkExtentionDeployed(Tkg_Extention_names.FLUENT_BIT.lower())
             if cmdOutput[1] != 0:
-                msg = f"{Tkg_Extention_names.FLUENT_BIT} is not deployed, but is enabled in deployment json file...hence skipping upgrade""
-                logger.error(msg)
-                raise Exception(msg)
+                d = {
+                    "responseType": "ERROR",
+                    "msg": Tkg_Extention_names.FLUENT_BIT.lower() + "is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
             upgrade_fluent_bit_command = ["tanzu", "package", "installed", "update",
                                           Tkg_Extention_names.FLUENT_BIT.lower(),
                                           "--package-name",
