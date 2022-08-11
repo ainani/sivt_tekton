@@ -40,9 +40,11 @@ Tekton pipeline execution requires the following:
 3. Tekton pipeline environment preparation:  
   
    1. In your Linux/SIVT VM browse to the location where the Git repository is cloned.
-   2. Open `launch.sh` and update `TARBALL_FILE_PATH` to the absolute path where the Service Installer Docker TAR file is downloaded.
+   2. Open `launch.sh` and update `TARBALL_FILE_PATH` to the absolute path where the Service Installer Docker TAR file is downloaded.</br>
    For example: 
       - `TARBALL_FILE_PATH="/root/tekton/arcas-tekton-cicd/service_installer_tekton_v15x.tar"`
+   </br>or
+      - `TARBALL_URL="http://mynfsserver/images/service_installer_tekton_v15x.tar"`
    3. Save the file and exit.
    4. Open `cluster_resources/kind-init-config.yaml`.
    
