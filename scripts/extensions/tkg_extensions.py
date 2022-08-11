@@ -17,11 +17,11 @@ import json
 from ruamel import yaml
 
 #from model.extensions import extensions_types, deploy_extensions
-from constants.constants import Tkg_Extention_names, Repo, RegexPattern, Extentions, AppName, Paths 
+from constants.constants import Tkg_Extention_names, Repo, RegexPattern, Extentions, AppName, Paths, Upgrade_Extensions
 import json, requests
 from util.common_utils import getVersionOfPackage, switchToContext, loadBomFile, \
      checkAirGappedIsEnabled, installCertManagerAndContour, getManagementCluster, verifyCluster, \
-     checkToEnabled, checkFluentBitInstalled, deploy_fluent_bit
+     checkToEnabled, checkFluentBitInstalled, deploy_fluent_bit, checkExtentionDeployed
 from util.ShellHelper import runShellCommandAndReturnOutputAsList, \
     verifyPodsAreRunning, runShellCommandAndReturnOutput \
     
@@ -38,15 +38,12 @@ class deploy_tkg_extensions():
         logger.info("Deploying extentions: {}".format(self.extension_name))
 
     def deploy(self, extention):       
-        self.extension_name  = extention
+        self.extension_name = extention
         if str(self.extension_name).__contains__("Fluent"):
             status = self.fluent_bit(self.extension_name)
             return status[0], status[1]
         elif str(self.extension_name) == Tkg_Extention_names.GRAFANA:
             status = self.grafana()
-            return status[0], status[1]
-        elif str(self.extension_name) == Tkg_Extention_names.LOGGING:
-            status = self.logging()
             return status[0], status[1]
         elif str(self.extension_name) == Tkg_Extention_names.PROMETHEUS:
             status = self.prometheus()
@@ -54,15 +51,7 @@ class deploy_tkg_extensions():
 
     def fluent_bit(self, fluent_bit_type):
         fluent_bit_response = deploy_extension_fluent(fluent_bit_type, self.jsonspec)
-        if fluent_bit_response[1] != 200:
-            logger.error(fluent_bit_response[0])
-            d = {
-                "responseType": "ERROR",
-                "msg": fluent_bit_response[0],
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        else:
+        if fluent_bit_response[1] == 200:
             logger.info("Successfully deployed fluent bit syslog")
             d = {
                 "responseType": "SUCCESS",
@@ -71,17 +60,28 @@ class deploy_tkg_extensions():
             }
             return json.dumps(d), 200
 
-    def grafana(self):
-        monitoring = monitoringDeployment(Tkg_Extention_names.GRAFANA, self.jsonspec)
-        if monitoring[1] != 200:
-            logger.error(monitoring[0])
+        elif fluent_bit_response[1] == 299:
+            logger.error(fluent_bit_response[0])
+            d = {
+                "responseType": "WARNING",
+                "msg": "Fluent-bit syslog is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                "ERROR_CODE": 299
+            }
+            return json.dumps(d), 299
+
+        else:
+            logger.error(fluent_bit_response[0])
             d = {
                 "responseType": "ERROR",
-                "msg": monitoring[0],
+                "msg": fluent_bit_response[0],
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        else:
+
+
+    def grafana(self):
+        monitoring = monitoringDeployment(Tkg_Extention_names.GRAFANA, self.jsonspec)
+        if monitoring[1] == 200:
             logger.info("Successfully deployed GRAFANA")
             d = {
                 "responseType": "SUCCESS",
@@ -89,10 +89,15 @@ class deploy_tkg_extensions():
                 "ERROR_CODE": 200
             }
             return json.dumps(d), 200
-
-    def prometheus(self):
-        monitoring = monitoringDeployment(Tkg_Extention_names.PROMETHEUS, self.jsonspec)
-        if monitoring[1] != 200:
+        elif monitoring[1] == 299:
+            logger.error(monitoring[0])
+            d = {
+                "responseType": "WARNING",
+                "msg": "Grafana is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                "ERROR_CODE": 299
+            }
+            return json.dumps(d), 299
+        else:
             logger.error(monitoring[0])
             d = {
                 "responseType": "ERROR",
@@ -100,25 +105,34 @@ class deploy_tkg_extensions():
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        else:
-            logger.info("Successfully deployed promethus")
+
+    def prometheus(self):
+        monitoring = monitoringDeployment(Tkg_Extention_names.PROMETHEUS, self.jsonspec)
+        if monitoring[1] == 200:
+            logger.info("Successfully deployed prometheus")
             d = {
                 "responseType": "SUCCESS",
                 "msg": "Successfully deployed promethus",
                 "ERROR_CODE": 200
             }
             return json.dumps(d), 200
+        elif monitoring[1] == 299:
+            logger.error(monitoring[0])
+            d = {
+                "responseType": "WARNING",
+                "msg": "Prometheus is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                "ERROR_CODE": 299
+            }
+            return json.dumps(d), 299
+        else:
+            logger.error(monitoring[0])
+            d = {
+                "responseType": "ERROR",
+                "msg": monitoring[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
 
-    def logging(self):
-        logger.info("Successfully deployed fluent bit logging")
-        d = {
-            "responseType": "SUCCESS",
-            "msg": "Successfully deployed fluent bit logging",
-            "ERROR_CODE": 200
-        }
-        return json.dumps(d), 200
-
-    
 
 def getImageName(server_image):
     return server_image[server_image.rindex("/") + 1:len(server_image)]
@@ -149,60 +163,6 @@ def getRepo(jsonspec):
         return "SUCCESS", repo_address
     except Exception as e:
         return "ERROR", str(e)
-
-def getBomMap(load_bom, monitorinType):
-    bom_map = {}
-    if monitorinType == Tkg_Extention_names.PROMETHEUS:
-        image = load_bom['components']['prometheus'][0]['images']['prometheusImage']['imagePath']
-        bom_map['prometheus_server_name'] = getImageName(image)
-        bom_map['prometheus_server_tag'] = \
-            load_bom['components']['prometheus'][0]['images']['prometheusImage']['tag']
-        image = load_bom['components']['alertmanager'][0]['images']['alertmanagerImage']['imagePath']
-        bom_map['alertmanager_name'] = getImageName(image)
-        bom_map['alertmanager_tag'] = \
-            load_bom['components']['alertmanager'][0]['images']['alertmanagerImage']['tag']
-        image = load_bom['components']['kube-state-metrics'][0]['images']['kubeStateMetricsImage'][
-            'imagePath']
-        bom_map['kube_state_metrics_name'] = getImageName(image)
-        bom_map['kube_state_metrics_tag'] = \
-            load_bom['components']['kube-state-metrics'][0]['images']['kubeStateMetricsImage']['tag']
-        image = \
-            load_bom['components']['prometheus_node_exporter'][0]['images'][
-                'prometheusNodeExporterImage'][
-                'imagePath']
-        bom_map['node_exporter_name'] = getImageName(image)
-        bom_map['node_exporter_tag'] = \
-            load_bom['components']['prometheus_node_exporter'][0]['images'][
-                'prometheusNodeExporterImage'][
-                'tag']
-        image = load_bom['components']['pushgateway'][0]['images']['pushgatewayImage']['imagePath']
-        bom_map['pushgateway_name'] = getImageName(image)
-        bom_map['pushgateway_tag'] = \
-            load_bom['components']['pushgateway'][0]['images']['pushgatewayImage']['tag']
-        image = load_bom['components']['cadvisor'][0]['images']['cadvisorImage']['imagePath']
-        bom_map['cadvisor_name'] = getImageName(image)
-        bom_map['cadvisor_tag'] = load_bom['components']['cadvisor'][0]['images']['cadvisorImage'][
-            'tag']
-        image = load_bom['components']['configmap-reload'][0]['images']['configmapReloadImage'][
-            'imagePath']
-        bom_map['prometheus_server_configmap_reload_name'] = getImageName(image)
-        bom_map['prometheus_server_configmap_reload_tag'] = \
-            load_bom['components']['configmap-reload'][0]['images']['configmapReloadImage']['tag']
-    elif monitorinType == Tkg_Extention_names.GRAFANA:
-        image = load_bom['components']['grafana'][0]['images']['grafanaImage']['imagePath']
-        bom_map['image_name'] = getImageName(image)
-        bom_map['image_tag'] = \
-            load_bom['components']['grafana'][0]['images']['grafanaImage']['tag']
-        image = load_bom['components']['k8s-sidecar'][0]['images']['k8sSidecarImage']['imagePath']
-        bom_map['grafana_init_container_name'] = getImageName(image)
-        bom_map['grafana_init_container_tag'] = \
-            load_bom['components']['k8s-sidecar'][0]['images']['k8sSidecarImage']['tag']
-        bom_map['grafana_sc_dashboard_name'] = getImageName(image)
-        bom_map['grafana_sc_dashboard_tag'] = \
-            load_bom['components']['k8s-sidecar'][0]['images']['k8sSidecarImage']['tag']
-
-    return bom_map
-
 
 def captureVersion(extention):
     command = ["tanzu", "package", "available", "list", extention.lower() + ".tanzu.vmware.com",
@@ -347,7 +307,7 @@ def monitoringDeployment(monitoringType, jsonspec):
             cluster = str(
                 jsonspec['tanzuExtensions']['tkgClustersName'])
             listOfClusters = cluster.split(",")
-            load_bom = ""
+
             for listOfCluster in listOfClusters:
                 if not verifyCluster(listOfCluster):
                     logger.info("Cluster " + listOfCluster + " is not deployed and not running")
@@ -384,27 +344,38 @@ def monitoringDeployment(monitoringType, jsonspec):
                             "ERROR_CODE": 500
                         }
                         return json.dumps(d), 500
-                load_bom = loadBomFile()
-                if load_bom is None:
-                    logger.error("Failed to load the bom data ")
-                    d = {
-                        "responseType": "ERROR",
-                        "msg": "Failed to load the bom data",
-                        "ERROR_CODE": 500
-                    }
-                    return json.dumps(d), 500
                 repo = getRepo(jsonspec)
                 repository = repo[1]
                 os.system(f"chmod +x {Paths.INJECT_VALUE_SH}")
             if monitoringType == Tkg_Extention_names.PROMETHEUS:
                 password = None
                 extention = Tkg_Extention_names.PROMETHEUS
-                bom_map = getBomMap(load_bom, Tkg_Extention_names.PROMETHEUS)
+
                 appName = AppName.PROMETHUS
                 namespace = "package-tanzu-system-monitoring"
                 yamlFile = Paths.CLUSTER_PATH + cluster + "/prometheus-data-values.yaml"
                 service = "all"
+                if Upgrade_Extensions.UPGRADE_EXTN:
+                    cmdOutput = checkExtentionDeployed(extention.lower())
+                    if cmdOutput[1] != 0:
+                        d = {
+                            "responseType": "WARNING",
+                            "msg": extention.lower() + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                            "ERROR_CODE": 299
+                        }
+                        # returning 200 status code, because we have to check if other extensions have to be upgraded
+                        return json.dumps(d), 299
+
                 cert_ext_status = installCertManagerAndContour(str(listOfCluster).strip(), repo_address, service, jsonspec)
+                if cert_ext_status[1] == 299:
+                    logger.error(cert_ext_status[0])
+                    d = {
+                        "responseType": "WARNING",
+                        "msg": "Prometheus is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 299
+                    }
+                    return json.dumps(d), 299
+
                 if cert_ext_status[1] != 200:
                     logger.error(cert_ext_status[0])
                     d = {
@@ -427,24 +398,31 @@ def monitoringDeployment(monitoringType, jsonspec):
                 yamlFile = Paths.CLUSTER_PATH + cluster + "/grafana-data-values.yaml"
                 appName = AppName.GRAFANA
                 namespace = "package-tanzu-system-dashboards"
-                command = [Paths.INJECT_VALUE_SH, Extentions.GRAFANA_LOCATION + "/grafana-extension.yaml",
-                           "fluent_bit", repository + "/" + Extentions.APP_EXTENTION]
-                runShellCommandAndReturnOutputAsList(command)
-                bom_map = getBomMap(load_bom, Tkg_Extention_names.GRAFANA)
+
                 cert_Path = jsonspec['tanzuExtensions']['monitoring']['grafanaCertPath']
                 fqdn = jsonspec['tanzuExtensions']['monitoring']['grafanaFqdn']
                 certKey_Path = jsonspec['tanzuExtensions']['monitoring'][
                     'grafanaCertKeyPath']
 
+            if Upgrade_Extensions.UPGRADE_EXTN:
+                cmdOutput = checkExtentionDeployed(extention.lower())
+                if cmdOutput[1] != 0:
+                    d = {
+                        "responseType": "WARNING",
+                        "msg": extention.lower() + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 299
+                    }
+                    # returning 200 status code, because we have to check if other extensions have to be upgraded
+                    return json.dumps(d), 299
             extention_validate_command = ["kubectl", "get", "app", appName, "-n", namespace]
 
             command_fluent_bit = runShellCommandAndReturnOutputAsList(extention_validate_command)
             if not verifyPodsAreRunning(appName, command_fluent_bit[0],
-                                        RegexPattern.RECONCILE_SUCCEEDED):
+                                        RegexPattern.RECONCILE_SUCCEEDED) or Upgrade_Extensions.UPGRADE_EXTN:
                 logger.info("Deploying " + extention)
                 version = getVersionOfPackage(extention.lower() + ".tanzu.vmware.com")
                 if version is None:
-                    logger.error("Failed Capture the available Prometheus version")
+                    logger.error("Failed to capture the available Prometheus version")
                     d = {
                         "responseType": "ERROR",
                         "msg": "Capture the available Prometheus version",
@@ -460,14 +438,23 @@ def monitoringDeployment(monitoringType, jsonspec):
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
+                if Upgrade_Extensions.UPGRADE_EXTN:
 
-                deply_extension_command = ["tanzu", "package", "install", extention.lower(), "--package-name",
+                    upgrade_extension_cmd = ["tanzu", "package", "installed", "update", extention.lower(), "--package-name",
+                                           extention.lower() + ".tanzu.vmware.com", "--version", version,
+                                           "--values-file", yamlFile, "--namespace", namespace]
+                    state_extention_apply = runShellCommandAndReturnOutputAsList(upgrade_extension_cmd)
+                    if state_extention_apply[1] != 0:
+                        logger.error(
+                            extention + " update command failed. Checking for reconciliation status...")
+                else:
+                    deply_extension_command = ["tanzu", "package", "install", extention.lower(), "--package-name",
                                            extention.lower() + ".tanzu.vmware.com", "--version", version,
                                            "--values-file", yamlFile, "--namespace", namespace, "--create-namespace"]
-                state_extention_apply = runShellCommandAndReturnOutputAsList(deply_extension_command)
-                if state_extention_apply[1] != 0:
-                    logger.error(
-                        extention + " install command failed. Checking for reconciliation status...")
+                    state_extention_apply = runShellCommandAndReturnOutputAsList(deply_extension_command)
+                    if state_extention_apply[1] != 0:
+                        logger.error(
+                            extention + " install command failed. Checking for reconciliation status...")
 
                 found = False
                 count = 0
@@ -530,7 +517,7 @@ def monitoringDeployment(monitoringType, jsonspec):
 def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
     try:
         is_already_installed = checkFluentBitInstalled()
-        if not is_already_installed[0]:
+        if not is_already_installed[0] or Upgrade_Extensions.UPGRADE_EXTN:
             """
             Env check commented and hardcoded the env variable with value vpshere
             env = envCheck()
@@ -545,6 +532,16 @@ def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
             env = env[0]
             """
             #env = "vsphere"
+            if Upgrade_Extensions.UPGRADE_EXTN:
+                cmdOutput = checkExtentionDeployed(Tkg_Extention_names.FLUENT_BIT.lower())
+                if cmdOutput[1] != 0:
+                    d = {
+                        "responseType": "WARNING",
+                        "msg": Tkg_Extention_names.FLUENT_BIT.lower() + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 299
+                    }
+                    # returning 200 status code, because we have to check if other extensions have to be upgraded
+                    return json.dumps(d), 299
             cluster = str(jsonspec['tanzuExtensions']['tkgClustersName'])
             listOfClusters = cluster.split(",")
             for listOfCluster in listOfClusters:
@@ -585,7 +582,24 @@ def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
                         }
                         return json.dumps(d), 500
                 response = deploy_fluent_bit(fluent_bit_endpoint, cluster, jsonspec)
-                if response[1] != 200:
+                if response[1] == 200:
+                    logger.info("Fluent-bit with endpoint - " + fluent_bit_endpoint + " installed successfully")
+                    d = {
+                        "responseType": "SUCCESS",
+                        "msg": "Fluent-bit deployed successfully",
+                        "ERROR_CODE": 200
+                    }
+                    return json.dumps(d), 200
+
+                elif response[1] == 299:
+                    logger.error(response[0])
+                    d = {
+                        "responseType": "WARNING",
+                        "msg": "Fluent-bit is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 299
+                    }
+                    return json.dumps(d), 299
+                else:
                     logger.error(response[0])
                     d = {
                         "responseType": "ERROR",
@@ -593,13 +607,7 @@ def deploy_extension_fluent(fluent_bit_endpoint, jsonspec):
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
-            logger.info("Fluent-bit with endpoint - " + fluent_bit_endpoint + " installed successfully")
-            d = {
-                "responseType": "SUCCESS",
-                "msg": "Fluent-bit deployed successfully",
-                "ERROR_CODE": 200
-            }
-            return json.dumps(d), 200
+
         else:
             logger.info("Fluent-bit is already deployed and its status is - " + is_already_installed[1])
             d = {

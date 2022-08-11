@@ -185,12 +185,12 @@ class KubernetesOva:
     TARGET_VERSION = "1.5.4"
 
 class UpgradeVersions:
-    UBUNTU_KUBERNETES_FILE_NAME = "ubuntu-2004-kube-v1.21.11-vmware.1-tkg.2-d788dbbb335710c0a0d1a28670057896.ova"
-    PHOTON_KUBERNETES_FILE_NAME = "photon-3-kube-v1.21.11-vmware.1-tkg.1-0262f0ab881e294df81498075207f2b5.ova"
-    PHOTON_KUBERNETES_TEMPLATE_FILE_NAME = "photon-3-kube-v1.22.8+vmware.1"
-    UBUNTU_KUBERNETES__TEMPLATE_FILE_NAME = "ubuntu-2004-kube-v1.22.8+vmware.1"
-    KUBERNETES_OVA_LATEST_VERSION = "v1.22.8"
-    TARGET_VERSION = "1.5.3"
+    UBUNTU_KUBERNETES_FILE_NAME = "ubuntu-2004-kube-v1.22.9-vmware.1-tkg.1-2182cbabee08edf480ee9bc5866d6933.ova"
+    PHOTON_KUBERNETES_FILE_NAME = "photon-3-kube-v1.22.9-vmware.1-tkg.1-06852a87cc9526f5368519a709525c68.ova"
+    PHOTON_KUBERNETES_TEMPLATE_FILE_NAME = "photon-3-kube-v1.22.9+vmware.1"
+    UBUNTU_KUBERNETES__TEMPLATE_FILE_NAME = "ubuntu-2004-kube-v1.22.9+vmware.1"
+    KUBERNETES_OVA_LATEST_VERSION = "v1.22.9"
+    TARGET_VERSION = "1.5.4"
     OLD_TKG_COMP_FILE = '/root/.config/tanzu/tkg/'
 
 class GovcCommands(str, Enum):
@@ -822,3 +822,6 @@ class VeleroAPI:
     GET_CRED_INFO = "{tmc_url}v1alpha1/account/credentials/{credential}"
     GET_CLUSTER_INFO = "{tmc_url}v1alpha1/clusters/{cluster}"
     ENABLE_DP = "{tmc_url}v1alpha1/clusters/{cluster}/dataprotection"
+
+class Upgrade_Extensions:
+    UPGRADE_EXTN = False

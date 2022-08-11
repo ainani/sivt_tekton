@@ -95,7 +95,7 @@ Tekton pipeline execution requires the following:
      ```
      ----
      version:
-        tkgm: 1.5.4
+       tkgm: 1.5.4
      ```
 2. Execute:
    ```shell
@@ -108,7 +108,7 @@ Tekton pipeline execution requires the following:
      ```
      ----
      version:
-        tkgs: 1.5
+       tkgs: 1.5
      ```
 2. Execute:
    ```shell
@@ -116,17 +116,25 @@ Tekton pipeline execution requires the following:
    ```
 ### Running the Day-2 Pipelines
 1. Update desired state YAML file:
- - Browse to `desired-state` directory in Linux/SIVT VM and update `desired-state.yml` file as below:
-    ```
-    ----
-    version:
+    - Browse to `desired-state` directory in Linux/SIVT VM and update `desired-state.yml` file as below:
+      ```
+      ----
+      version:
         tkgm: 1.5.4
-    ```
-2. To upgrade all clusters execute:
+      ```
+2. If the targeted docker image for upgrade is already available in the kind cluster skip this step, else execute the below steps:
+   - Open launch.sh and update UPGRADE_TARBALL_FILE_PATH variable to the absolute path where the Service Installer Docker TAR file is downloaded.
+     For example: 
+      - `UPGRADE_TARBALL_FILE_PATH="/root/tekton/arcas-tekton-cicd/service_installer_tekton_v15x.tar"`
+   - Execute:
+     ```shell
+     ./launch.sh --load-upgrade-imgs
+     ```
+3. To upgrade all clusters execute:
     ```shell
     ./launch.sh  --exec-upgrade-all 
     ```
-3. To upgrade only management cluster execute:
+4. To upgrade only management cluster execute:
     ```shell
     ./launch.sh  --exec-upgrade-mgmt 
     ```

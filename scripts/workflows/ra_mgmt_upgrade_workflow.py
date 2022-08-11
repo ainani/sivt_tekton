@@ -19,19 +19,19 @@ logger = LoggerHelper.get_logger(name='ra_mgmt_upgrade_workflow')
 class RaMgmtUpgradeWorkflow:
     def __init__(self, run_config: RunConfig):
         self.run_config = run_config
-        logger.info("Current deployment state: %s", self.run_config.state)
+        logger.info ("Current deployment state: %s", self.run_config.state)
         jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
         self.tanzu_client = TkgCliClient()
+        self.rcmd = RunCmd()
+
         with open(jsonpath) as f:
             self.jsonspec = json.load(f)
-        self.rcmd = RunCmd()
+
         check_env_output = checkenv(self.jsonspec)
         if check_env_output is None:
             msg = "Failed to connect to VC. Possible connection to VC is not available or " \
                   "incorrect spec provided."
             raise Exception(msg)
-        self.desired_state_tkg_version = None
-        self.get_desired_state_tkg_version()
 
     def get_desired_state_tkg_version(self):
         """
@@ -48,55 +48,6 @@ class RaMgmtUpgradeWorkflow:
 
     def upgrade_workflow(self):
         try:
-
-            # Precheck the binaries of yq, tanzu, kubectl are of right versions
-            # Download them, if they are matching the intended upgrade version
-
-            version_raw = self.rcmd.run_cmd_output(TKGCommands.VERSION)
-            version = [line for line in version_raw.split("\n") if "version" in line][0]
-            if not any(k in version for k in self.run_config.support_matrix["matrix"].keys()):
-                raise EnvironmentError(f"Tanzu cli version unsupported. \n{version}")
-
-            if self.desired_state_tkg_version not in version:
-
-                # Proceed to download the binaries.
-                refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
-
-                for binary in UpgradeBinaries.binary_list:
-                    # kubectl and yq are same version for 1.4.0 to 1.4.1
-                    # proceed to download to tanzu cli only.
-                    if 'tanzu-cli' in binary:
-                        logger.info("Downloading and replacing binary: {}".format(binary))
-                        download_status = download_upgrade_binaries(binary, refToken)
-                        logger.info("Download status: {}".format(download_status))
-                        # Proceed to install the binary
-                        try:
-                            logger.info("Removing old bom file")
-                            remove_old_bom_cmd = 'rm -rf {}'.format(UpgradeVersions.OLD_TKG_COMP_FILE)
-                            self.rcmd.run_cmd_only(remove_old_bom_cmd)
-                            # extract to /tmp
-                            logger.info("Untar binary...")
-                            tar_binary_tmp = '/tmp/{}'.format(binary)
-                            untar_binary(tar_binary_tmp)
-                            # locate the right binary path
-                            logger.info("Locating full path of binary...")
-                            full_path_bin = locate_binary_tmp(search_dir='/tmp/cli/core',
-                                                              filestring='tanzu')
-                            if full_path_bin:
-                                installer_cmd = 'install {} /usr/local/bin/tanzu'.format(full_path_bin)
-                            else:
-                                logger.error("Unable to install tanzu binary")
-                                raise Exception()
-                            self.rcmd.run_cmd_only(installer_cmd)
-
-                        except Exception:
-                            logger.error("Error: {}".format(traceback.format_exc()))
-
-            # Precheck if template is present else download it if marketplace token is provided
-            # if template is already present skip to execution of upgrade
-            # if template is not present and marketplace token is provided, proceed to download
-            # from market place and place it as template and proceed to upgrade execution
-            # if neither template nor marketplace token is provided, bail out with failure
 
             logger.info("Checking if required template is already present")
             kubernetes_ova_os = \

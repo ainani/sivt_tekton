@@ -92,7 +92,7 @@ spec:
       runAfter:
           - start-mgmt-upgrade-all
 
-    - name: dind-workload-upgrade
+    - name: start-workload-upgrade
       when:
         - input: "$(params.targetcluster)"
           operator: in
@@ -111,4 +111,36 @@ spec:
       runAfter:
           -  start-shared-upgrade
 
+    - name: start-extns-upgrade
+      when:
+          - input: "$(params.targetcluster)"
+            operator: in
+            values: [ "all" ]
+      taskRef:
+        name: dind-extns-upgrade
+      workspaces:
+        - name: task-shared-data
+          workspace: pipeline-shared-data
+      params:
+        - name: imagename
+          value: $(params.imagename)
+        - name: imagepullpolicy
+          value: "$(params.imagepullpolicy)"
 
+      runAfter:
+        - start-workload-upgrade
+
+  finally:
+      - name: gitcommit
+        taskRef:
+          name: git-commit-task
+        workspaces:
+          - name: task-shared-data
+            workspace: pipeline-shared-data
+        params:
+          - name: imagename
+            value: "$(params.imagename)"
+          - name: imagepullpolicy
+            value: "$(params.imagepullpolicy)"
+          - name: branch
+            value: "$(params.branch)"

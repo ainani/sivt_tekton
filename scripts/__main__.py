@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import click
 import yaml
-from constants.constants import Paths
+from constants.constants import Paths, Upgrade_Extensions
 from model.desired_state import DesiredState
 from model.run_config import RunConfig, DeploymentPlatform, ScaleConfig, RepaveConfig
 from model.status import State, get_fresh_state
@@ -164,6 +164,13 @@ def extns(ctx):
 @click.pass_context
 def extns_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
+    RaDeployExtWorkflow(run_config).deploy_tkg_extensions()
+
+@extns.command(name="upgrade")
+@click.pass_context
+def extns_upgrade(ctx):
+    run_config = load_run_config(ctx.obj["ROOT_DIR"])
+    Upgrade_Extensions.UPGRADE_EXTN = True
     RaDeployExtWorkflow(run_config).deploy_tkg_extensions()
 
 

@@ -13,15 +13,17 @@ import logging
 import ruamel
 from constants.constants import Paths, ControllerLocation, KubernetesOva, MarketPlaceUrl, VrfType, \
     ClusterType, TmcUser, RegexPattern, SAS, AppName, UpgradeVersions, Repo, Env, Extentions, Tkg_Extention_names, \
-    Tkg_version, TKG_Package_Details, TKGCommands, VeleroAPI
-from util.extensions_helper import check_fluent_bit_http_endpoint_enabled, check_fluent_bit_splunk_endpoint_endpoint_enabled, \
-    check_fluent_bit_syslog_endpoint_enabled, check_fluent_bit_elastic_search_endpoint_enabled, check_fluent_bit_kafka_endpoint_endpoint_enabled
+    Tkg_version, TKG_Package_Details, TKGCommands, VeleroAPI, Upgrade_Extensions
+from util.extensions_helper import check_fluent_bit_http_endpoint_enabled, \
+    check_fluent_bit_splunk_endpoint_endpoint_enabled, \
+    check_fluent_bit_syslog_endpoint_enabled, check_fluent_bit_elastic_search_endpoint_enabled, \
+    check_fluent_bit_kafka_endpoint_endpoint_enabled
 from util.logger_helper import LoggerHelper
 import requests
 from util.avi_api_helper import getProductSlugId, obtain_second_csrf
 from util.replace_value import replaceValueSysConfig, replaceValue
 from util.file_helper import FileHelper
-from util.ShellHelper import runShellCommandAndReturnOutput, runShellCommandAndReturnOutputAsList,\
+from util.ShellHelper import runShellCommandAndReturnOutput, runShellCommandAndReturnOutputAsList, \
     runProcess, grabKubectlCommand, verifyPodsAreRunning, grabPipeOutput, \
     runShellCommandAndReturnOutputAsListWithChangedDir, grabPipeOutputChagedDir
 from util.cmd_helper import CmdHelper
@@ -40,10 +42,9 @@ import tarfile
 from pyVim import connect
 from util.tkg_util import TkgUtil
 
-
-
 logger = LoggerHelper.get_logger('common_utils')
 logging.getLogger("paramiko").setLevel(logging.WARNING)
+
 
 def checkenv(jsonspec):
     vcpass_base64 = jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
@@ -61,6 +62,7 @@ def checkenv(jsonspec):
         return check_connection
     except Exception:
         return None
+
 
 def createSubscribedLibrary(vcenter_ip, vcenter_username, password, jsonspec):
     try:
@@ -89,8 +91,8 @@ def createSubscribedLibrary(vcenter_ip, vcenter_username, password, jsonspec):
         return None, "Failed"
     return "SUCCESS", "LIBRARY"
 
-def download_upgrade_binaries(binary, refreshToken):
 
+def download_upgrade_binaries(binary, refreshToken):
     # TODO: redudant download method. replace to single one with filename and targetted binary
     rcmd = cmd_runner.RunCmd()
     filename = binary
@@ -185,8 +187,8 @@ def download_upgrade_binaries(binary, refreshToken):
 
     return filename, "Kubernetes OVA download successful"
 
-def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
 
+def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
     rcmd = cmd_runner.RunCmd()
     ovaName = None
     app_version = None
@@ -240,21 +242,21 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
             ovaname = metalist["metafileobjectsList"][0]['filename']
             if upgrade:
                 # todo: Change targetted version to get from desired state
-                #version:  tkg: 1.5.3
+                # version:  tkg: 1.5.3
                 if metalist['appversion'] in UpgradeVersions.TARGET_VERSION:
                     if metalist["version"] == version[1:] and str(metalist["groupname"]).strip(
-                             "\t") == ova_groupname:
-                         objectid = metalist["metafileobjectsList"][0]['fileid']
-                         ovaName = metalist["metafileobjectsList"][0]['filename']
-                         app_version = metalist['appversion']
-                         metafileid = metalist['metafileid']
-                         break
+                            "\t") == ova_groupname:
+                        objectid = metalist["metafileobjectsList"][0]['fileid']
+                        ovaName = metalist["metafileobjectsList"][0]['filename']
+                        app_version = metalist['appversion']
+                        metafileid = metalist['metafileid']
+                        break
 
             else:
                 # tanzu_targetted_version since we have grouped ova's under marketplace
                 # under versions
                 if metalist['appversion'] == tanzu_targetted_version:
-                    if metalist["version"] == version[1:] and str(metalist["groupname"]).strip("\t")\
+                    if metalist["version"] == version[1:] and str(metalist["groupname"]).strip("\t") \
                             == ova_groupname:
                         objectid = metalist["metafileobjectsList"][0]['fileid']
                         ovaName = metalist["metafileobjectsList"][0]['filename']
@@ -296,7 +298,7 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
         data_read = f.read()
     if 'HTTP/1.1 200 OK' in data_read:
         logger.info('Proceed to Download')
-        ova_path = "/tmp/" + filename
+        ova_path = "/tmp/" + ovaName
         curl_download_cmd = 'curl -X GET {d_url} --output {tmp_path}'.format(d_url=download_url,
                                                                              tmp_path=ova_path)
         rcmd.run_cmd_only(curl_download_cmd)
@@ -304,42 +306,46 @@ def getOvaMarketPlace(filename, refreshToken, version, baseOS, upgrade):
         logger.info('Error in presigned url/key: {} '.format(data_read.split('\n')[0]))
         return None, "Invalid key/url"
 
-    return filename, "Kubernetes OVA download successful"
+    return ovaName, "Kubernetes OVA download successful"
 
 
 def downloadAndPushToVCMarketPlace(file, datacenter, datastore, networkName, clusterName,
                                    refresToken, ovaVersion, ovaOS, jsonspec, upgrade):
-    my_file = Path("/tmp/" + file + ".ova")
+    my_file = Path("/tmp/" + file)
     rcmd = cmd_runner.RunCmd()
     if not my_file.exists():
         logger.info("Downloading kubernetes ova from MarketPlace")
         download_status = getOvaMarketPlace(file, refresToken, ovaVersion, ovaOS, upgrade)
         if download_status[0] is None:
             return None, download_status[1]
-        logger.info("Kubernetes ova downloaded  at location " + "/tmp/" + file)
+        logger.info("Kubernetes ova downloaded  at location " + "/tmp/" + download_status[0])
+        kube_config = FileHelper.read_resource(Paths.KUBE_OVA_CONFIG)
+        kube_config_file = "/tmp/kubeova.json"
+        FileHelper.write_to_file(kube_config, kube_config_file)
+        replaceValueSysConfig(kube_config_file, "Name", "name", download_status[0])
+        replaceValue(kube_config_file, "NetworkMapping", "Network", networkName)
+        logger.info("Pushing " + ovaVersion + " to vcenter and making as template")
+        vcenter_ip = jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
+        vcenter_username = jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
+        enc_password = jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
+        password = CmdHelper.decode_base64(enc_password)
+        os.putenv("GOVC_URL", "https://" + vcenter_ip + "/sdk")
+        os.putenv("GOVC_USERNAME", vcenter_username)
+        os.putenv("GOVC_PASSWORD", password)
+        os.putenv("GOVC_INSECURE", "true")
+        command_template = ["govc", "import.ova", "-options", kube_config_file, "-dc=" + datacenter,
+                            "-ds=" + datastore, "-pool=" + clusterName + "/Resources",
+                            "/tmp/" + download_status[0]]
+        output = rcmd.runShellCommandAndReturnOutputAsList(command_template)
+        if output[1] != 0:
+            return None, "Failed export kubernetes ova to vCenter"
+        return "SUCCESS", "DEPLOYED"
+
+
     else:
         logger.info("Kubernetes ova is already downloaded")
-    kube_config = FileHelper.read_resource(Paths.KUBE_OVA_CONFIG)
-    kube_config_file = "/tmp/kubeova.json"
-    FileHelper.write_to_file(kube_config, kube_config_file)
-    replaceValueSysConfig(kube_config_file, "Name", "name", file)
-    replaceValue(kube_config_file, "NetworkMapping", "Network", networkName)
-    logger.info("Pushing " + file + " to vcenter and making as template")
-    vcenter_ip = jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
-    vcenter_username = jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
-    enc_password = jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
-    password = CmdHelper.decode_base64(enc_password)
-    os.putenv("GOVC_URL", "https://" + vcenter_ip + "/sdk")
-    os.putenv("GOVC_USERNAME", vcenter_username)
-    os.putenv("GOVC_PASSWORD", password)
-    os.putenv("GOVC_INSECURE", "true")
-    command_template = ["govc", "import.ova", "-options", kube_config_file, "-dc="+datacenter,
-                        "-ds=" + datastore, "-pool=" + clusterName + "/Resources",
-                        "/tmp/" + file + ".ova"]
-    output = rcmd.runShellCommandAndReturnOutputAsList(command_template)
-    if output[1] != 0:
-        return None, "Failed export kubernetes ova to vCenter"
-    return "SUCCESS", "DEPLOYED"
+        return "SUCCESS", "ALREADY DOWNLOADED"
+
 
 def downloadAndPushKubernetesOvaMarketPlace(jsonspec, version, baseOS, upgrade=False):
     try:
@@ -386,15 +392,15 @@ def downloadAndPushKubernetesOvaMarketPlace(jsonspec, version, baseOS, upgrade=F
             return None, "No required template available"
 
         download = downloadAndPushToVCMarketPlace(file, vCenter_datacenter, data_store, networkName,
-                                                          vCenter_cluster, refToken,
-                                                          version, baseOS, jsonspec, upgrade)
+                                                  vCenter_cluster, refToken,
+                                                  version, baseOS, jsonspec, upgrade)
         if download[0] is None:
-
             return None, download[1]
         return "SUCCESS", "DEPLOYED"
 
     except Exception as e:
         return None, str(e)
+
 
 def validateFolderAndResourcesAvailable(folder, resources, vcenter_ip, vcenter_username, password, parent_resourcepool):
     os.putenv("GOVC_URL", "https://" + vcenter_ip + "/sdk")
@@ -417,6 +423,7 @@ def validateFolderAndResourcesAvailable(folder, resources, vcenter_ip, vcenter_u
         time.sleep(5)
         count = count + 1
     return False
+
 
 def createResourceFolderAndWait(vcenter_ip, vcenter_username, password,
                                 cluster_name, data_center, resourcePoolName, folderName,
@@ -468,6 +475,7 @@ def createResourceFolderAndWait(vcenter_ip, vcenter_username, password,
     }
     return json.dumps(d), 200
 
+
 def untar_binary(target_tar, dest_path='/tmp/'):
     """
     untar .tar or .tgz file to /tmp/<tarfile>
@@ -478,8 +486,8 @@ def untar_binary(target_tar, dest_path='/tmp/'):
     tar.extractall(path=dest_path)
     tar.close()
 
-def locate_binary_tmp(search_dir, filestring):
 
+def locate_binary_tmp(search_dir, filestring):
     installer_file = None
     for fpath in pathlib.Path(search_dir).glob('**/*'):
         fabs_path = fpath
@@ -487,6 +495,7 @@ def locate_binary_tmp(search_dir, filestring):
             installer_file = fabs_path
             break
     return installer_file
+
 
 def getCloudStatus(ip, csrf2, aviVersion, cloudName):
     headers = {
@@ -511,8 +520,10 @@ def getCloudStatus(ip, csrf2, aviVersion, cloudName):
                 return re["url"], "SUCCESS"
     return "NOT_FOUND", "SUCCESS"
 
+
 def seperateNetmaskAndIp(cidr):
     return str(cidr).split("/")
+
 
 def getSECloudStatus(ip, csrf2, aviVersion, seGroupName):
     headers = {
@@ -534,6 +545,7 @@ def getSECloudStatus(ip, csrf2, aviVersion, seGroupName):
             if re['name'] == seGroupName:
                 return re["url"], "SUCCESS"
     return "NOT_FOUND", "SUCCESS"
+
 
 def getVrfAndNextRoutId(ip, csrf2, cloudUuid, typen, routIp, aviVersion):
     headers = {
@@ -571,6 +583,7 @@ def getVrfAndNextRoutId(ip, csrf2, cloudUuid, typen, routIp, aviVersion):
             else:
                 return None, "NOT_FOUND"
         return None, "NOT_FOUND"
+
 
 def addStaticRoute(ip, csrf2, vrfUrl, routeIp, routId, aviVersion):
     if routId == 0:
@@ -805,6 +818,7 @@ def getSeNewBody(newCloudUrl, seGroupName, clusterUrl, dataStore):
     }
     return json.dumps(body, indent=4)
 
+
 def getClusterStatusOnTanzu(management_cluster, typen):
     try:
         if typen == "management":
@@ -825,6 +839,7 @@ def getClusterStatusOnTanzu(management_cluster, typen):
     except:
         return False
 
+
 def runSsh(vc_user):
     os.system("rm -rf /root/.ssh/id_rsa")
     os.system("ssh-keygen -t rsa -b 4096 -C '" + vc_user + "' -f /root/.ssh/id_rsa -N ''")
@@ -833,6 +848,7 @@ def runSsh(vc_user):
     with open('/root/.ssh/id_rsa.pub', 'r') as f:
         re = f.readline()
     return re
+
 
 def getNetworkFolder(netWorkName, vcenter_ip, vcenter_username, password):
     os.putenv("GOVC_URL", "https://" + vcenter_ip + "/sdk")
@@ -855,6 +871,7 @@ def getNetworkFolder(netWorkName, vcenter_ip, vcenter_username, password):
         time.sleep(5)
         count = count + 1
     return None
+
 
 def template14deployYaml(cluster_name, clusterPlan, datacenter, dataStorePath,
                          folderPath, mgmt_network, vspherePassword, sharedClusterResourcePool,
@@ -950,6 +967,7 @@ def deployCluster(cluster_name, clusterPlan, datacenter, dataStorePath,
         logger.error("Error Encountered: {}".format(traceback.format_exc()))
         return None, str(e)
 
+
 def returnListOfTmcCluster(cluster):
     list_ = ["tmc", "cluster", "list"]
     s = runShellCommandAndReturnOutputAsList(list_)
@@ -960,6 +978,7 @@ def returnListOfTmcCluster(cluster):
                 if l:
                     li_.append(l)
     return li_
+
 
 def generateTmcProxyYaml(name_of_proxy, httpProxy_, httpsProxy_, noProxyList_, httpUserName_, httpPassword_,
                          httpsUserName_,
@@ -981,6 +1000,7 @@ def generateTmcProxyYaml(name_of_proxy, httpProxy_, httpsProxy_, noProxyList_, h
         yaml1 = ryaml.YAML()
         yaml1.indent(mapping=2, sequence=4, offset=2)
         yaml1.dump(data, outfile)
+
 
 def checkClusterStateOnTmc(cluster, ifManagement):
     try:
@@ -1022,6 +1042,7 @@ def checkClusterStateOnTmc(cluster, ifManagement):
     except Exception as e:
         return None, str(e)
 
+
 def checkTmcRegister(cluster, ifManagement):
     try:
         if ifManagement:
@@ -1041,6 +1062,7 @@ def checkTmcRegister(cluster, ifManagement):
     except:
         return False
 
+
 def checkToEnabled(jsonspec):
     to = jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"][
         "tanzuObservabilityAvailability"]
@@ -1049,10 +1071,12 @@ def checkToEnabled(jsonspec):
     else:
         return False
 
+
 def checkTSMEnabled(jsonspec, isEnvTkgs_ns):
     try:
         if isEnvTkgs_ns:
-            isTsm = jsonspec['tkgsComponentSpec']["tkgsVsphereNamespaceSpec"]["tkgsVsphereWorkloadClusterSpec"]["tkgWorkloadTsmIntegration"]
+            isTsm = jsonspec['tkgsComponentSpec']["tkgsVsphereNamespaceSpec"]["tkgsVsphereWorkloadClusterSpec"][
+                "tkgWorkloadTsmIntegration"]
         else:
             isTsm = jsonspec['tkgWorkloadComponents']['tkgWorkloadTsmIntegration']
         if isTsm.lower() == "true":
@@ -1062,6 +1086,7 @@ def checkTSMEnabled(jsonspec, isEnvTkgs_ns):
     except Exception as e:
         return False
 
+
 def checkDataProtectionEnabled(jsonspec, type, isEnvTkgs_ns):
     """
     Method supports TKGm and TKGs deployment.
@@ -1069,7 +1094,7 @@ def checkDataProtectionEnabled(jsonspec, type, isEnvTkgs_ns):
     is_enabled = "false"
     if type == "shared":
         is_enabled = jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
-                'tkgSharedserviceEnableDataProtection']
+            'tkgSharedserviceEnableDataProtection']
     elif type == "workload":
         if isEnvTkgs_ns:
             is_enabled = jsonspec["tkgsComponentSpec"]["tkgsVsphereNamespaceSpec"][
@@ -1081,6 +1106,7 @@ def checkDataProtectionEnabled(jsonspec, type, isEnvTkgs_ns):
         return True
     else:
         return False
+
 
 def fetchTMCHeaders(jsonspec):
     refreshToken = jsonspec['envSpec']['saasEndpoints']['tmcDetails']['tmcRefreshToken']
@@ -1109,6 +1135,7 @@ def fetchTMCHeaders(jsonspec):
 
     return headers, tmc_url
 
+
 def isDataprotectionEnabled(tmc_url, headers, payload, cluster):
     url = VeleroAPI.ENABLE_DP.format(tmc_url=tmc_url, cluster=cluster)
     status = requests.request("GET", url, headers=headers, data=payload, verify=False)
@@ -1123,6 +1150,7 @@ def isDataprotectionEnabled(tmc_url, headers, payload, cluster):
             return False
     except Exception as e:
         return False
+
 
 def enable_data_protection(jsonspec, cluster, mgmt_cluster, isEnvTkgs_ns):
     try:
@@ -1200,7 +1228,7 @@ def enable_data_protection(jsonspec, cluster, mgmt_cluster, isEnvTkgs_ns):
                     break
                 else:
                     logger.info("Data protection status "
-                                            + status.json()["dataProtections"][0]["status"]["phase"])
+                                + status.json()["dataProtections"][0]["status"]["phase"])
                     logger.info("Waited for " + str(count * 10) + "s, retrying...")
                     time.sleep(10)
                     count = count + 1
@@ -1215,6 +1243,7 @@ def enable_data_protection(jsonspec, cluster, mgmt_cluster, isEnvTkgs_ns):
     except Exception as e:
         logger.error(str(e))
         return False, "Exception enabled while enabling data protection on cluster"
+
 
 def registerWithTmcOnSharedAndWorkload(jsonspec, clusterName, cls_type):
     try:
@@ -1233,7 +1262,7 @@ def registerWithTmcOnSharedAndWorkload(jsonspec, clusterName, cls_type):
             logger.info("Got kubeconfig successfully")
             logger.info("Attaching cluster to tmc")
             listOfCommandAttach = ["tmc", "cluster", "attach", "--name", clusterName, "--cluster-group", "default",
-                                       "-k", file, "--force"]
+                                   "-k", file, "--force"]
             try:
                 runProcess(listOfCommandAttach)
             except:
@@ -1264,6 +1293,7 @@ def registerWithTmcOnSharedAndWorkload(jsonspec, clusterName, cls_type):
         }
         return json.dumps(d), 200
 
+
 # def checkToEnabled(to_enable):
 #     try:
 #         if str(to_enable).lower() == "true":
@@ -1285,6 +1315,7 @@ def getManagementCluster():
         return None
     except Exception as e:
         return None
+
 
 def switchToManagementContext(clusterName):
     commands_shared = ["tanzu", "management-cluster", "kubeconfig", "get", clusterName, "--admin"]
@@ -1315,6 +1346,7 @@ def switchToManagementContext(clusterName):
         "ERROR_CODE": 200
     }
     return json.dumps(d), 200
+
 
 def waitForGrepProcessWithoutChangeDir(list1, list2, podName, status):
     time.sleep(30)
@@ -1352,6 +1384,7 @@ def waitForGrepProcessWithoutChangeDir(list1, list2, podName, status):
     }
     return json.dumps(d), 200, count_cert
 
+
 def createContourDataValues(clusterName):
     data = dict(
         infrastructure_provider='vsphere',
@@ -1384,13 +1417,15 @@ def createContourDataValues(clusterName):
         yaml1.indent(mapping=2, sequence=4, offset=3)
         yaml1.dump(data, outfile)
 
+
 def installExtentionFor14(service_name, cluster, jsonspec):
     main_command = ["tanzu", "package", "installed", "list", "-A"]
     service = service_name
     if service == "certmanager" or service == "all":
         sub_command = ["grep", AppName.CERT_MANAGER]
         command_cert = grabPipeOutput(main_command, sub_command)
-        if not verifyPodsAreRunning(AppName.CERT_MANAGER, command_cert[0], RegexPattern.RECONCILE_SUCCEEDED):
+        if not verifyPodsAreRunning(AppName.CERT_MANAGER, command_cert[0],
+                                    RegexPattern.RECONCILE_SUCCEEDED) or Upgrade_Extensions.UPGRADE_EXTN:
             state = getVersionOfPackage("cert-manager.tanzu.vmware.com")
             if state is None:
                 d = {
@@ -1399,15 +1434,38 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
-            logger.info("Installing cert manager - " + state)
-            install_command = ["tanzu", "package", "install", AppName.CERT_MANAGER, "--package-name",
-                               "cert-manager.tanzu.vmware.com", "--namespace", "package-" + AppName.CERT_MANAGER,
-                               "--version", state,
-                               "--create-namespace"]
-            states = runShellCommandAndReturnOutputAsList(install_command)
-            if states[1] != 0:
-                logger.error(
-                    AppName.CERT_MANAGER + " installation command failed. Checking for reconciliation status..")
+
+            if Upgrade_Extensions.UPGRADE_EXTN:
+
+                cmdOutput = checkExtentionDeployed(AppName.CERT_MANAGER)
+                if cmdOutput[1] != 0:
+                    d = {
+                        "responseType": "WARNING",
+                        "msg": AppName.CERT_MANAGER + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                        "ERROR_CODE": 299
+                    }
+                    # returning 200 status code, because we have to check if other extensions have to be upgraded
+                    return json.dumps(d), 299
+
+                logger.info("Updating cert manager - " + state)
+                update_command = ["tanzu", "package", "installed", "update", AppName.CERT_MANAGER, "--package-name",
+                                  "cert-manager.tanzu.vmware.com", "--namespace", "package-" + AppName.CERT_MANAGER,
+                                  "--version", state]
+                states = runShellCommandAndReturnOutputAsList(update_command)
+                if states[1] != 0:
+                    logger.error(
+                        AppName.CERT_MANAGER + " update command failed. Checking for reconciliation status..")
+
+            else:
+                logger.info("Installing cert manager - " + state)
+                install_command = ["tanzu", "package", "install", AppName.CERT_MANAGER, "--package-name",
+                                   "cert-manager.tanzu.vmware.com", "--namespace", "package-" + AppName.CERT_MANAGER,
+                                   "--version", state,
+                                   "--create-namespace"]
+                states = runShellCommandAndReturnOutputAsList(install_command)
+                if states[1] != 0:
+                    logger.error(
+                        AppName.CERT_MANAGER + " installation command failed. Checking for reconciliation status..")
             certManagerStatus = waitForGrepProcessWithoutChangeDir(main_command, sub_command, AppName.CERT_MANAGER,
                                                                    RegexPattern.RECONCILE_SUCCEEDED)
             if certManagerStatus[1] == 500:
@@ -1447,8 +1505,10 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                 }
                 return json.dumps(d), 500"""
         sub_command = ["grep", AppName.CONTOUR]
+        import pdb; pdb.set_trace()
         command_cert = grabPipeOutput(main_command, sub_command)
-        if not verifyPodsAreRunning(AppName.CONTOUR, command_cert[0], RegexPattern.RECONCILE_SUCCEEDED):
+        if not verifyPodsAreRunning(AppName.CONTOUR, command_cert[0],
+                                    RegexPattern.RECONCILE_SUCCEEDED) or Upgrade_Extensions.UPGRADE_EXTN:
             createContourDataValues(cluster)
             state = getVersionOfPackage("contour.tanzu.vmware.com")
             if state is None:
@@ -1458,6 +1518,30 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
+        if Upgrade_Extensions.UPGRADE_EXTN:
+
+            cmdOutput = checkExtentionDeployed(AppName.CONTOUR)
+            if cmdOutput[1] != 0:
+                d = {
+                    "responseType": "WARNING",
+                    "msg": AppName.CONTOUR + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                    "ERROR_CODE": 299
+                }
+                # returning 200 status code, because we have to check if other extensions have to be upgraded
+                return json.dumps(d), 299
+
+            logger.info("Updating contour - " + state)
+            update_command = ["tanzu", "package", "installed", "update", AppName.CONTOUR, "--package-name",
+                              "contour.tanzu.vmware.com", "--version", state, "--values-file",
+                              Paths.LOCAL_VSPHERE_ALB_CONTOUR_CONFIG, "--namespace",
+                              "package-tanzu-system-contour"]
+            states = runShellCommandAndReturnOutputAsList(update_command)
+            if states[1] != 0:
+                for r in states[0]:
+                    logger.error(r)
+                logger.info(
+                    AppName.CONTOUR + " update command failed. Checking for reconciliation status...")
+        else:
             logger.info("Installing contour - " + state)
             install_command = ["tanzu", "package", "install", AppName.CONTOUR, "--package-name",
                                "contour.tanzu.vmware.com", "--version", state, "--values-file",
@@ -1470,31 +1554,33 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                     logger.error(r)
                 logger.info(
                     AppName.CONTOUR + " install command failed. Checking for reconciliation status...")
-            certManagerStatus = waitForGrepProcessWithoutChangeDir(main_command, sub_command, AppName.CONTOUR,
-                                                                   RegexPattern.RECONCILE_SUCCEEDED)
-            if certManagerStatus[1] == 500:
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to bring contour " + str(certManagerStatus[0]),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-            if service != "all":
-                logger.info("Contour deployed and is up and running")
-                d = {
-                    "responseType": "SUCCESS",
-                    "msg": "Contour deployed and is up and running",
-                    "ERROR_CODE": 200
-                }
-                return json.dumps(d), 200
-        else:
-            logger.info("Contour is already up and running")
+        contourStatus = waitForGrepProcessWithoutChangeDir(main_command, sub_command, AppName.CONTOUR,
+                                                           RegexPattern.RECONCILE_SUCCEEDED)
+        if contourStatus[1] == 500:
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to bring contour " + str(contourStatus[0]),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        if service != "all":
+            logger.info("Contour deployed and is up and running")
             d = {
                 "responseType": "SUCCESS",
-                "msg": "Contour is already up and running",
+                "msg": "Contour deployed and is up and running",
                 "ERROR_CODE": 200
             }
             return json.dumps(d), 200
+    else:
+        logger.info("Contour is already up and running")
+        d = {
+            "responseType": "SUCCESS",
+            "msg": "Contour is already up and running",
+            "ERROR_CODE": 200
+        }
+        return json.dumps(d), 200
+
+
     d = {
         "responseType": "SUCCESS",
         "msg": "Configured cert-manager and contour extensions successfully",
@@ -1554,6 +1640,7 @@ def getClusterID(vCenter, vCenter_user, VC_PASSWORD, cluster, jsonspec):
         }
         return json.dumps(d), 500
 
+
 def getStoragePolicies(vCenter, vCenter_user, VC_PASSWORD):
     url = "https://" + vCenter + "/"
     try:
@@ -1593,6 +1680,7 @@ def getStoragePolicies(vCenter, vCenter_user, VC_PASSWORD):
         }
         return json.dumps(d), 500
 
+
 def getPolicyID(policyname, vcenter, vc_user, vc_password):
     try:
         policies = getStoragePolicies(vcenter, vc_user, vc_password)
@@ -1606,6 +1694,7 @@ def getPolicyID(policyname, vcenter, vc_user, vc_password):
         logger.error(e)
         return None, 500
 
+
 def convertStringToCommaSeperated(strA):
     strA = strA.split(",")
     list = []
@@ -1613,12 +1702,14 @@ def convertStringToCommaSeperated(strA):
         list.append(s.replace(" ", ""))
     return list
 
+
 def cidr_to_netmask(cidr):
     try:
         return str(ipaddress.IPv4Network(cidr, False).netmask)
     except Exception as e:
         logger.error(e)
         return None
+
 
 def getCountOfIpAdress(gatewayCidr, start, end):
     from ipaddress import ip_network, ip_interface
@@ -1632,6 +1723,7 @@ def getCountOfIpAdress(gatewayCidr, start, end):
             count = count + 1
     return count
 
+
 def getLibraryId(vcenter, vcenterUser, vcenterPassword, libName):
     os.putenv("GOVC_URL", "https://" + vcenter + "/sdk")
     os.putenv("GOVC_USERNAME", vcenterUser)
@@ -1644,6 +1736,7 @@ def getLibraryId(vcenter, vcenterUser, vcenterPassword, libName):
         logger.error(libId[0])
         return None
     return libId[0].replace("ID:", "").strip()
+
 
 def getAviCertificate(ip, csrf2, certName, aviVersion):
     headers = {
@@ -1666,8 +1759,8 @@ def getAviCertificate(ip, csrf2, certName, aviVersion):
                 return re["certificate"]["certificate"], "SUCCESS"
     return "NOT_FOUND", "FAILED"
 
-def switchToContext(clusterName):
 
+def switchToContext(clusterName):
     commands_shared = ["tanzu", "cluster", "kubeconfig", "get", clusterName, "--admin"]
     kubeContextCommand_shared = grabKubectlCommand(commands_shared, RegexPattern.SWITCH_CONTEXT_KUBECTL)
     if kubeContextCommand_shared is None:
@@ -1696,6 +1789,7 @@ def switchToContext(clusterName):
         "ERROR_CODE": 200
     }
     return json.dumps(d), 200
+
 
 def isSasRegistred(clusterName, management, provisoner, pr, sasType):
     try:
@@ -1737,7 +1831,8 @@ def isSasRegistred(clusterName, management, provisoner, pr, sasType):
             logger.error(str(e))
         return False
 
-def checkTmcEnabled(jsonspec, env = "vsphere"):
+
+def checkTmcEnabled(jsonspec, env="vsphere"):
     if env == Env.VMC:
         try:
             tmc_required = str(jsonspec["saasEndpoints"]['tmcDetails']['tmcAvailability'])
@@ -1753,8 +1848,6 @@ def checkTmcEnabled(jsonspec, env = "vsphere"):
         return True
     else:
         return False
-
-
 
 
 def getKubeVersionFullName(kube_version):
@@ -1928,8 +2021,6 @@ def createProxyCredentialsTMC(env, clusterName, isProxy, type, jsonspec, registe
         return json.dumps(d), 200
 
 
-
-
 def getNetworkPathTMC(networkName, vcenter_ip, vcenter_username, password):
     os.putenv("GOVC_URL", "https://" + vcenter_ip + "/sdk")
     os.putenv("GOVC_USERNAME", vcenter_username)
@@ -1953,7 +2044,6 @@ def getNetworkPathTMC(networkName, vcenter_ip, vcenter_username, password):
     return None
 
 
-
 def checkTmcRegister(cluster, ifManagement):
     try:
         if ifManagement:
@@ -1974,7 +2064,7 @@ def checkTmcRegister(cluster, ifManagement):
         return False
 
 
-def checkSharedServiceProxyEnabled(env,jsonspec):
+def checkSharedServiceProxyEnabled(env, jsonspec):
     if env == Env.VMC:
         shared_proxy = "false"
     else:
@@ -2113,7 +2203,7 @@ def createRbacUsers(clusterName, isMgmt, env, cluster_admin_users, admin_users, 
                     if output[1] == 0:
                         logger.info("Created RBAC for user: " + username + " SUCCESSFULLY")
                         logger.info("Kubeconfig file has been generated and stored at " +
-                                                Paths.CLUSTER_PATH + clusterName + "/" + "crb-kubeconfig")
+                                    Paths.CLUSTER_PATH + clusterName + "/" + "crb-kubeconfig")
                     else:
                         logger.error("Failed to created Cluster Role Binding for user: " + username)
                         logger.error(output[0])
@@ -2163,6 +2253,7 @@ def generateToJsonFile(management_cluster, provisioner_name, cluster_name, toUrl
     with open(fileName, 'w') as f:
         json.dump(toJson, f)
 
+
 def generateTSMJsonFile(management_cluster, provisioner_name, cluster_name, exact, partial):
     fileName = "tsm_json.json"
     tsmJson = {
@@ -2192,6 +2283,7 @@ def generateTSMJsonFile(management_cluster, provisioner_name, cluster_name, exac
     with open(fileName, 'w') as f:
         json.dump(tsmJson, f)
 
+
 def waitForProcessWithStatus(list1, podName, status):
     count_cert = 0
     running = False
@@ -2218,6 +2310,7 @@ def waitForProcessWithStatus(list1, podName, status):
         "ERROR_CODE": 200
     }
     return json.dumps(d), 200, count_cert
+
 
 def integrateSas(cluster_name, jsonspec, sasType):
     vcenter_ip = jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
@@ -2262,7 +2355,8 @@ def integrateSas(cluster_name, jsonspec, sasType):
         if sasType == SAS.TO:
             fileName = "to_json.json"
             toUrl = jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"]["tanzuObservabilityUrl"]
-            toToken = jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"]["tanzuObservabilityRefreshToken"]
+            toToken = jsonspec["envSpec"]["saasEndpoints"]["tanzuObservabilityDetails"][
+                "tanzuObservabilityRefreshToken"]
             generateToJsonFile(li_[1], li_[2], cluster_name, toUrl, toToken)
         elif sasType == SAS.TSM:
             fileName = "tsm_json.json"
@@ -2289,7 +2383,7 @@ def integrateSas(cluster_name, jsonspec, sasType):
                 break
             time.sleep(10)
             count = count + 1
-            logger.info("waited for " + str(count*10) + "s for registration to complete... retrying")
+            logger.info("waited for " + str(count * 10) + "s for registration to complete... retrying")
         if not registered:
             d = {
                 "responseType": "ERROR",
@@ -2331,6 +2425,7 @@ def registerTSM(cluster_name, jsonspec, size):
         }
         return json.dumps(d), 500
 
+
 def registerTanzuObservability(cluster_name, size, jsonspec):
     try:
         if checkToEnabled(jsonspec):
@@ -2358,6 +2453,7 @@ def registerTanzuObservability(cluster_name, size, jsonspec):
             "ERROR_CODE": 500
         }
         return json.dumps(d), 500
+
 
 def getVipNetworkIpNetMask(ip, csrf2, name, aviVersion):
     headers = {
@@ -2405,6 +2501,7 @@ def checkAirGappedIsEnabled(jsonspec):
     else:
         return True
 
+
 def getVersionOfPackage(packageName):
     list_h = []
     cert_package_cmd = ["tanzu", "package", "available", "list", packageName, "-A"]
@@ -2431,6 +2528,7 @@ def getVersionOfPackage(packageName):
         logger.error("Failed to get version string is empty")
         return None
     return version
+
 
 def isClusterRunning(vcenter_ip, vcenter_username, password, cluster, workload_name, jsonspec):
     try:
@@ -2540,6 +2638,7 @@ def isClusterRunning(vcenter_ip, vcenter_username, password, cluster, workload_n
         }
         return json.dumps(d), 500
 
+
 def isWcpEnabled(cluster_id, jsonspec):
     vcenter_ip = jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
     vcenter_username = jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
@@ -2577,6 +2676,7 @@ def isWcpEnabled(cluster_id, jsonspec):
     else:
         return False, None
 
+
 def connect_to_workload(vCenter, vcenter_username, password, cluster, workload_name, jsonspec):
     try:
         logger.info("Connecting to workload cluster...")
@@ -2612,9 +2712,10 @@ def connect_to_workload(vCenter, vcenter_username, password, cluster, workload_n
         return "SUCCESS", "Successfully connected to workload cluster"
     except Exception as e:
         return None, "Exception occurred while connecting to workload cluster"
-        
+
+
 def verifyCluster(cluster_name):
-    #Init tanzu cli plugins
+    # Init tanzu cli plugins
     rcmd = RunCmd()
     tanzu_init_cmd = "tanzu plugin sync"
     command_status = rcmd.run_cmd_output(tanzu_init_cmd)
@@ -2625,6 +2726,7 @@ def verifyCluster(cluster_name):
         return False
     else:
         return True
+
 
 def checkRepositoryAdded(jsonspec):
     if checkAirGappedIsEnabled(jsonspec):
@@ -2731,6 +2833,7 @@ def checkRepositoryAdded(jsonspec):
             }
             return json.dumps(d), 500
 
+
 def installCertManagerAndContour(cluster_name, repo_address, service_name, jsonspec):
     podRunninng = ["tanzu", "cluster", "list", "--include-management-cluster"]
     command_status = runShellCommandAndReturnOutputAsList(podRunninng)
@@ -2811,6 +2914,7 @@ def installCertManagerAndContour(cluster_name, repo_address, service_name, jsons
     }
     return json.dumps(d), 200
 
+
 def checkCertManagerRunning():
     list1 = ["kubectl", "get", "pods", "-A"]
     list2 = ["grep", "cert-manager"]
@@ -2852,6 +2956,7 @@ def changeRepo(repo_address):
         "ERROR_CODE": 200
     }
     return json.dumps(d), 200
+
 
 def loadBomFile():
     try:
@@ -2944,6 +3049,7 @@ def updateDataFile(fluent_endpoint, dataFile, jsonspec):
         logger.error(str(e))
         return False
 
+
 def createClusterFolder(clusterName):
     try:
         command = ["mkdir", "-p", Paths.CLUSTER_PATH + clusterName + "/"]
@@ -2955,6 +3061,7 @@ def createClusterFolder(clusterName):
     except Exception as e:
         logger.error("Exception occurred while creating directory - " + Paths.CLUSTER_PATH + clusterName)
         return False
+
 
 def deploy_fluent_bit(end_point, cluster, jsonspec):
     try:
@@ -2995,14 +3102,34 @@ def deploy_fluent_bit(end_point, cluster, jsonspec):
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        deploy_fluent_bit_command = ["tanzu", "package", "install", Tkg_Extention_names.FLUENT_BIT.lower(),
-                                     "--package-name", Tkg_Extention_names.FLUENT_BIT.lower() + ".tanzu.vmware.com",
-                                     "--version", version, "--values-file", yamlFile, "--namespace", namespace,
-                                     "--create-namespace"]
-        state_extention_apply = runShellCommandAndReturnOutputAsList(deploy_fluent_bit_command)
-        if state_extention_apply[1] != 0:
-           logger.error(Tkg_Extention_names.FLUENT_BIT.lower() + " install command failed. "
-                                                                              "Checking for reconciliation status...")
+        if Upgrade_Extensions.UPGRADE_EXTN:
+            cmdOutput = checkExtentionDeployed(Tkg_Extention_names.FLUENT_BIT.lower())
+            if cmdOutput[1] != 0:
+                d = {
+                    "responseType": "WARNING",
+                    "msg": Tkg_Extention_names.FLUENT_BIT.lower() + " is not deployed, but is enabled in deployment json file...hence skipping upgrade",
+                    "ERROR_CODE": 299
+                }
+                #returning 200 status code, because we have to check if other extensions have to be upgraded
+                return json.dumps(d), 299
+            upgrade_fluent_bit_command = ["tanzu", "package", "installed", "update",
+                                          Tkg_Extention_names.FLUENT_BIT.lower(),
+                                          "--package-name",
+                                          Tkg_Extention_names.FLUENT_BIT.lower() + ".tanzu.vmware.com",
+                                          "--version", version, "--values-file", yamlFile, "--namespace", namespace]
+            state_extention_apply = runShellCommandAndReturnOutputAsList(upgrade_fluent_bit_command)
+            if state_extention_apply[1] != 0:
+                logger.error(Tkg_Extention_names.FLUENT_BIT.lower() + " update command failed. "
+                                                                      "Checking for reconciliation status...")
+        else:
+            deploy_fluent_bit_command = ["tanzu", "package", "install", Tkg_Extention_names.FLUENT_BIT.lower(),
+                                         "--package-name", Tkg_Extention_names.FLUENT_BIT.lower() + ".tanzu.vmware.com",
+                                         "--version", version, "--values-file", yamlFile, "--namespace", namespace,
+                                         "--create-namespace"]
+            state_extention_apply = runShellCommandAndReturnOutputAsList(deploy_fluent_bit_command)
+            if state_extention_apply[1] != 0:
+                logger.error(Tkg_Extention_names.FLUENT_BIT.lower() + " install command failed. "
+                                                                      "Checking for reconciliation status...")
 
         extention_validate_command = ["kubectl", "get", "app", Tkg_Extention_names.FLUENT_BIT.lower(), "-n", namespace]
 
@@ -3067,6 +3194,13 @@ def fluent_bit_enabled(jsonspec):
         return False, None
 
 
+def checkExtentionDeployed(extension_name):
+    main_command = ["tanzu", "package", "installed", "list", "-A"]
+    sub_command = ["grep", extension_name]
+    output = grabPipeOutput(main_command, sub_command)
+    return output
+
+
 def checkFluentBitInstalled():
     extension = Tkg_Extention_names.FLUENT_BIT.lower()
     main_command = ["tanzu", "package", "installed", "list", "-A"]
@@ -3079,6 +3213,7 @@ def checkFluentBitInstalled():
         return True, output[0].split()[3] + " " + output[0].split()[4]
     else:
         return False, None
+
 
 def checkNameSpaceRunningStatus(url, header, name_space, cluster_id):
     response_csrf = requests.request("GET", url, headers=header, verify=False)
@@ -3113,6 +3248,7 @@ def checkNameSpaceRunningStatus(url, header, name_space, cluster_id):
     else:
         return None, "NOT_FOUND"
 
+
 def getBodyResourceSpec(cpu_limit, memory_limit, storage_limit):
     resource_spec = dict()
     if cpu_limit:
@@ -3122,6 +3258,7 @@ def getBodyResourceSpec(cpu_limit, memory_limit, storage_limit):
     if storage_limit:
         resource_spec.update({"storage_request_limit": storage_limit})
     return resource_spec
+
 
 def configureKubectl(clusterIp):
     kubectl_path_tempDir = "/tmp/kubectl_zip"
@@ -3141,6 +3278,7 @@ def configureKubectl(clusterIp):
     os.system("chmod +x /usr/local/bin/kubectl-vsphere")
     return "SUCCESS", 200
 
+
 def deleteConfigServer(cluster_endpoint):
     list_config = ["tanzu", "config", "server", "list"]
     list_output = runShellCommandAndReturnOutputAsList(list_config)
@@ -3155,6 +3293,7 @@ def deleteConfigServer(cluster_endpoint):
         return "Cluster config deleted successfully", 200
     else:
         return "Cluster config not added", 200
+
 
 def supervisorTMC(vcenter_user, VC_PASSWORD, cluster_ip):
     command = ["tanzu", "config", "server", "list"]
@@ -3184,6 +3323,7 @@ def supervisorTMC(vcenter_user, VC_PASSWORD, cluster_ip):
     if output[1] != 0:
         return " Failed to switch context to Supervisor Cluster " + str(output[0]), 500
     return "SUCCESS", 200
+
 
 def get_alias_name(storage_id):
     command = ["kubectl", "describe", "sc"]
@@ -3292,6 +3432,7 @@ def checkClusterVersionCompatibility(vc_ip, vc_user, vc_password, cluster_name, 
         else:
             return False, "Provided version not found in cluster versions list - " + version
 
+
 def checkAndWaitForAllTheServiceEngineIsUp(ip, clodName, jsonspec, aviVersion):
     avienc_pass = str(jsonspec['tkgsComponentSpec']['aviComponents']['aviPasswordBase64'])
     csrf2 = obtain_second_csrf(ip, avienc_pass)
@@ -3350,6 +3491,7 @@ def checkAndWaitForAllTheServiceEngineIsUp(ip, clodName, jsonspec, aviVersion):
     else:
         logger.info("All service are up and running")
         return "SUCCESS", "CHECKED", "UP"
+
 
 def registerTMCTKGs(vCenter, vCenter_user, VC_PASSWORD, jsonspec):
     url = "https://" + vCenter + "/"
@@ -3441,6 +3583,7 @@ def registerTMCTKGs(vCenter, vCenter_user, VC_PASSWORD, jsonspec):
             "ERROR_CODE": 500
         }
         return json.dumps(d), 500
+
 
 def waitForTMCRegistration(super_cls):
     registered = False
