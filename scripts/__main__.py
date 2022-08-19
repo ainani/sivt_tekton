@@ -24,6 +24,7 @@ from workflows.ra_workload_cluster_upgrade import RaWorkloadUpgradeWorkflow
 from workflows.ra_scale_workflow import ScaleWorkflow
 from workflows.ra_repave_workflow import RepaveWorkflow
 from workflows.ra_deploy_ext_workflow import RaDeployExtWorkflow
+from pre_setup.pre_setup import PreSetup
 
 logger = LoggerHelper.get_logger(name="__main__")
 
@@ -79,7 +80,16 @@ def avi(ctx):
 @click.pass_context
 def avi_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    RALBWorkflow(run_config=run_config).avi_controller_setup()
+    pre_setup_obj = PreSetup(root_dir=ctx.obj["ROOT_DIR"], run_config=run_config)
+    result_dict, msg = pre_setup_obj.pre_check_avi()
+    if "AVI not deployed" in msg:
+        logger.warning(msg)
+        RALBWorkflow(run_config=run_config).avi_controller_setup()
+    elif "AVI Version mis-matched" in msg:
+        logger.error(msg)
+    elif "AVI not UP" in msg:
+        logger.error(msg)
+        # TODO: Can we start AVI ?
 
 @cli.group()
 @click.pass_context
