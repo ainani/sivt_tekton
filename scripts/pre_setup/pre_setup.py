@@ -34,7 +34,7 @@ class PreSetup:
 
         with open(self.jsonpath) as f:
             self.jsonspec = json.load(f)
-        logger.info(self.jsonspec)
+
         check_env_output = checkenv(self.jsonspec)
         if check_env_output is None:
             msg = "Failed to connect to VC. Possible connection to VC is not available or " \
