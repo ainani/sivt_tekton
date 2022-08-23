@@ -142,6 +142,7 @@ class PreSetup:
         # Verify MGMT deployed
         mgmt_status_dict = getClusterStatusOnTanzu(management_cluster=mgmt_cluster_name, typen="management",
                                               return_dict=True)
+        logger.debug(mgmt_status_dict)
         if mgmt_status_dict["deployed"]:
             state_dict["mgmt"]["deployed"] = True
             msg = "MGMT_CLUSTER_DEPLOYED"
