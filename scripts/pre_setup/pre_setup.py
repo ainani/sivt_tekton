@@ -74,6 +74,7 @@ class PreSetup:
             self.avi_dict.update(
                 {"avi_fqdn": self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']})
 
+    @log("Pre Check AVI")
     def pre_check_avi(self):
         """
         Method to check that AVI is deployed or not already
@@ -124,6 +125,7 @@ class PreSetup:
         self.update_state_yml(state_dict)
         return state_dict, "Pre Check PASSED for AVI"
 
+    @log("Pre Check MGMT")
     def pre_check_mgmt(self):
         """
         Method to check that MGMT cluster is deployed or not already
@@ -135,17 +137,19 @@ class PreSetup:
         state_dict = {"mgmt": {"deployed": False,
                               "health": "DOWN",
                               "name": mgmt_cluster_name}}
-        msg = "MGMT not deployed"
+        msg = "MGMT_CLUSTER_NOT_DEPLOYED"
 
         # Verify MGMT deployed
         mgmt_status_dict = getClusterStatusOnTanzu(management_cluster=mgmt_cluster_name, typen="management",
                                               return_dict=True)
         if mgmt_status_dict["deployed"]:
             state_dict["mgmt"]["deployed"] = True
+            msg = "MGMT_CLUSTER_DEPLOYED"
             if mgmt_status_dict["running"]:
                 state_dict["mgmt"]["health"] = "UP"
+                msg = msg + " CLUSTER_RUNNING"
             else:
-                msg = "MGMT Cluster is deployed, but cluster not running"
+                msg = msg + " CLUSTER_NOT_RUNNING"
                 return state_dict, msg
         else:
             return state_dict, msg

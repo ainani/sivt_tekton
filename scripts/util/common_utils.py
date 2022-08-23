@@ -822,13 +822,15 @@ def getSeNewBody(newCloudUrl, seGroupName, clusterUrl, dataStore):
 def getClusterStatusOnTanzu(management_cluster, typen, return_dict = False):
     try:
         mgmt_staus_dict = {"deployed": False,
-                           "running": False}
+                           "running": False,
+                           "out": ""}
 
         if typen == "management":
             listn = ["tanzu", "management-cluster", "get"]
         else:
             listn = ["tanzu", "cluster", "get"]
         o = runShellCommandAndReturnOutput(listn)
+        mgmt_staus_dict["out"] = o[0]
         if o[1] == 0:
             try:
                 if o[0].__contains__(management_cluster):
@@ -837,6 +839,7 @@ def getClusterStatusOnTanzu(management_cluster, typen, return_dict = False):
                     mgmt_staus_dict["running"] = True
             except:
                 return False
+
 
         if return_dict:
             return mgmt_staus_dict

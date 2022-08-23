@@ -106,9 +106,10 @@ def mgmt_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
     pre_setup_obj = PreSetup(root_dir=ctx.obj["ROOT_DIR"], run_config=run_config)
     result_dict, msg = pre_setup_obj.pre_check_mgmt()
-    if "MGMT not deployed" in msg:
+    if not result_dict["mgmt"]["deploy"]:
+        logger.warning(msg)
         RaMgmtClusterWorkflow(run_config).create_mgmt_cluster()
-    elif "cluster not running" in msg:
+    elif "UP" not in result_dict["mgmt"]["state"]:
         logger.error(msg)
     else:
         logger.info(msg)
