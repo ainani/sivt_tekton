@@ -819,8 +819,11 @@ def getSeNewBody(newCloudUrl, seGroupName, clusterUrl, dataStore):
     return json.dumps(body, indent=4)
 
 
-def getClusterStatusOnTanzu(management_cluster, typen):
+def getClusterStatusOnTanzu(management_cluster, typen, return_dict = False):
     try:
+        mgmt_staus_dict = {"deployed": False,
+                           "running": False}
+
         if typen == "management":
             listn = ["tanzu", "management-cluster", "get"]
         else:
@@ -828,17 +831,22 @@ def getClusterStatusOnTanzu(management_cluster, typen):
         o = runShellCommandAndReturnOutput(listn)
         if o[1] == 0:
             try:
-                if o[0].__contains__(management_cluster) and o[0].__contains__("running"):
-                    return True
-                else:
-                    return False
+                if o[0].__contains__(management_cluster):
+                    mgmt_staus_dict["deployed"] = True
+                if o[0].__contains__("running"):
+                    mgmt_staus_dict["running"] = True
             except:
                 return False
+
+        if return_dict:
+            return mgmt_staus_dict
+
+        if mgmt_staus_dict["deployed"] and mgmt_staus_dict["running"]:
+            return True
         else:
             return False
     except:
         return False
-
 
 def runSsh(vc_user):
     os.system("rm -rf /root/.ssh/id_rsa")

@@ -104,7 +104,15 @@ def mgmt(ctx):
 @click.pass_context
 def mgmt_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    RaMgmtClusterWorkflow(run_config).create_mgmt_cluster()
+    pre_setup_obj = PreSetup(root_dir=ctx.obj["ROOT_DIR"], run_config=run_config)
+    result_dict, msg = pre_setup_obj.pre_check_mgmt()
+    if "MGMT not deployed" in msg:
+        RaMgmtClusterWorkflow(run_config).create_mgmt_cluster()
+    elif "cluster not running" in msg:
+        logger.error(msg)
+    else:
+        logger.info(msg)
+        logger.debug(result_dict)
 
 @mgmt.command(name="enable-wcp")
 @click.pass_context

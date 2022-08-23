@@ -14,6 +14,7 @@ from util.tkg_util import TkgUtil
 from util.common_utils import checkenv
 from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
+from util.common_utils import getClusterStatusOnTanzu
 
 logger = LoggerHelper.get_logger(name='Pre Setup')
 
@@ -122,6 +123,36 @@ class PreSetup:
         # Update state.yml file
         self.update_state_yml(state_dict)
         return state_dict, "Pre Check PASSED for AVI"
+
+    def pre_check_mgmt(self):
+        """
+        Method to check that MGMT cluster is deployed or not already
+        """
+        mgmt_cluster_name = None
+        if not self.isEnvTkgs_wcp and not self.isEnvTkgs_ns:
+            mgmt_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                'tkgMgmtClusterName']
+        state_dict = {"mgmt": {"deployed": False,
+                              "health": "DOWN",
+                              "name": mgmt_cluster_name}}
+        msg = "MGMT not deployed"
+
+        # Verify MGMT deployed
+        mgmt_status_dict = getClusterStatusOnTanzu(management_cluster=mgmt_cluster_name, typen="management",
+                                              return_dict=True)
+        if mgmt_status_dict["deployed"]:
+            state_dict["mgmt"]["deployed"] = True
+            if mgmt_status_dict["running"]:
+                state_dict["mgmt"]["health"] = "UP"
+            else:
+                msg = "MGMT Cluster is deployed, but cluster not running"
+                return state_dict, msg
+        else:
+            return state_dict, msg
+
+        # Update state.yml file
+        self.update_state_yml(state_dict)
+        return state_dict, "Pre Check PASSED for MGMT"
 
     def update_state_yml(self, state_dict: dict):
         config, ind, bsi = ruamel.yaml.util.load_yaml_guess_indent(open(self.state_file_path))
