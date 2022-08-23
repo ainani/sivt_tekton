@@ -31,7 +31,7 @@ from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, runSsh, g
     deployCluster, registerWithTmcOnSharedAndWorkload, registerTanzuObservability, checkenv, getVipNetworkIpNetMask, \
     obtain_second_csrf, createClusterFolder, createResourceFolderAndWait, checkTmcEnabled, getKubeVersionFullName, \
     getNetworkPathTMC, checkSharedServiceProxyEnabled, checkTmcRegister, createProxyCredentialsTMC, enable_data_protection,\
-    checkEnableIdentityManagement, checkPinnipedInstalled, createRbacUsers, checkDataProtectionEnabled
+    checkEnableIdentityManagement, checkPinnipedInstalled, createRbacUsers, checkDataProtectionEnabled, envCheck
 from util.vcenter_operations import createResourcePool, create_folder
 from util.ShellHelper import runShellCommandAndReturnOutputAsList, verifyPodsAreRunning,\
     grabKubectlCommand, grabPipeOutput, grabPipeOutputChagedDir, runShellCommandWithPolling
@@ -51,7 +51,7 @@ class RaSharedClusterWorkflow:
         self.tkg_util_obj = TkgUtil(run_config=self.run_config)
         self.tkg_version_dict = self.tkg_util_obj.get_desired_state_tkg_version()
         self.desired_state_tkg_version = None
-        self.env = "vsphere"         #keeping code for env check, so hardcoding env as vsphere
+        self.env = envCheck(self.run_config)        #keeping code for env check, so hardcoding env as vsphere
         if "tkgs" in self.tkg_version_dict:
             self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_WCP_MASTER_SPEC_PATH)
             self.desired_state_tkg_version = self.tkg_version_dict['tkgs']
@@ -76,6 +76,9 @@ class RaSharedClusterWorkflow:
         with open(jsonpath) as f:
             self.jsonspec = json.load(f)
         self.rcmd = RunCmd()
+
+        self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
+        self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
 
         check_env_output = checkenv(self.jsonspec)
         if check_env_output is None:
@@ -350,18 +353,28 @@ class RaSharedClusterWorkflow:
         data_store = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
         parent_resourcePool = self.jsonspec['envSpec']['vcenterDetails']['resourcePoolName']
         refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
-        kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"]["tkgSharedserviceBaseOs"]
-        kubernetes_ova_version = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"]["tkgSharedserviceKubeVersion"]
-        pod_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+        if not ( self.isEnvTkgs_wcp or self.isEnvTkgs_ns):
+            if self.env == Env.VSPHERE:
+                kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"][
+                    "tkgSharedserviceBaseOs"]
+                kubernetes_ova_version = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"][
+                    "tkgSharedserviceKubeVersion"]
+                pod_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                     'tkgSharedserviceClusterCidr']
-        service_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                service_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                     'tkgSharedserviceServiceCidr']
-        isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
+            elif self.env == Env.VCF:
+                kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgSharedserviceSpec"][
+                    "tkgSharedserviceBaseOs"]
+                kubernetes_ova_version = self.jsonspec["tkgComponentSpec"]["tkgSharedserviceSpec"][
+                    "tkgSharedserviceKubeVersion"]
+                pod_cidr = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                    'tkgSharedserviceClusterCidr']
+                service_cidr = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                    'tkgSharedserviceServiceCidr']
         if refToken:
             logger.info("Kubernetes OVA configs for shared services cluster")
-            down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec,
-                                                                  kubernetes_ova_version,
-                                                                  kubernetes_ova_os)
+            down_status = downloadAndPushKubernetesOvaMarketPlace(self.env, kubernetes_ova_version, kubernetes_ova_os)
             if down_status[0] is None:
                 logger.error(down_status[1])
                 d = {
@@ -449,13 +462,22 @@ class RaSharedClusterWorkflow:
             shared_cluster_name = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
                 'tkgSharedserviceClusterName']
             cluster_plan = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
-                'tkgSharedserviceDeploymentType']
+            'tkgSharedserviceDeploymentType']
         else:
             shared_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
-                'tkgSharedserviceClusterName']
+            'tkgSharedserviceClusterName']
             cluster_plan = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
-                'tkgSharedserviceDeploymentType']
-        if cluster_plan == PLAN.DEV_PLAN or cluster_plan == PLAN.DEV_PLAN:
+            'tkgSharedserviceDeploymentType']
+        if cluster_plan == PLAN.DEV_PLAN:
+            additional_command = ""
+            if self.env == Env.VCF:
+                machineCount = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                    'tkgSharedserviceWorkerMachineCount']
+            else:
+                machineCount = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                    'tkgSharedserviceWorkerMachineCount']
+        elif cluster_plan == PLAN.PROD_PLAN:
+            additional_command = "--high-availability"
             if self.env == Env.VCF:
                 machineCount = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
                     'tkgSharedserviceWorkerMachineCount']

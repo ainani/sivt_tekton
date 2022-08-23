@@ -10,9 +10,10 @@ from retry import retry
 import json
 
 from constants.constants import Paths, AlbPrefix, AlbCloudType, ComponentPrefix, AlbLicenseTier, VmPowerState, \
-    AlbVrfContext, ControllerLocation, CertName, ResourcePoolAndFolderName, Avi_Version, Avi_Tkgs_Version
+    AlbVrfContext, ControllerLocation, CertName, ResourcePoolAndFolderName, Avi_Version, Avi_Tkgs_Version, Env
 from model.run_config import RunConfig
 from model.status import HealthEnum, Info, State
+from scripts.workflows.ra_nsxt_workflow import RaAviNsxtConfig
 from util.avi_api_helper import AviApiSpec, ra_avi_download, isAviHaEnabled, \
     deployAndConfigureAvi, form_avi_ha_cluster, manage_avi_certificates
 from util.cmd_helper import CmdHelper, timer
@@ -22,9 +23,10 @@ from jinja2 import Template
 from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
 from util.vcenter_operations import checkforIpAddress, getSi
-from util.common_utils import checkenv, createResourceFolderAndWait
+from util.common_utils import checkenv, createResourceFolderAndWait, envCheck
 from util.vcenter_operations import create_folder, createResourcePool
 from util.tkg_util import TkgUtil
+from ra_nsxt_workflow import RaNSXTWorkflow
 
 logger = LoggerHelper.get_logger(name='alb_workflow')
 
@@ -54,6 +56,7 @@ class RALBWorkflow:
         self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
         self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
         self.get_vcenter_details()
+        self.env = envCheck(self.run_config)
 
     def get_vcenter_details(self):
         """
@@ -125,6 +128,16 @@ class RALBWorkflow:
         if not ra_avi_download(self.jsonspec):
             logger.error("Failed to setup AVI")
             raise ValueError('Failed to deploy and configure avi.')
+        if self.env == Env.VCF:
+            avi_vcf_pre_config = self.avi_vcf_pre_config()
+            if avi_vcf_pre_config[1] != 200:
+                logger.error(avi_vcf_pre_config[0].json['msg'])
+                d = {
+                "responseType": "ERROR",  
+                "msg": "Failed to configure VCF" + str(avi_vcf_pre_config[0].json['msg']),
+                "ERROR_CODE": 500
+                }
+                raise Exception
         cluster_name = self.vcenter_dict["vcenter_cluster_name"]
         data_center = self.vcenter_dict["vcenter_datacenter"]
         data_store = self.vcenter_dict["vcenter_data_store"]
@@ -319,4 +332,34 @@ class RALBWorkflow:
                 raise ValueError('Failed to deploy and configure avi.')
         avi_cert = self.aviCertManagement_vsphere()
         return True
+
+    @log("Setting up VCF preconfig")
+    def avi_vcf_pre_config(self):
+        if self.env[1] != 200:
+            logger.error("Wrong env provided " + self.env[0])
+            d = {
+                "responseType": "ERROR",
+                "msg": "Wrong env provided " + self.env[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        self.env = self.env[0]
+        if self.env == Env.VCF:
+            try:
+                RaNSXTWorkflow(self.run_config).configureAviNsxtConfig()
+            except Exception as e:
+                logger.error("Failed to configure vcf " + str(e))
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to configure vcf " + str(e),
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+        logger.info("VCF pre configuration successful.")
+        d = {
+            "responseType": "ERROR",
+            "msg": "VCF pre configuration successful.",
+            "ERROR_CODE": 200
+        }
+        return json.dumps(d), 200
 

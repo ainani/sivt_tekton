@@ -63,6 +63,27 @@ def checkenv(jsonspec):
     except Exception:
         return None
 
+def envCheck(runConfig):
+    try:
+        tkg_util_obj = TkgUtil(run_config=runConfig)
+        env = tkg_util_obj.get_desired_state_env()
+        tkgType = tkg_util_obj.get_desired_tkg_type()
+    except Exception:
+        logger.error("No env passed")
+        return "NO_ENV", 400
+    if env is None:
+        return "NO_ENV", 400
+    elif env == Env.VSPHERE & tkgType == Env.TKGM:
+        pass
+    elif env == Env.VSPHERE & tkgType == Env.TKGS:
+        pass
+    elif env == Env.VCF & tkgType == Env.TKGM:
+        pass
+    elif env == Env.VCF & tkgType == Env.TKGS:
+        return "TKGs on VCF not supported"
+    else:
+        return "WRONG_ENV", 500
+    return env, 200
 
 def createSubscribedLibrary(vcenter_ip, vcenter_username, password, jsonspec):
     try:

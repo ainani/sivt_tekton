@@ -2,6 +2,7 @@
 Class to define methods for TKGs and TKGm utilities
 """
 import logging
+from tokenize import String
 
 
 class TkgUtil:
@@ -55,3 +56,17 @@ class TkgUtil:
             raise Exception(f"Received multiple TKG types in desired state YAML: {filtered_tkg_versions}")
         else:
             return filtered_tkg_versions
+
+    def get_desired_tkg_type(self):
+        """
+        Method to get desired state TkG type
+        """
+        tkgs_type = [attr for attr in dir(self.run_config.desired_state.version) if "tkg" in attr]
+        return tkgs_type[0]
+
+
+    def get_desired_state_env(self):
+        """
+        Method to get desired state env
+        """
+        return self.run_config.desired_state.version.env
