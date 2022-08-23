@@ -90,13 +90,15 @@ class PreSetup:
 
         # Verify AVI deployed
         ip = self.govc_client.get_vm_ip(vm_name=self.avi_dict["avi_fqdn"],
-                                   datacenter_name=self.vcenter_dict["vcenter_datacenter"])[0]
+                                   datacenter_name=self.vcenter_dict["vcenter_datacenter"])
         if ip is None:
-            msg = "Could not find VM IP"
+            msg = "Could not find VM IP. Seems AVI not deployed"
             return state_dict, msg
-        deployed_avi_version = obtain_avi_version(ip, self.jsonspec)
-        if deployed_avi_version[0] is None:
-            return state_dict, msg
+        else:
+            ip = ip[0]
+            deployed_avi_version = obtain_avi_version(ip, self.jsonspec)
+            if deployed_avi_version[0] is None:
+                return state_dict, msg
 
         # AVI Deployed --> Verify AVI version
         if deployed_avi_version[0] == avi_required:

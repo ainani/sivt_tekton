@@ -90,6 +90,9 @@ def avi_deploy(ctx):
     elif "AVI not UP" in msg:
         logger.error(msg)
         # TODO: Can we start AVI ?
+    else:
+        logger.info(msg)
+        logger.debug(result_dict)
 
 @cli.group()
 @click.pass_context
