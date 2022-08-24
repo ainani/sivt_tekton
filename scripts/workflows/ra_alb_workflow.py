@@ -56,6 +56,15 @@ class RALBWorkflow:
         self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
         self.get_vcenter_details()
         self.env = envCheck(self.run_config)
+        if self.env[1] != 200:
+            logger.error("Wrong env provided " + self.env[0])
+            d = {
+                "responseType": "ERROR",
+                "msg": "Wrong env provided " + self.env[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        self.env = self.env[0]
 
     def get_vcenter_details(self):
         """
@@ -334,15 +343,6 @@ class RALBWorkflow:
 
     @log("Setting up VCF preconfig")
     def avi_vcf_pre_config(self):
-        if self.env[1] != 200:
-            logger.error("Wrong env provided " + self.env[0])
-            d = {
-                "responseType": "ERROR",
-                "msg": "Wrong env provided " + self.env[0],
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        self.env = self.env[0]
         if self.env == Env.VCF:
             try:
                 RaNSXTWorkflow(self.run_config).configureAviNsxtConfig()

@@ -51,7 +51,16 @@ class RaSharedClusterWorkflow:
         self.tkg_util_obj = TkgUtil(run_config=self.run_config)
         self.tkg_version_dict = self.tkg_util_obj.get_desired_state_tkg_version()
         self.desired_state_tkg_version = None
-        self.env = envCheck(self.run_config)        #keeping code for env check, so hardcoding env as vsphere
+        self.env = envCheck(self.run_config)  
+        if self.env[1] != 200:
+            logger.error("Wrong env provided " + self.env[0])
+            d = {
+                "responseType": "ERROR",
+                "msg": "Wrong env provided " + self.env[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        self.env = self.env[0]
         if "tkgs" in self.tkg_version_dict:
             self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_WCP_MASTER_SPEC_PATH)
             self.desired_state_tkg_version = self.tkg_version_dict['tkgs']

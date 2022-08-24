@@ -76,6 +76,15 @@ class RaMgmtClusterWorkflow:
         with open(self.jsonpath) as f:
             self.jsonspec = json.load(f)
         self.env = envCheck(self.run_config)
+        if self.env[1] != 200:
+            logger.error("Wrong env provided " + self.env[0])
+            d = {
+                "responseType": "ERROR",
+                "msg": "Wrong env provided " + self.env[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        self.env = self.env[0]
         check_env_output = checkenv(self.jsonspec)
         if check_env_output is None:
             msg = "Failed to connect to VC. Possible connection to VC is not available or " \

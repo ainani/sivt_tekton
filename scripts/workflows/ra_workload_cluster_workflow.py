@@ -80,6 +80,15 @@ class RaWorkloadClusterWorkflow:
         self.rcmd = RunCmd()
         self.clusterops = RaMgmtClusterWorkflow(self.run_config)
         self.env = envCheck(self.run_config)
+        if self.env[1] != 200:
+            logger.error("Wrong env provided " + self.env[0])
+            d = {
+                "responseType": "ERROR",
+                "msg": "Wrong env provided " + self.env[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        self.env = self.env[0]
 
         self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
         self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
@@ -208,15 +217,6 @@ class RaWorkloadClusterWorkflow:
 
     def networkConfig(self, aviVersion, cluster_name, data_store):
 
-        if self.env[1] != 200:
-            logger.error("Wrong env provided " + self.env[0])
-            d = {
-                "responseType": "ERROR",
-                "msg": "Wrong env provided " + self.env[0],
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        self.env = self.env[0]
         refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
         avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']
         ha_field = self.jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
