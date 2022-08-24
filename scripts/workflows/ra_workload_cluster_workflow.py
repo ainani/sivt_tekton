@@ -13,8 +13,8 @@ from constants.constants import TKG_EXTENSIONS_ROOT, Constants, Paths, Task, Con
 from lib.kubectl_client import KubectlClient
 from lib.tkg_cli_client import TkgCliClient
 from model.run_config import RunConfig
-from scripts.util.common_utils import envCheck
-from scripts.workflows.ra_nsxt_workflow import RaNSXTWorkflow
+from util.common_utils import envCheck
+from workflows.ra_nsxt_workflow import RaNSXTWorkflow
 from util.cmd_helper import CmdHelper
 from util.file_helper import FileHelper
 from util.git_helper import Git
