@@ -1552,7 +1552,7 @@ class RaMgmtClusterWorkflow:
                 kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"]["tkgMgmtBaseOs"]
                 kubernetes_ova_version = KubernetesOva.KUBERNETES_OVA_LATEST_VERSION
                 logger.info("Kubernetes OVA configs for management cluster")
-                down_status = downloadAndPushKubernetesOvaMarketPlace(self.env, kubernetes_ova_version, kubernetes_ova_os)
+                down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec, kubernetes_ova_version, kubernetes_ova_os)
                 if down_status[0] is None:
                     logger.error(down_status[1])
                     d = {
@@ -1920,7 +1920,7 @@ class RaMgmtClusterWorkflow:
                     return json.dumps(d), 500
                 
                 if self.env == Env.VCF:
-                    shared_service_name = self.json['tkgComponentSpec']['tkgSharedserviceSpec'][
+                    shared_service_name = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
                             'tkgSharedserviceNetworkName']
                     dhcp = self.enableDhcpForSharedNetwork(ip, csrf2, shared_service_name, aviVersion)
                     if dhcp[0] is None:
