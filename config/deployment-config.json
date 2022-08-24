@@ -149,7 +149,7 @@
             }
         },
         "tkgSharedserviceSpec": {
-            "tkgSharedserviceNetworkName": "Tkgm-shared",
+            "tkgSharedserviceNetworkName": "Tkgm-Shared",
             "tkgSharedserviceGatewayCidr": "172.16.80.1/24",
             "tkgSharedserviceDhcpStartRange": "172.16.80.100",
             "tkgSharedserviceDhcpEndRange": "172.16.80.200",
