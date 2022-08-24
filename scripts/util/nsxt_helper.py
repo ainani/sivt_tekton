@@ -68,7 +68,7 @@ def getList(headers, url):
 
 def createNsxtSegment(segementName, gatewayAddress, dhcpStart, dhcpEnd, dnsServers, network, isDhcp, jsonspec):
     try:
-        headers_ = grabNsxtHeaders()
+        headers_ = grabNsxtHeaders(jsonspec)
         if headers_[0] is None:
             logger.error("Failed to nsxt info " + str(headers_[1]))
             d = {
@@ -96,7 +96,7 @@ def createNsxtSegment(segementName, gatewayAddress, dhcpStart, dhcpEnd, dnsServe
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        tier_path = getTier1Details(headers_)
+        tier_path = getTier1Details(headers_, jsonspec)
         if tier_path[0] is None:
             d = {
                 "responseType": "ERROR",
@@ -216,9 +216,9 @@ def grabNsxtHeaders(jsonspec):
         return None, str(e), None
 
 
-def createVcfDhcpServer():
+def createVcfDhcpServer(jsonspec):
     try:
-        headers_ = grabNsxtHeaders()
+        headers_ = grabNsxtHeaders(jsonspec)
         if headers_[0] is None:
             logger.error("Failed to nsxt info " + str(headers_[1]))
             d = {
@@ -237,7 +237,7 @@ def createVcfDhcpServer():
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        tier_path = getTier1Details(headers_)
+        tier_path = getTier1Details(headers_, jsonspec)
         if tier_path[0] is None:
             d = {
                 "responseType": "ERROR",
@@ -368,9 +368,9 @@ def get_ip_address(ifname):
     )[20:24])
 
 
-def createGroup(groupName, segmentName, isIp, ipaddresses):
+def createGroup(groupName, segmentName, isIp, ipaddresses, jsonspec):
     try:
-        headers_ = grabNsxtHeaders()
+        headers_ = grabNsxtHeaders(jsonspec)
         if headers_[0] is None:
             d = {
                 "responseType": "ERROR",
@@ -557,8 +557,8 @@ def isServiceCreated(header, serviceName):
     return None, "NOT_FOUND"
 
 
-def createVipService(serviceName, port):
-    headers_ = grabNsxtHeaders()
+def createVipService(serviceName, port, jsonspec):
+    headers_ = grabNsxtHeaders(jsonspec)
     if headers_[0] is None:
         d = {
             "responseType": "ERROR",
@@ -620,8 +620,8 @@ def getListOfFirewallRule(headers, policyName):
     return response.json()["results"], "FOUND"
 
 
-def createFirewallRule(policyName, ruleName, rulePayLoad):
-    headers_ = grabNsxtHeaders()
+def createFirewallRule(policyName, ruleName, rulePayLoad, jsonspec):
+    headers_ = grabNsxtHeaders(jsonspec)
     if headers_[0] is None:
         d = {
             "responseType": "ERROR",
@@ -640,7 +640,7 @@ def createFirewallRule(policyName, ruleName, rulePayLoad):
             return json.dumps(d), 500
         else:
             logger.info("Creating policy " + policyName)
-            tier_path = getTier1Details(headers_)
+            tier_path = getTier1Details(headers_, jsonspec)
             if tier_path[0] is None:
                 d = {
                     "responseType": "ERROR",
@@ -811,9 +811,9 @@ def getESXIips(jsonspec):
     except Exception as e:
         return None, str(e)
 
-def updateDefaultRule(policyName):
+def updateDefaultRule(policyName, jsonspec):
     try:
-        headers_ = grabNsxtHeaders()
+        headers_ = grabNsxtHeaders(jsonspec)
         if headers_[0] is None:
             d = {
                 "responseType": "ERROR",
@@ -841,7 +841,7 @@ def updateDefaultRule(policyName):
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        tier_path = getTier1Details(headers_)
+        tier_path = getTier1Details(headers_, jsonspec)
         if tier_path[0] is None:
             d = {
                 "responseType": "ERROR",

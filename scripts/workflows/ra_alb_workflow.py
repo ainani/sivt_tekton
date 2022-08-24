@@ -139,10 +139,10 @@ class RALBWorkflow:
         if self.env == Env.VCF:
             avi_vcf_pre_config = self.avi_vcf_pre_config()
             if avi_vcf_pre_config[1] != 200:
-                logger.error(avi_vcf_pre_config[0].json['msg'])
+                logger.error(avi_vcf_pre_config[0]['msg'])
                 d = {
                 "responseType": "ERROR",  
-                "msg": "Failed to configure VCF" + str(avi_vcf_pre_config[0].json['msg']),
+                "msg": "Failed to configure VCF" + str(avi_vcf_pre_config[0]['msg']),
                 "ERROR_CODE": 500
                 }
                 raise Exception

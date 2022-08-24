@@ -60,7 +60,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        dhcp = createVcfDhcpServer()
+        dhcp = createVcfDhcpServer(self.jsonspec)
         if dhcp[1] != 200:
             logger.error("Failed to create dhcp server " + str(dhcp[0].json["msg"]))
             d = {
@@ -130,7 +130,7 @@ class RaNSXTWorkflow:
             }
             return json.dumps(d), 500
         arcas_group = createGroup(VCF.ARCAS_GROUP, None,
-                                "true", ip)
+                                "true", ip, self.jsonspec)
         if arcas_group[1] != 200:
             logger.error(
                 "Failed to create  group " + VCF.ARCAS_GROUP + " " + str(
@@ -142,7 +142,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        arcas_svc = createVipService(ServiceName.ARCAS_SVC, "8888")
+        arcas_svc = createVipService(ServiceName.ARCAS_SVC, "8888", self.jsonspec)
         if arcas_svc[1] != 200:
             logger.error(
                 "Failed to create service " + ServiceName.ARCAS_SVC + " " + str(
@@ -154,7 +154,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        arcas_svc = createVipService(ServiceName.ARCAS_BACKEND_SVC, "5000")
+        arcas_svc = createVipService(ServiceName.ARCAS_BACKEND_SVC, "5000", self.jsonspec)
         if arcas_svc[1] != 200:
             logger.error(
                 "Failed to create service " + ServiceName.ARCAS_BACKEND_SVC + " " + str(
@@ -167,7 +167,7 @@ class RaNSXTWorkflow:
             }
             return json.dumps(d), 500
         avi_mgmt_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_AVI_Management_Network_Group_CGW, avi_mgmt,
-                                    False, None)
+                                    False, None, self.jsonspec)
         if avi_mgmt_group[1] != 200:
             logger.error(
                 "Failed to create  group " + GroupNameCgw.DISPLAY_NAME_VCF_AVI_Management_Network_Group_CGW + " " + str(
@@ -180,7 +180,8 @@ class RaNSXTWorkflow:
             }
             return json.dumps(d), 500
         cluster_vip_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_CLUSTER_VIP_NETWORK_Group_CGW, cluster_wip,
-                                        False, None)
+                                        False, None,
+                                        self.jsonspec)
         if cluster_vip_group[1] != 200:
             logger.error(
                 "Failed to create  group " + GroupNameCgw.DISPLAY_NAME_VCF_CLUSTER_VIP_NETWORK_Group_CGW + " " + str(
@@ -193,7 +194,8 @@ class RaNSXTWorkflow:
             }
             return json.dumps(d), 500
         shared_service_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_TKG_SharedService_Group_CGW,
-                                        shared_network_name, False, None)
+                                        shared_network_name, False, None,
+                                        self.jsonspec)
         if shared_service_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_TKG_SharedService_Group_CGW + " " + str(
@@ -206,7 +208,8 @@ class RaNSXTWorkflow:
             }
             return json.dumps(d), 500
         mgmt = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtNetworkName']
-        mgmt_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_TKG_Management_Network_Group_CGW, mgmt, False, None)
+        mgmt_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_TKG_Management_Network_Group_CGW, mgmt, False, None,
+                                    self.jsonspec)
         if mgmt_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_TKG_Management_Network_Group_CGW + " " + str(
@@ -220,7 +223,8 @@ class RaNSXTWorkflow:
             return json.dumps(d), 500
         dns = self.jsonspec['envSpec']['infraComponents']['dnsServersIp']
         dns_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_DNS_IPs_Group,
-                                None, "true", dns)
+                                None, "true", dns,
+                                self.jsonspec)
         if dns_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_DNS_IPs_Group + " " + str(
@@ -234,7 +238,8 @@ class RaNSXTWorkflow:
             return json.dumps(d), 500
         ntp = self.jsonspec['envSpec']['infraComponents']['ntpServers']
         ntp_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_NTP_IPs_Group,
-                                None, "true", ntp)
+                                None, "true", ntp,
+                                self.jsonspec)
         if ntp_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_NTP_IPs_Group + " " + str(
@@ -258,7 +263,8 @@ class RaNSXTWorkflow:
                 }
                 return json.dumps(d), 500
         vc_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_vCenter_IP_Group,
-                            None, "true", vCenter)
+                            None, "true", vCenter,
+                            self.jsonspec)
         if vc_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_vCenter_IP_Group + " " + str(
@@ -281,7 +287,8 @@ class RaNSXTWorkflow:
             }
             return json.dumps(d), 500
         esx_group = createGroup(VCF.ESXI_GROUP,
-                                None, "true", ips[0])
+                                None, "true", ips[0],
+                                self.jsonspec)
         if esx_group[1] != 200:
             logger.error(
                 "Failed to create group " + VCF.ESXI_GROUP + " " + str(
@@ -318,7 +325,8 @@ class RaNSXTWorkflow:
                 "services": ["/infra/services/SSH", "/infra/services/" + ServiceName.ARCAS_SVC],
                 "scope": [teir1[0]]
                 }
-        arcas_fw = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_ARCAS_UI, payload)
+        arcas_fw = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_ARCAS_UI, payload,
+                        self.jsonspec)
         if arcas_fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_ARCAS_UI + " " + str(
@@ -340,7 +348,8 @@ class RaNSXTWorkflow:
                 "scope": [teir1[0]]
                 }
         arcas_fw = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_ARCAS_BACKEND,
-                                    payload)
+                                    payload,
+                                    self.jsonspec)
         if arcas_fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_ARCAS_BACKEND + " " + str(
@@ -363,7 +372,8 @@ class RaNSXTWorkflow:
                 "services": ["/infra/services/DNS", "/infra/services/DNS-UDP"],
                 "scope": [teir1[0]]
                 }
-        fw = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_DNS, payload)
+        fw = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_DNS, payload,
+                                self.jsonspec)
         if fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_DNS + " " + str(
@@ -387,7 +397,8 @@ class RaNSXTWorkflow:
                 "scope": [teir1[0]]
                 }
         fw_vip = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_NTP,
-                                    payload)
+                                    payload,
+                                    self.jsonspec)
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_NTP + " " + str(
@@ -411,7 +422,8 @@ class RaNSXTWorkflow:
                 "scope": [teir1[0]]
                 }
         fw_vip = createFirewallRule(Policy_Name.POLICY_NAME,
-                                    FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_vCenter, payload)
+                                    FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_vCenter, payload,
+                                    self.jsonspec)
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_vCenter + " " + str(
@@ -434,7 +446,8 @@ class RaNSXTWorkflow:
                 "scope": [teir1[0]]
                 }
         fw_esx = createFirewallRule(Policy_Name.POLICY_NAME,
-                                    VCF.ESXI_FW, payload)
+                                    VCF.ESXI_FW, payload,
+                                    self.jsonspec)
         if fw_esx[1] != 200:
             logger.error(
                 "Failed to create firewall " + VCF.ESXI_FW + " " + str(
@@ -456,7 +469,8 @@ class RaNSXTWorkflow:
                 "scope": [teir1[0]]
                 }
         fw_vip = createFirewallRule(Policy_Name.POLICY_NAME,
-                                    FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_Internet, payload)
+                                    FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_Internet, payload,
+                                    self.jsonspec)
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_Internet + " " + str(
@@ -480,7 +494,8 @@ class RaNSXTWorkflow:
                 "scope": [teir1[0]]
                 }
         fw_vip = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_TKGtoAVIMgmt,
-                                    payload)
+                                    payload,
+                                    self.jsonspec)
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_TKGtoAVIMgmt + " " + str(
@@ -492,7 +507,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        vip = createVipService(ServiceName.KUBE_VIP_VCF_SERVICE, "6443")
+        vip = createVipService(ServiceName.KUBE_VIP_VCF_SERVICE, "6443", self.jsonspec)
         if vip[1] != 200:
             logger.error(
                 "Failed to create service " + ServiceName.KUBE_VIP_VCF_SERVICE + " " + str(
@@ -516,7 +531,8 @@ class RaNSXTWorkflow:
                 "scope": [teir1[0]]
                 }
         fw_vip = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_CLUSTER_VIP_CGW,
-                                    payload)
+                                    payload,
+                                    self.jsonspec)
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_CLUSTER_VIP_CGW + " " + str(
@@ -528,7 +544,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        update = updateDefaultRule(Policy_Name.POLICY_NAME)
+        update = updateDefaultRule(Policy_Name.POLICY_NAME, self.jsonspec)
         if update[1] != 200:
             logger.error(
                 "Failed to default rule " + str(update[0].json["msg"]))
@@ -562,7 +578,8 @@ class RaNSXTWorkflow:
             return json.dumps(d), 500
         worklod_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_TKG_Workload_Networks_Group_CGW,
                                     workload_network_name,
-                                    False, None)
+                                    False, None,
+                                    self.jsonspec)
         if worklod_group[1] != 200:
             logger.error(
                 "Failed to create  group " + GroupNameCgw.DISPLAY_NAME_VCF_TKG_Workload_Networks_Group_CGW + " " + str(
@@ -640,7 +657,8 @@ class RaNSXTWorkflow:
                     "scope": [teir1[0]]
                     }
         fw = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_DNS,
-                                payload)
+                                payload,
+                                self.jsonspec)
         if fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_DNS + " " + str(
@@ -669,7 +687,8 @@ class RaNSXTWorkflow:
                     "scope": [teir1[0]]
                     }
         fw = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_WORKLOAD_to_vCenter,
-                                payload)
+                                payload,
+                                self.jsonspec)
         if fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_WORKLOAD_to_vCenter + " " + str(
@@ -694,7 +713,8 @@ class RaNSXTWorkflow:
                     }
         fw = createFirewallRule(Policy_Name.POLICY_NAME,
                                 FirewallRuleCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_to_Internet,
-                                payload)
+                                payload,
+                                self.jsonspec)
         if fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_to_Internet + " " + str(
