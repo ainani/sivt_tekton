@@ -94,7 +94,8 @@ class RaNSXTWorkflow:
         segment = createNsxtSegment(mgmt_data,
                                     gatewayAddress,
                                     dhcpStart,
-                                    dhcpEnd, dnsServers, network, False)
+                                    dhcpEnd, dnsServers, network, False,
+                                    self.jsonspec)
         if segment[1] != 200:
             logger.error("Failed to create  segments " + mgmt_data + " " + str(segment[0].json["msg"]))
             d = {
