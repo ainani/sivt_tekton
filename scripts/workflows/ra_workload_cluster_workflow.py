@@ -736,7 +736,8 @@ class RaWorkloadClusterWorkflow:
                                                   vsphere_password,
                                                   workload_resource_path, vcenter_ip, re,
                                                   vcenter_username, machineCount,
-                                                  size, ClusterType.WORKLOAD, vsSpec, self.jsonspec)
+                                                  size, ClusterType.WORKLOAD, vsSpec, self.jsonspec,
+                                                  self.env)
         if deploy_status[0] is None:
             logger.error("Failed to deploy workload cluster " + deploy_status[1])
             d = {

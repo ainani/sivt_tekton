@@ -896,47 +896,115 @@ def getNetworkFolder(netWorkName, vcenter_ip, vcenter_username, password):
 
 def template14deployYaml(cluster_name, clusterPlan, datacenter, dataStorePath,
                          folderPath, mgmt_network, vspherePassword, sharedClusterResourcePool,
-                         vsphereServer, sshKey, vsphereUseName, machineCount, size, typen, vsSpec,
-                         jsonspec):
+                         vsphereServer, sshKey, vsphereUseName, machineCount, size, type, vsSpec,
+                         jsonspec, env):
     deploy_yaml = FileHelper.read_resource(Paths.TKG_CLUSTER_14_SPEC_J2)
     t = Template(deploy_yaml)
     datacenter = "/" + datacenter
     control_plane_vcpu = ""
     control_plane_disk_gb = ""
-    # control_plane_mem_gb = ""
+    control_plane_mem_gb = ""
     control_plane_mem_mb = ""
     osName = ""
+    proxyCert = ""
     try:
-        if typen == ClusterType.SHARED:
-            clustercidr = vsSpec.tkgComponentSpec.tkgMgmtComponents.tkgSharedserviceClusterCidr
-            servicecidr = vsSpec.tkgComponentSpec.tkgMgmtComponents.tkgSharedserviceServiceCidr
-            size_selection = vsSpec.tkgComponentSpec.tkgMgmtComponents.tkgSharedserviceSize
-            if str(size_selection).lower() == "custom":
-                control_plane_vcpu = jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceCpuSize']
-                control_plane_disk_gb = jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceStorageSize']
-                control_plane_mem_gb = jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceMemorySize']
-                control_plane_mem_mb = str(int(control_plane_mem_gb) * 1024)
-            try:
-                osName = str(jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceBaseOs'])
-                kubeVersion = str(jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgSharedserviceKubeVersion'])
-                logger.debug("Targetted Kube Version: {}".format(kubeVersion))
-            except Exception as e:
-                raise Exception("Keyword " + str(e) + "  not found in input file")
-        elif typen == ClusterType.WORKLOAD:
-            clustercidr = vsSpec.tkgWorkloadComponents.tkgWorkloadClusterCidr
-            servicecidr = vsSpec.tkgWorkloadComponents.tkgWorkloadServiceCidr
-            size_selection = vsSpec.tkgWorkloadComponents.tkgWorkloadSize
-            if str(size_selection).lower() == "custom":
-                control_plane_vcpu = jsonspec['tkgWorkloadComponents']['tkgWorkloadCpuSize']
-                control_plane_disk_gb = jsonspec['tkgWorkloadComponents']['tkgWorkloadStorageSize']
-                control_plane_mem_gb = jsonspec['tkgWorkloadComponents']['tkgWorkloadMemorySize']
-                control_plane_mem_mb = str(int(control_plane_mem_gb) * 1024)
-            try:
-                osName = str(jsonspec['tkgWorkloadComponents']['tkgWorkloadBaseOs'])
-                kubeVersion = str(
-                    jsonspec['tkgWorkloadComponents']['tkgWorkloadKubeVersion'])
-            except Exception as e:
-                raise Exception("Keyword " + str(e) + "  not found in input file")
+        
+        if env == Env.VSPHERE or Env.VCF:
+            if type == ClusterType.SHARED:
+                try:
+                    proxyCert_raw = jsonspec['envSpec']['proxySpec']['tkgSharedservice']['proxyCert']
+                    base64_bytes = base64.b64encode(proxyCert_raw.encode("utf-8"))
+                    proxyCert = str(base64_bytes, "utf-8")
+                    isProxyCert = "true"
+                except:
+                    isProxyCert = "false"
+                    logger.info("Proxy certificare for  shared is not provided")
+            elif type == ClusterType.WORKLOAD:
+                try:
+                    proxyCert_raw = jsonspec['envSpec']['proxySpec']['tkgWorkload']['proxyCert']
+                    base64_bytes = base64.b64encode(proxyCert_raw.encode("utf-8"))
+                    proxyCert = str(base64_bytes, "utf-8")
+                    isProxyCert = "true"
+                except:
+                    isProxyCert = "false"
+                    logger.info("Proxy certificare for  workload is not provided")
+        if env == Env.VSPHERE:
+            if type == ClusterType.SHARED:
+                clustercidr = vsSpec.tkgComponentSpec.tkgMgmtComponents.tkgSharedserviceClusterCidr
+                servicecidr = vsSpec.tkgComponentSpec.tkgMgmtComponents.tkgSharedserviceServiceCidr
+                size_selection = vsSpec.tkgComponentSpec.tkgMgmtComponents.tkgSharedserviceSize
+                if str(size_selection).lower() == "custom":
+                    control_plane_vcpu = jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                        'tkgSharedserviceCpuSize']
+                    control_plane_disk_gb = jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                        'tkgSharedserviceStorageSize']
+                    control_plane_mem_gb = jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                        'tkgSharedserviceMemorySize']
+                    control_plane_mem_mb = str(int(control_plane_mem_gb) * 1024)
+                try:
+                    osName = str(jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                                        'tkgSharedserviceBaseOs'])
+                    kubeVersion = str(jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                                            'tkgSharedserviceKubeVersion'])
+                except Exception as e:
+                    raise Exception("Keyword " + str(e) + "  not found in input file")
+            elif type == ClusterType.WORKLOAD:
+                clustercidr = vsSpec.tkgWorkloadComponents.tkgWorkloadClusterCidr
+                servicecidr = vsSpec.tkgWorkloadComponents.tkgWorkloadServiceCidr
+                size_selection = vsSpec.tkgWorkloadComponents.tkgWorkloadSize
+                if str(size_selection).lower() == "custom":
+                    control_plane_vcpu = jsonspec['tkgWorkloadComponents'][
+                        'tkgWorkloadCpuSize']
+                    control_plane_disk_gb = jsonspec['tkgWorkloadComponents'][
+                        'tkgWorkloadStorageSize']
+                    control_plane_mem_gb = jsonspec['tkgWorkloadComponents'][
+                        'tkgWorkloadMemorySize']
+                    control_plane_mem_mb = str(int(control_plane_mem_gb) * 1024)
+                try:
+                    osName = str(jsonspec['tkgWorkloadComponents']['tkgWorkloadBaseOs'])
+                    kubeVersion = str(
+                        jsonspec['tkgWorkloadComponents']['tkgWorkloadKubeVersion'])
+                except Exception as e:
+                    raise Exception("Keyword " + str(e) + "  not found in input file")
+        elif env == Env.VCF:
+            if type == ClusterType.SHARED:
+                clustercidr = vsSpec.tkgComponentSpec.tkgSharedserviceSpec.tkgSharedserviceClusterCidr
+                servicecidr = vsSpec.tkgComponentSpec.tkgSharedserviceSpec.tkgSharedserviceServiceCidr
+                size_selection = vsSpec.tkgComponentSpec.tkgSharedserviceSpec.tkgSharedserviceSize
+                if str(size_selection).lower() == "custom":
+                    control_plane_vcpu = jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                        'tkgSharedserviceCpuSize']
+                    control_plane_disk_gb = jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                        'tkgSharedserviceStorageSize']
+                    control_plane_mem_gb = jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                        'tkgSharedserviceMemorySize']
+                    control_plane_mem_mb = str(int(control_plane_mem_gb) * 1024)
+                try:
+                    osName = str(jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                                        'tkgSharedserviceBaseOs'])
+                    kubeVersion = str(jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                                            'tkgSharedserviceKubeVersion'])
+                except Exception as e:
+                    raise Exception("Keyword " + str(e) + "  not found in input file")
+            elif type == ClusterType.WORKLOAD:
+                clustercidr = vsSpec.tkgWorkloadComponents.tkgWorkloadClusterCidr
+                servicecidr = vsSpec.tkgWorkloadComponents.tkgWorkloadServiceCidr
+                size_selection = vsSpec.tkgWorkloadComponents.tkgWorkloadSize
+                if str(size_selection).lower() == "custom":
+                    control_plane_vcpu = jsonspec['tkgWorkloadComponents'][
+                        'tkgWorkloadCpuSize']
+                    control_plane_disk_gb = jsonspec['tkgWorkloadComponents'][
+                        'tkgWorkloadStorageSize']
+                    control_plane_mem_gb = jsonspec['tkgWorkloadComponents'][
+                        'tkgWorkloadMemorySize']
+                    control_plane_mem_mb = str(int(control_plane_mem_gb) * 1024)
+                try:
+                    osName = str(jsonspec['tkgWorkloadComponents']['tkgWorkloadBaseOs'])
+                    kubeVersion = str(
+                        jsonspec['tkgWorkloadComponents']['tkgWorkloadKubeVersion'])
+                except Exception as e:
+                    raise Exception("Keyword " + str(e) + "  not found in input file")
+        
     except Exception:
         logger.error("Error in yaml parsing for cluster creation")
         logger.error(traceback.format_exc())
@@ -967,13 +1035,13 @@ def template14deployYaml(cluster_name, clusterPlan, datacenter, dataStorePath,
 def deployCluster(cluster_name, clusterPlan, datacenter, dataStorePath,
                   folderPath, mgmt_network, vspherePassword, sharedClusterResourcePool,
                   vsphereServer, sshKey, vsphereUseName, machineCount, size, typen, vsSpec,
-                  jsonspec):
+                  jsonspec, env):
     try:
         if not getClusterStatusOnTanzu(cluster_name, "cluster"):
             template14deployYaml(cluster_name, clusterPlan, datacenter, dataStorePath,
                                  folderPath, mgmt_network, vspherePassword,
                                  sharedClusterResourcePool, vsphereServer, sshKey, vsphereUseName,
-                                 machineCount, size, typen, vsSpec, jsonspec)
+                                 machineCount, size, typen, vsSpec, jsonspec, env)
             logger.info("Deploying " + cluster_name + "cluster")
             os.putenv("DEPLOY_TKG_ON_VSPHERE7", "true")
             logger.info("---------- yaml---------")

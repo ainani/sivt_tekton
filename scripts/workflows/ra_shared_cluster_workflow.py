@@ -384,7 +384,7 @@ class RaSharedClusterWorkflow:
                     'tkgSharedserviceServiceCidr']
         if refToken:
             logger.info("Kubernetes OVA configs for shared services cluster")
-            down_status = downloadAndPushKubernetesOvaMarketPlace(self.env, kubernetes_ova_version, kubernetes_ova_os)
+            down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec, kubernetes_ova_version, kubernetes_ova_os)
             if down_status[0] is None:
                 logger.error(down_status[1])
                 d = {
@@ -752,7 +752,7 @@ class RaSharedClusterWorkflow:
                                       shared_network_path,
                                       vsphere_password, shared_resource_path, vcenter_ip,
                                       ssh_key, vcenter_username, machineCount, size,
-                                      ClusterType.SHARED, vsSpec, self.jsonspec)
+                                      ClusterType.SHARED, vsSpec, self.jsonspec, self.env)
 
 
                     if deploy_status[0] is None:
@@ -1000,7 +1000,7 @@ class RaSharedClusterWorkflow:
                 return json.dumps(d), 500
         elif checkTmcEnabled(self.jsonspec, self.env) and Tkg_version.TKG_VERSION == "1.5":
             logger.info("Cluster is already deployed via TMC")
-            if checkDataProtectionEnabled(self.jsonspec, "shared", isEnvTkgs_ns):
+            if checkDataProtectionEnabled(self.jsonspec, "shared", self.isEnvTkgs_ns):
                 is_enabled = enable_data_protection(self.jsonspec, shared_cluster_name, management_cluster, isEnvTkgs_ns)
                 if not is_enabled[0]:
                     logger.error(is_enabled[1])
