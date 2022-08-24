@@ -29,8 +29,9 @@ from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, getCloudS
     getLibraryId, getBodyResourceSpec, cidr_to_netmask, getCountOfIpAdress, seperateNetmaskAndIp, configureKubectl, \
     createClusterFolder, supervisorTMC, checkTmcEnabled, get_alias_name, convertStringToCommaSeperated, \
     checkClusterVersionCompatibility, checkToEnabled, checkTSMEnabled, checkDataProtectionEnabled, \
-    enable_data_protection, checkEnableIdentityManagement, checkPinnipedInstalled, createRbacUsers
+    enable_data_protection, checkEnableIdentityManagement, checkPinnipedInstalled
 from util.nsxt_helper import createNsxtSegment, getNetworkIp
+from util.oidc_helper import createRbacUsers
 from util.ShellHelper import runShellCommandAndReturnOutput
 from util.avi_api_helper import isAviHaEnabled, obtain_second_csrf
 from workflows.ra_mgmt_cluster_workflow import RaMgmtClusterWorkflow
@@ -241,27 +242,14 @@ class RaWorkloadClusterWorkflow:
             'tkgWorkloadDataNetworkName']
         if self.env == Env.VCF:
             try:
-                gatewayAddress = self.jsonspec['tkgWorkloadDataNetwork'][
-                    'tkgWorkloadDataNetworkGatewayCidr']
-                dnsServers = self.jsonspec['envSpec']['infraComponents']['dnsServersIp']
-                network = getNetworkIp(gatewayAddress)
-                shared_segment = createNsxtSegment(workload_network_name, gatewayAddress,
-                                               None,
-                                               None, dnsServers, network, False,
-                                               self.jsonspec)
-                if shared_segment[1] != 200:
-                    logger.error("Failed to create shared segments" + str(shared_segment[0]["msg"]))
-                    d = {
-                        "responseType": "ERROR",
-                        "msg": "Failed to create shared segments" + str(shared_segment[0]["msg"]),
-                        "ERROR_CODE": 500
-                    }
-                    return json.dumps(d), 500
+                configureNsxt = RaNSXTWorkflow(self.run_config).configureWorkloadNsxtConfig()
+                configureNsxt = json.loads(configureNsxt[0]), configureNsxt[1]
+                return configureNsxt[0], configureNsxt[1]
             except Exception as e:
-                logger.error("Failed to configure vcf workload " + str(e))
+                logger.error("Failed to configure vcf " + str(e))
                 d = {
                     "responseType": "ERROR",
-                    "msg": "Failed to configure vcf workload " + str(e),
+                    "msg": "Failed to configure vcf " + str(e),
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500

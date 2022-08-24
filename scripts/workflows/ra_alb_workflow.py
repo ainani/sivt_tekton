@@ -139,10 +139,10 @@ class RALBWorkflow:
         if self.env == Env.VCF:
             avi_vcf_pre_config = self.avi_vcf_pre_config()
             if avi_vcf_pre_config[1] != 200:
-                logger.error(avi_vcf_pre_config[0]['msg'])
+                logger.error(avi_vcf_pre_config[0])
                 d = {
                 "responseType": "ERROR",  
-                "msg": "Failed to configure VCF" + str(avi_vcf_pre_config[0]['msg']),
+                "msg": "Failed to configure VCF",
                 "ERROR_CODE": 500
                 }
                 raise Exception
@@ -345,7 +345,8 @@ class RALBWorkflow:
     def avi_vcf_pre_config(self):
         if self.env == Env.VCF:
             try:
-                RaNSXTWorkflow(self.run_config).configureAviNsxtConfig()
+                configureNsxt = RaNSXTWorkflow(self.run_config).configureAviNsxtConfig()
+                return configureNsxt[0], configureNsxt[1]
             except Exception as e:
                 logger.error("Failed to configure vcf " + str(e))
                 d = {
@@ -354,11 +355,4 @@ class RALBWorkflow:
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
-        logger.info("VCF pre configuration successful.")
-        d = {
-            "responseType": "ERROR",
-            "msg": "VCF pre configuration successful.",
-            "ERROR_CODE": 200
-        }
-        return json.dumps(d), 200
 

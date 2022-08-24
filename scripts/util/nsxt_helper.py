@@ -76,7 +76,7 @@ def createNsxtSegment(segementName, gatewayAddress, dhcpStart, dhcpEnd, dnsServe
                 "msg": "Failed to nsxt info " + str(headers_[1]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         uri = "https://" + headers_[2] + "/policy/api/v1/infra/segments"
         output = getList(headers_[1], uri)
         if output[1] != 200:
@@ -85,7 +85,7 @@ def createNsxtSegment(segementName, gatewayAddress, dhcpStart, dhcpEnd, dnsServe
                 "msg": "Failed to get list of segments " + str(output[0]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         overlay = str(jsonspec['envSpec']['vcenterDetails']["nsxtOverlay"])
         ntp_servers = str(jsonspec['envSpec']['infraComponents']["ntpServers"])
         trz = getTransportZone(headers_[2], overlay, headers_[1])
@@ -95,7 +95,7 @@ def createNsxtSegment(segementName, gatewayAddress, dhcpStart, dhcpEnd, dnsServe
                 "msg": "Failed to get transport zone id " + str(trz[1]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         tier_path = getTier1Details(headers_, jsonspec)
         if tier_path[0] is None:
             d = {
@@ -103,7 +103,7 @@ def createNsxtSegment(segementName, gatewayAddress, dhcpStart, dhcpEnd, dnsServe
                 "msg": "Failed to get Tier1 details " + str(tier_path[1]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         if not checkObjectIsPresentAndReturnPath(output[0], segementName)[0]:
             logger.info("Creating segment " + segementName)
             url = "https://" + headers_[2] + "/policy/api/v1/infra/segments/" + segementName
@@ -172,7 +172,7 @@ def createNsxtSegment(segementName, gatewayAddress, dhcpStart, dhcpEnd, dnsServe
                     "ERROR_CODE": dhcp_create.status_code
                 }
                 logger.error(dhcp_create.text)
-                return json.dumps(d), dhcp_create.status_code
+                return  d, dhcp_create.status_code
             msg_text = "Created " + segementName
             logger.info(msg_text)
             logger.info("Waiting for 1 min for status == ready")
@@ -185,7 +185,7 @@ def createNsxtSegment(segementName, gatewayAddress, dhcpStart, dhcpEnd, dnsServe
             "msg": msg_text,
             "ERROR_CODE": 200
         }
-        return json.dumps(d), 200
+        return  d, 200
 
     except Exception as e:
         logger.error("Failed to create Nsxt segment " + str(e))
@@ -194,7 +194,7 @@ def createNsxtSegment(segementName, gatewayAddress, dhcpStart, dhcpEnd, dnsServe
             "msg": "Failed to create Nsxt segment " + str(e),
             "ERROR_CODE": 500
         }
-        return json.dumps(d), 500
+        return  d, 500
 
 
 def grabNsxtHeaders(jsonspec):
@@ -226,7 +226,7 @@ def createVcfDhcpServer(jsonspec):
                 "msg": "Failed to nsxt info " + str(headers_[1]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         uri = "https://" + headers_[2] + "/policy/api/v1/infra/dhcp-server-configs"
         output = getList(headers_[1], uri)
         if output[1] != 200:
@@ -236,7 +236,7 @@ def createVcfDhcpServer(jsonspec):
                 "msg": "Failed to get DHCP info on NSXT " + str(output[0]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         tier_path = getTier1Details(headers_, jsonspec)
         if tier_path[0] is None:
             d = {
@@ -244,7 +244,7 @@ def createVcfDhcpServer(jsonspec):
                 "msg": "Failed to get Tier1 details " + str(tier_path[1]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         url = "https://" + headers_[2] + "/policy/api/v1" + str(tier_path[0])
         dhcp_state = requests.request("GET", url,
                                       headers=headers_[1],
@@ -256,7 +256,7 @@ def createVcfDhcpServer(jsonspec):
                 "ERROR_CODE": dhcp_state.status_code
             }
             logger.error(dhcp_state.text)
-            return json.dumps(d), dhcp_state.status_code
+            return  d, dhcp_state.status_code
         dhcp_present = False
         try:
             length = len(dhcp_state.json()["dhcp_config_paths"])
@@ -286,7 +286,7 @@ def createVcfDhcpServer(jsonspec):
                         "ERROR_CODE": dhcp_create.status_code
                     }
                     logger.error(dhcp_create.text)
-                    return json.dumps(d), dhcp_create.status_code
+                    return  d, dhcp_create.status_code
                 msg_text = "Created DHCP server " + VCF.DHCP_SERVER_NAME
                 logger.info(msg_text)
             else:
@@ -299,7 +299,7 @@ def createVcfDhcpServer(jsonspec):
             "msg": msg_text,
             "ERROR_CODE": 200
         }
-        return json.dumps(d), 200
+        return  d, 200
     except Exception as e:
         logger.error("Failed to create Dhcp server " + str(e))
         d = {
@@ -307,7 +307,7 @@ def createVcfDhcpServer(jsonspec):
             "msg": "Failed to create Dhcp server " + str(e),
             "ERROR_CODE": 500
         }
-        return json.dumps(d), 500
+        return  d, 500
 
 
 def getPolicy(headers, policyName):
@@ -377,7 +377,7 @@ def createGroup(groupName, segmentName, isIp, ipaddresses, jsonspec):
                 "msg": "Failed to nsxt info " + str(headers_[1]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         domainName = getDomainName(headers_, "default")
         if domainName[0] is None:
             d = {
@@ -385,7 +385,7 @@ def createGroup(groupName, segmentName, isIp, ipaddresses, jsonspec):
                 "msg": "Failed to get domain name " + str(domainName[1]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         uri = "https://" + headers_[2] + "/policy/api/v1/infra/domains/" + domainName[0] + "/groups"
         output = getList(headers_[1], uri)
         if output[1] != 200:
@@ -394,7 +394,7 @@ def createGroup(groupName, segmentName, isIp, ipaddresses, jsonspec):
                 "msg": "Failed to get list of domain " + str(output[0]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         if segmentName is not None:
             uri_ = "https://" + headers_[2] + "/policy/api/v1/infra/segments"
             seg_output = getList(headers_[1], uri_)
@@ -404,7 +404,7 @@ def createGroup(groupName, segmentName, isIp, ipaddresses, jsonspec):
                     "msg": "Failed to get list of segments " + str(seg_output[0]),
                     "ERROR_CODE": 500
                 }
-                return json.dumps(d), 500
+                return  d, 500
             seg_obj = checkObjectIsPresentAndReturnPath(seg_output[0], segmentName)
             if not seg_obj[0]:
                 d = {
@@ -412,7 +412,7 @@ def createGroup(groupName, segmentName, isIp, ipaddresses, jsonspec):
                     "msg": "Failed to find the segment " + segmentName,
                     "ERROR_CODE": 500
                 }
-                return json.dumps(d), 500
+                return  d, 500
         url = "https://" + headers_[2] + "/policy/api/v1/infra/domains/" + domainName[0] + "/groups/" + groupName
         headers_[1].update({"Content-Type": "application/json", "Accept": "application/json"})
         isPresent = False
@@ -522,7 +522,7 @@ def createGroup(groupName, segmentName, isIp, ipaddresses, jsonspec):
                     "ERROR_CODE": dhcp_create.status_code
                 }
                 logger.error(dhcp_create.text)
-                return json.dumps(d), dhcp_create.status_code
+                return  d, dhcp_create.status_code
             msg_text = "Created group " + groupName
             path = dhcp_create.json()["path"]
         else:
@@ -535,14 +535,14 @@ def createGroup(groupName, segmentName, isIp, ipaddresses, jsonspec):
             "path": path,
             "ERROR_CODE": 200
         }
-        return json.dumps(d), 200
+        return  d, 200
     except Exception as e:
         d = {
             "responseType": "ERROR",
             "msg": "Failed to create group " + groupName + " " + str(e),
             "ERROR_CODE": 500
         }
-        return json.dumps(d), 500
+        return  d, 500
 
 
 def isServiceCreated(header, serviceName):
@@ -565,7 +565,7 @@ def createVipService(serviceName, port, jsonspec):
             "msg": "Failed to nsxt info " + str(headers_[1]),
             "ERROR_CODE": 500
         }
-        return json.dumps(d), 500
+        return  d, 500
     service = isServiceCreated(headers_, serviceName)
     if service[0] is None:
         if service[1] != "NOT_FOUND":
@@ -574,7 +574,7 @@ def createVipService(serviceName, port, jsonspec):
                 "msg": "Failed to get service info " + str(service[1]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         else:
             url = "https://" + headers_[2] + "/policy/api/v1/infra/services/" + serviceName
             headers_[1].update({"Content-Type": "application/json", "Accept": "application/json"})
@@ -599,7 +599,7 @@ def createVipService(serviceName, port, jsonspec):
                     "msg": "Failed to create service " + str(response.text),
                     "ERROR_CODE": 500
                 }
-                return json.dumps(d), 500
+                return  d, 500
         message = "Service created successfully"
     else:
         message = "Service is already created " + service[0]
@@ -609,7 +609,7 @@ def createVipService(serviceName, port, jsonspec):
         "msg": message,
         "ERROR_CODE": 200
     }
-    return json.dumps(d), 200
+    return  d, 200
 
 def getListOfFirewallRule(headers, policyName):
     url = "https://" + headers[2] + "/policy/api/v1/infra/domains/default/gateway-policies/" + policyName + "/rules"
@@ -628,7 +628,7 @@ def createFirewallRule(policyName, ruleName, rulePayLoad, jsonspec):
             "msg": "Failed to nsxt info " + str(headers_[1]),
             "ERROR_CODE": 500
         }
-        return json.dumps(d), 500
+        return  d, 500
     policy = getPolicy(headers_, policyName)
     if policy[0] is None:
         if policy[1] != "NOT_FOUND":
@@ -637,7 +637,7 @@ def createFirewallRule(policyName, ruleName, rulePayLoad, jsonspec):
                 "msg": "Failed to get policy " + str(policy[1]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         else:
             logger.info("Creating policy " + policyName)
             tier_path = getTier1Details(headers_, jsonspec)
@@ -647,7 +647,7 @@ def createFirewallRule(policyName, ruleName, rulePayLoad, jsonspec):
                     "msg": "Failed to get Tier1 details " + str(tier_path[1]),
                     "ERROR_CODE": 500
                 }
-                return json.dumps(d), 500
+                return  d, 500
             url = "https://" + headers_[2] + "/policy/api/v1/infra"
             payload = {
                 "resource_type": "Infra",
@@ -721,7 +721,7 @@ def createFirewallRule(policyName, ruleName, rulePayLoad, jsonspec):
                     "msg": "Failed to create policy " + str(response.text),
                     "ERROR_CODE": 500
                 }
-                return json.dumps(d), 500
+                return  d, 500
     else:
         logger.info(policyName + " policy is already created")
     list_fw = getListOfFirewallRule(headers_, policyName)
@@ -731,7 +731,7 @@ def createFirewallRule(policyName, ruleName, rulePayLoad, jsonspec):
             "msg": "Failed to get list of firewalls " + str(list_fw[1]),
             "ERROR_CODE": 500
         }
-        return json.dumps(d), 500
+        return  d, 500
     if not checkObjectIsPresentAndReturnPath(list_fw[0], ruleName)[0]:
         logger.info("Creating firewall rule " + ruleName)
         rule_payload_modified = json.dumps(rulePayLoad, indent=4)
@@ -746,7 +746,7 @@ def createFirewallRule(policyName, ruleName, rulePayLoad, jsonspec):
                 "msg": "Failed to create rule " + str(response.text),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         msg_text = ruleName + " rule created successfully"
     else:
         msg_text = ruleName + " rule is already created"
@@ -756,7 +756,7 @@ def createFirewallRule(policyName, ruleName, rulePayLoad, jsonspec):
         "msg": msg_text,
         "ERROR_CODE": 200
     }
-    return json.dumps(d), 200
+    return  d, 200
 
 def is_ipv4(string):
     try:
@@ -820,7 +820,7 @@ def updateDefaultRule(policyName, jsonspec):
                 "msg": "Failed to nsxt info " + str(headers_[1]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         list_fw = getListOfFirewallRule(headers_, policyName)
         if list_fw[0] is None:
             d = {
@@ -828,7 +828,7 @@ def updateDefaultRule(policyName, jsonspec):
                 "msg": "Failed to get list of firewalls " + str(list_fw[1]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         sequence = None
         for rule in list_fw[0]:
             if rule["display_name"] == "default_rule":
@@ -840,7 +840,7 @@ def updateDefaultRule(policyName, jsonspec):
                 "msg": "Failed to get sequnece number of default rule ",
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         tier_path = getTier1Details(headers_, jsonspec)
         if tier_path[0] is None:
             d = {
@@ -848,7 +848,7 @@ def updateDefaultRule(policyName, jsonspec):
                 "msg": "Failed to get Tier1 details " + str(tier_path[1]),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         url = "https://" + headers_[
             2] + "/policy/api/v1/infra/domains/default/gateway-policies/" + policyName + "/rules/default_rule"
         payload = {
@@ -878,17 +878,17 @@ def updateDefaultRule(policyName, jsonspec):
                 "msg": "Failed to create policy " + str(response.text),
                 "ERROR_CODE": 500
             }
-            return json.dumps(d), 500
+            return  d, 500
         d = {
             "responseType": "SUCCESS",
             "msg": "Successfully updated default rule",
             "ERROR_CODE": 200
         }
-        return json.dumps(d), 200
+        return  d, 200
     except Exception as e:
         d = {
             "responseType": "ERROR",
             "msg": "Failed to update default rule " + str(e),
             "ERROR_CODE": 500
         }
-        return json.dumps(d), 500
+        return  d, 500

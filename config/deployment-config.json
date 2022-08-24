@@ -129,7 +129,7 @@
             }
         },
         "tkgMgmtComponents": {
-            "tkgMgmtNetworkName": "TkG-Management-LS",
+            "tkgMgmtNetworkName": "tkgm-management-segment",
             "tkgMgmtGatewayCidr": "172.16.40.1/24",
             "tkgMgmtClusterName": "tkgm-nsxt-mgmt",
             "tkgMgmtSize": "medium",
