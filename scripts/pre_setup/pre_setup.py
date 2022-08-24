@@ -15,6 +15,7 @@ from util.common_utils import checkenv
 from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
 from util.common_utils import getClusterStatusOnTanzu
+from util.ShellHelper import runShellCommandAndReturnOutput
 
 logger = LoggerHelper.get_logger(name='Pre Setup')
 
@@ -42,6 +43,7 @@ class PreSetup:
                   "incorrect spec provided."
             raise Exception(msg)
         self.govc_client = GovcClient(self.jsonspec, LocalCmdHelper())
+        self.kube_config = os.path.join(self.run_config.root_dir, Paths.REPO_KUBE_TKG_CONFIG)
         self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
         self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
         self.get_vcenter_details()
@@ -138,11 +140,17 @@ class PreSetup:
                               "health": "DOWN",
                               "name": mgmt_cluster_name}}
         msg = "MGMT_CLUSTER_NOT_DEPLOYED"
-
-        # Verify MGMT deployed
-        mgmt_status_dict = getClusterStatusOnTanzu(management_cluster=mgmt_cluster_name, typen="management",
+        # login to Tanzu
+        tanzu_login_cmd = ["tanzu login --kubeconfig", self.kube_config, "--server", mgmt_cluster_name]
+        out = runShellCommandAndReturnOutput(tanzu_login_cmd)
+        if f"successfully logged in to management cluster using the kubeconfig {mgmt_cluster_name}" in out[0]:
+            mgmt_status_dict = getClusterStatusOnTanzu(management_cluster=mgmt_cluster_name, typen="management",
                                               return_dict=True)
-        logger.debug(mgmt_status_dict)
+            logger.debug(mgmt_status_dict)
+            import time; time.sleep(300)
+        else:
+            logger.error(f"Failed to login Tanzu, Either MGMT cluster is not deployed OR Tanzu login failed")
+            return state_dict
         if mgmt_status_dict["deployed"]:
             state_dict["mgmt"]["deployed"] = True
             msg = "MGMT_CLUSTER_DEPLOYED"
