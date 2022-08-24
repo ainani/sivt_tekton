@@ -73,13 +73,13 @@ def envCheck(runConfig):
         return "NO_ENV", 400
     if env is None:
         return "NO_ENV", 400
-    elif env == Env.VSPHERE & tkgType == Env.TKGM:
+    elif env == Env.VSPHERE and tkgType == Env.TKGM:
         pass
-    elif env == Env.VSPHERE & tkgType == Env.TKGS:
+    elif env == Env.VSPHERE and tkgType == Env.TKGS:
         pass
-    elif env == Env.VCF & tkgType == Env.TKGM:
+    elif env == Env.VCF and tkgType == Env.TKGM:
         pass
-    elif env == Env.VCF & tkgType == Env.TKGS:
+    elif env == Env.VCF and tkgType == Env.TKGS:
         return "TKGs on VCF not supported"
     else:
         return "WRONG_ENV", 500
