@@ -141,7 +141,7 @@ class PreSetup:
                               "name": mgmt_cluster_name}}
         msg = "MGMT_CLUSTER_NOT_DEPLOYED"
         # login to Tanzu
-        tanzu_login_cmd = ["tanzu login --kubeconfig", self.kube_config, "--server", mgmt_cluster_name]
+        tanzu_login_cmd = ["tanzu", "login", "--kubeconfig", self.kube_config, "--server", mgmt_cluster_name]
         out = runShellCommandAndReturnOutput(tanzu_login_cmd)
         if f"successfully logged in to management cluster using the kubeconfig {mgmt_cluster_name}" in out[0]:
             mgmt_status_dict = getClusterStatusOnTanzu(management_cluster=mgmt_cluster_name, typen="management",
