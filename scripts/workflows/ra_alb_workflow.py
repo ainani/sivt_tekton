@@ -25,7 +25,7 @@ from util.vcenter_operations import checkforIpAddress, getSi
 from util.common_utils import checkenv, createResourceFolderAndWait, envCheck
 from util.vcenter_operations import create_folder, createResourcePool
 from util.tkg_util import TkgUtil
-from ra_nsxt_workflow import RaNSXTWorkflow
+from workflows.ra_nsxt_workflow import RaNSXTWorkflow
 
 logger = LoggerHelper.get_logger(name='alb_workflow')
 
