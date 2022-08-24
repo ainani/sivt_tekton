@@ -13,7 +13,6 @@ from constants.constants import Paths, AlbPrefix, AlbCloudType, ComponentPrefix,
     AlbVrfContext, ControllerLocation, CertName, ResourcePoolAndFolderName, Avi_Version, Avi_Tkgs_Version, Env
 from model.run_config import RunConfig
 from model.status import HealthEnum, Info, State
-from scripts.workflows.ra_nsxt_workflow import RaAviNsxtConfig
 from util.avi_api_helper import AviApiSpec, ra_avi_download, isAviHaEnabled, \
     deployAndConfigureAvi, form_avi_ha_cluster, manage_avi_certificates
 from util.cmd_helper import CmdHelper, timer
