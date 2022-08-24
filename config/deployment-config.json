@@ -16,6 +16,7 @@
             "nsxtTier1RouterDisplayName": "tkgm-t1",
             "nsxtOverlay": "tkgm-overlay-tz"
         },
+        "envType":"tkgm",
         "marketplaceSpec": {
             "refreshToken": "e91VJD4igeT95-L71jY5MMVDSuJFvBJLRIo1ii6PfE2QXVMHXQyT3e2l8nBe7Bso"
         },
