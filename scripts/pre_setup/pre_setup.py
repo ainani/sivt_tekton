@@ -15,7 +15,7 @@ from util.common_utils import checkenv
 from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
 from util.common_utils import getClusterStatusOnTanzu
-from util.ShellHelper import runShellCommandAndReturnOutput
+from util.ShellHelper import runShellCommandAndReturnOutputAsList
 
 logger = LoggerHelper.get_logger(name='Pre Setup')
 
@@ -142,9 +142,9 @@ class PreSetup:
         msg = "MGMT_CLUSTER_NOT_DEPLOYED"
         # login to Tanzu
         tanzu_login_cmd = ["tanzu", "login", "--kubeconfig", self.kube_config, "--server", mgmt_cluster_name]
-        out = runShellCommandAndReturnOutput(tanzu_login_cmd)
+        out = runShellCommandAndReturnOutputAsList(tanzu_login_cmd)
         logger.info(out)
-        out1 = runShellCommandAndReturnOutput(["cat", self.kube_config])
+        out1 = runShellCommandAndReturnOutputAsList(["cat", self.kube_config])
         logger.info(out1)
         import time
         time.sleep(300)
