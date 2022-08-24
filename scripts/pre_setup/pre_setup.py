@@ -143,14 +143,18 @@ class PreSetup:
         # login to Tanzu
         tanzu_login_cmd = ["tanzu", "login", "--kubeconfig", self.kube_config, "--server", mgmt_cluster_name]
         out = runShellCommandAndReturnOutput(tanzu_login_cmd)
+        logger.info(out)
+        out1 = runShellCommandAndReturnOutput(["cat", self.kube_config])
+        logger.info(out1)
+        import time
+        time.sleep(300)
         if f"successfully logged in to management cluster using the kubeconfig {mgmt_cluster_name}" in out[0]:
             mgmt_status_dict = getClusterStatusOnTanzu(management_cluster=mgmt_cluster_name, typen="management",
                                               return_dict=True)
             logger.debug(mgmt_status_dict)
-            import time; time.sleep(300)
         else:
             logger.error(f"Failed to login Tanzu, Either MGMT cluster is not deployed OR Tanzu login failed")
-            return state_dict
+            return state_dict, msg
         if mgmt_status_dict["deployed"]:
             state_dict["mgmt"]["deployed"] = True
             msg = "MGMT_CLUSTER_DEPLOYED"
