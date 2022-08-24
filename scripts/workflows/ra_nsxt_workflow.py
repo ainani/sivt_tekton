@@ -53,19 +53,19 @@ class RaNSXTWorkflow:
                                         dhcpStart,
                                         dhcpEnd, dnsServers, network, True, self.jsonspec)
         if shared_segment[1] != 200:
-            logger.error("Failed to create shared segments" + str(shared_segment[0].json["msg"]))
+            logger.error("Failed to create shared segments" + str(shared_segment[0]["msg"]))
             d = {
                 "responseType": "ERROR",
-                "msg": "Failed to create shared segments" + str(shared_segment[0].json["msg"]),
+                "msg": "Failed to create shared segments" + str(shared_segment[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
         dhcp = createVcfDhcpServer(self.jsonspec)
         if dhcp[1] != 200:
-            logger.error("Failed to create dhcp server " + str(dhcp[0].json["msg"]))
+            logger.error("Failed to create dhcp server " + str(dhcp[0]["msg"]))
             d = {
                 "responseType": "ERROR",
-                "msg": "Failed to create dhcp server " + str(dhcp[0].json["msg"]),
+                "msg": "Failed to create dhcp server " + str(dhcp[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -81,10 +81,10 @@ class RaNSXTWorkflow:
                                     self.jsonspec)
         if segment[1] != 200:
             logger.error(
-                "Failed to create  segments " + cluster_wip + " " + str(segment[0].json["msg"]))
+                "Failed to create  segments " + cluster_wip + " " + str(segment[0]["msg"]))
             d = {
                 "responseType": "ERROR",
-                "msg": "Failed to create shared segment " + cluster_wip + " " + str(segment[0].json["msg"]),
+                "msg": "Failed to create shared segment " + cluster_wip + " " + str(segment[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -97,10 +97,10 @@ class RaNSXTWorkflow:
                                     dhcpEnd, dnsServers, network, False,
                                     self.jsonspec)
         if segment[1] != 200:
-            logger.error("Failed to create  segments " + mgmt_data + " " + str(segment[0].json["msg"]))
+            logger.error("Failed to create  segments " + mgmt_data + " " + str(segment[0]["msg"]))
             d = {
                 "responseType": "ERROR",
-                "msg": "Failed to create shared segment " + mgmt_data + " " + str(segment[0].json["msg"]),
+                "msg": "Failed to create shared segment " + mgmt_data + " " + str(segment[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -114,10 +114,10 @@ class RaNSXTWorkflow:
                                     dhcpEnd, dnsServers, network, False,
                                     self.jsonspec)
         if segment[1] != 200:
-            logger.error("Failed to create  segments " + avi_mgmt + " " + str(segment[0].json["msg"]))
+            logger.error("Failed to create  segments " + avi_mgmt + " " + str(segment[0]["msg"]))
             d = {
                 "responseType": "ERROR",
-                "msg": "Failed to create shared segment " + avi_mgmt + " " + str(segment[0].json["msg"]),
+                "msg": "Failed to create shared segment " + avi_mgmt + " " + str(segment[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -135,11 +135,11 @@ class RaNSXTWorkflow:
         if arcas_group[1] != 200:
             logger.error(
                 "Failed to create  group " + VCF.ARCAS_GROUP + " " + str(
-                    arcas_group[0].json["msg"]))
+                    arcas_group[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create group " + VCF.ARCAS_GROUP + " " + str(
-                    arcas_group[0].json["msg"]),
+                    arcas_group[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -147,11 +147,11 @@ class RaNSXTWorkflow:
         if arcas_svc[1] != 200:
             logger.error(
                 "Failed to create service " + ServiceName.ARCAS_SVC + " " + str(
-                    arcas_svc[0].json["msg"]))
+                    arcas_svc[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create service " + ServiceName.ARCAS_SVC + " " + str(
-                    arcas_svc[0].json["msg"]),
+                    arcas_svc[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -159,11 +159,11 @@ class RaNSXTWorkflow:
         if arcas_svc[1] != 200:
             logger.error(
                 "Failed to create service " + ServiceName.ARCAS_BACKEND_SVC + " " + str(
-                    arcas_svc[0].json["msg"]))
+                    arcas_svc[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create service " + ServiceName.ARCAS_BACKEND_SVC + " " + str(
-                    arcas_svc[0].json["msg"]),
+                    arcas_svc[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -172,11 +172,11 @@ class RaNSXTWorkflow:
         if avi_mgmt_group[1] != 200:
             logger.error(
                 "Failed to create  group " + GroupNameCgw.DISPLAY_NAME_VCF_AVI_Management_Network_Group_CGW + " " + str(
-                    avi_mgmt_group[0].json["msg"]))
+                    avi_mgmt_group[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_AVI_Management_Network_Group_CGW + " " + str(
-                    avi_mgmt_group[0].json["msg"]),
+                    avi_mgmt_group[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -186,11 +186,11 @@ class RaNSXTWorkflow:
         if cluster_vip_group[1] != 200:
             logger.error(
                 "Failed to create  group " + GroupNameCgw.DISPLAY_NAME_VCF_CLUSTER_VIP_NETWORK_Group_CGW + " " + str(
-                    cluster_vip_group[0].json["msg"]))
+                    cluster_vip_group[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create  group " + GroupNameCgw.DISPLAY_NAME_VCF_CLUSTER_VIP_NETWORK_Group_CGW + " " + str(
-                    cluster_vip_group[0].json["msg"]),
+                    cluster_vip_group[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -200,11 +200,11 @@ class RaNSXTWorkflow:
         if shared_service_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_TKG_SharedService_Group_CGW + " " + str(
-                    shared_service_group[0].json["msg"]))
+                    shared_service_group[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create  group " + GroupNameCgw.DISPLAY_NAME_VCF_TKG_SharedService_Group_CGW + " " + str(
-                    shared_service_group[0].json["msg"]),
+                    shared_service_group[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -214,11 +214,11 @@ class RaNSXTWorkflow:
         if mgmt_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_TKG_Management_Network_Group_CGW + " " + str(
-                    mgmt_group[0].json["msg"]))
+                    mgmt_group[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_TKG_Management_Network_Group_CGW + " " + str(
-                    mgmt_group[0].json["msg"]),
+                    mgmt_group[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -229,11 +229,11 @@ class RaNSXTWorkflow:
         if dns_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_DNS_IPs_Group + " " + str(
-                    dns_group[0].json["msg"]))
+                    dns_group[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_DNS_IPs_Group + " " + str(
-                    dns_group[0].json["msg"]),
+                    dns_group[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -244,11 +244,11 @@ class RaNSXTWorkflow:
         if ntp_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_NTP_IPs_Group + " " + str(
-                    ntp_group[0].json["msg"]))
+                    ntp_group[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_NTP_IPs_Group + " " + str(
-                    ntp_group[0].json["msg"]),
+                    ntp_group[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -269,11 +269,11 @@ class RaNSXTWorkflow:
         if vc_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_vCenter_IP_Group + " " + str(
-                    vc_group[0].json["msg"]))
+                    vc_group[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_vCenter_IP_Group + " " + str(
-                    vc_group[0].json["msg"]),
+                    vc_group[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -293,11 +293,11 @@ class RaNSXTWorkflow:
         if esx_group[1] != 200:
             logger.error(
                 "Failed to create group " + VCF.ESXI_GROUP + " " + str(
-                    esx_group[0].json["msg"]))
+                    esx_group[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create group " + VCF.ESXI_GROUP + " " + str(
-                    esx_group[0].json["msg"]),
+                    esx_group[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -331,11 +331,11 @@ class RaNSXTWorkflow:
         if arcas_fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_ARCAS_UI + " " + str(
-                    arcas_fw[0].json["msg"]))
+                    arcas_fw[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_ARCAS_UI + " " + str(
-                    arcas_fw[0].json["msg"]),
+                    arcas_fw[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -354,11 +354,11 @@ class RaNSXTWorkflow:
         if arcas_fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_ARCAS_BACKEND + " " + str(
-                    arcas_fw[0].json["msg"]))
+                    arcas_fw[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create firewall " + GroupNameCgw.DISPLAY_NAME_VCF_ARCAS_BACKEND + " " + str(
-                    arcas_fw[0].json["msg"]),
+                    arcas_fw[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -378,11 +378,11 @@ class RaNSXTWorkflow:
         if fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_DNS + " " + str(
-                    fw[0].json["msg"]))
+                    fw[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create firewall " + GroupNameCgw.DISPLAY_NAME_VCF_TKG_and_AVI_DNS + " " + str(
-                    fw[0].json["msg"]),
+                    fw[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -403,11 +403,11 @@ class RaNSXTWorkflow:
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_NTP + " " + str(
-                    fw_vip[0].json["msg"]))
+                    fw_vip[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_NTP + " " + str(
-                    fw_vip[0].json["msg"]),
+                    fw_vip[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -428,11 +428,11 @@ class RaNSXTWorkflow:
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_vCenter + " " + str(
-                    fw_vip[0].json["msg"]))
+                    fw_vip[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_vCenter + " " + str(
-                    fw_vip[0].json["msg"]),
+                    fw_vip[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -452,11 +452,11 @@ class RaNSXTWorkflow:
         if fw_esx[1] != 200:
             logger.error(
                 "Failed to create firewall " + VCF.ESXI_FW + " " + str(
-                    fw_esx[0].json["msg"]))
+                    fw_esx[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create firewall " + VCF.ESXI_FW + " " + str(
-                    fw_esx[0].json["msg"]),
+                    fw_esx[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -475,11 +475,11 @@ class RaNSXTWorkflow:
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_Internet + " " + str(
-                    fw_vip[0].json["msg"]))
+                    fw_vip[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_Internet + " " + str(
-                    fw_vip[0].json["msg"]),
+                    fw_vip[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -500,11 +500,11 @@ class RaNSXTWorkflow:
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_TKGtoAVIMgmt + " " + str(
-                    fw_vip[0].json["msg"]))
+                    fw_vip[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_TKGtoAVIMgmt + " " + str(
-                    fw_vip[0].json["msg"]),
+                    fw_vip[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -512,11 +512,11 @@ class RaNSXTWorkflow:
         if vip[1] != 200:
             logger.error(
                 "Failed to create service " + ServiceName.KUBE_VIP_VCF_SERVICE + " " + str(
-                    vip[0].json["msg"]))
+                    vip[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create service " + ServiceName.KUBE_VIP_VCF_SERVICE + " " + str(
-                    vip[0].json["msg"]),
+                    vip[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -537,21 +537,21 @@ class RaNSXTWorkflow:
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_CLUSTER_VIP_CGW + " " + str(
-                    fw_vip[0].json["msg"]))
+                    fw_vip[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_CLUSTER_VIP_CGW + " " + str(
-                    fw_vip[0].json["msg"]),
+                    fw_vip[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
         update = updateDefaultRule(Policy_Name.POLICY_NAME, self.jsonspec)
         if update[1] != 200:
             logger.error(
-                "Failed to default rule " + str(update[0].json["msg"]))
+                "Failed to default rule " + str(update[0]["msg"]))
             d = {
                 "responseType": "ERROR",
-                "msg": "Failed to default rule " + str(update[0].json["msg"]),
+                "msg": "Failed to default rule " + str(update[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -570,10 +570,10 @@ class RaNSXTWorkflow:
                                                 dhcp_end, dnsServers, network, True,
                                                 self.jsonspec)
         if workload_segment[1] != 200:
-            logger.error("Failed to create workload segments" + str(workload_segment[0].json["msg"]))
+            logger.error("Failed to create workload segments" + str(workload_segment[0]["msg"]))
             d = {
                 "responseType": "ERROR",
-                "msg": "Failed to create workload segments" + str(workload_segment[0].json["msg"]),
+                "msg": "Failed to create workload segments" + str(workload_segment[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -584,11 +584,11 @@ class RaNSXTWorkflow:
         if worklod_group[1] != 200:
             logger.error(
                 "Failed to create  group " + GroupNameCgw.DISPLAY_NAME_VCF_TKG_Workload_Networks_Group_CGW + " " + str(
-                    worklod_group[0].json["msg"]))
+                    worklod_group[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_TKG_Workload_Networks_Group_CGW + " " + str(
-                    worklod_group[0].json["msg"]),
+                    worklod_group[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -663,11 +663,11 @@ class RaNSXTWorkflow:
         if fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_DNS + " " + str(
-                    fw[0].json["msg"]))
+                    fw[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create firewall " + GroupNameCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_DNS + " " + str(
-                    fw[0].json["msg"]),
+                    fw[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -693,11 +693,11 @@ class RaNSXTWorkflow:
         if fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_WORKLOAD_to_vCenter + " " + str(
-                    fw[0].json["msg"]))
+                    fw[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create firewall " + GroupNameCgw.DISPLAY_NAME_VCF_TKG_WORKLOAD_to_vCenter + " " + str(
-                    fw[0].json["msg"]),
+                    fw[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
@@ -719,11 +719,11 @@ class RaNSXTWorkflow:
         if fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_to_Internet + " " + str(
-                    fw[0].json["msg"]))
+                    fw[0]["msg"]))
             d = {
                 "responseType": "ERROR",
                 "msg": "Failed to create firewall " + GroupNameCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_to_Internet + " " + str(
-                    fw[0].json["msg"]),
+                    fw[0]["msg"]),
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500

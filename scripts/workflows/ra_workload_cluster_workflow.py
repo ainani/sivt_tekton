@@ -250,10 +250,10 @@ class RaWorkloadClusterWorkflow:
                                                None, dnsServers, network, False,
                                                self.jsonspec)
                 if shared_segment[1] != 200:
-                    logger.error("Failed to create shared segments" + str(shared_segment[0].json["msg"]))
+                    logger.error("Failed to create shared segments" + str(shared_segment[0]["msg"]))
                     d = {
                         "responseType": "ERROR",
-                        "msg": "Failed to create shared segments" + str(shared_segment[0].json["msg"]),
+                        "msg": "Failed to create shared segments" + str(shared_segment[0]["msg"]),
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
