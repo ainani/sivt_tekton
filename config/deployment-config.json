@@ -75,16 +75,16 @@
     },
     "tkgComponentSpec": {
         "aviMgmtNetwork": {
-            "aviMgmtNetworkName": "ALB-Mgmt",
-            "aviMgmtNetworkGatewayCidr": "172.16.10.1/24",
-            "aviMgmtServiceIpStartRange": "172.16.10.150",
-            "aviMgmtServiceIpEndRange": "172.16.10.200"
+            "aviMgmtNetworkName": "ALB-LS",
+            "aviMgmtNetworkGatewayCidr": "172.16.50.1/24",
+            "aviMgmtServiceIpStartRange": "172.16.50.100",
+            "aviMgmtServiceIpEndRange": "172.16.50.150"
         },
         "tkgClusterVipNetwork": {
             "tkgClusterVipNetworkName": "TkG-Cluster-VIP",
-            "tkgClusterVipNetworkGatewayCidr": "172.16.16.1/26",
-            "tkgClusterVipIpStartRange": "172.16.16.2",
-            "tkgClusterVipIpEndRange": "172.16.16.59"
+            "tkgClusterVipNetworkGatewayCidr": "172.16.60.1/24",
+            "tkgClusterVipIpStartRange": "172.16.60.100",
+            "tkgClusterVipIpEndRange": "172.16.60.200"
         },
         "aviComponents": {
             "aviPasswordBase64": "Vk13YXJlMSE=",
@@ -129,8 +129,8 @@
             }
         },
         "tkgMgmtComponents": {
-            "tkgMgmtNetworkName": "TkG-Management",
-            "tkgMgmtGatewayCidr": "172.16.14.1/24",
+            "tkgMgmtNetworkName": "TkG-Management-LS",
+            "tkgMgmtGatewayCidr": "172.16.40.1/24",
             "tkgMgmtClusterName": "tkgm-nsxt-mgmt",
             "tkgMgmtSize": "medium",
             "tkgMgmtCpuSize": "",
@@ -149,7 +149,7 @@
             }
         },
         "tkgSharedserviceSpec": {
-            "tkgSharedserviceNetworkName": "tkgm-shared-ls",
+            "tkgSharedserviceNetworkName": "Tkgm-Shared",
             "tkgSharedserviceGatewayCidr": "172.16.80.1/24",
             "tkgSharedserviceDhcpStartRange": "172.16.80.100",
             "tkgSharedserviceDhcpEndRange": "172.16.80.200",
@@ -178,21 +178,21 @@
     },
     "tkgMgmtDataNetwork": {
         "tkgMgmtDataNetworkName": "TkG-Management-Data",
-        "tkgMgmtDataNetworkGatewayCidr": "172.16.17.1/26",
-        "tkgMgmtAviServiceIpStartRange": "172.16.17.2",
-        "tkgMgmtAviServiceIpEndRange": "172.16.17.59"
+        "tkgMgmtDataNetworkGatewayCidr": "172.16.70.1/24",
+        "tkgMgmtAviServiceIpStartRange": "172.16.70.100",
+        "tkgMgmtAviServiceIpEndRange": "172.16.70.200"
     },
     "tkgWorkloadDataNetwork": {
         "tkgWorkloadDataNetworkName": "TkG-Workload-Data",
-        "tkgWorkloadDataNetworkGatewayCidr": "172.16.18.1/26",
-        "tkgWorkloadAviServiceIpStartRange": "172.16.18.2",
-        "tkgWorkloadAviServiceIpEndRange": "172.16.18.59"
+        "tkgWorkloadDataNetworkGatewayCidr": "172.16.90.1/24",
+        "tkgWorkloadAviServiceIpStartRange": "172.16.90.100",
+        "tkgWorkloadAviServiceIpEndRange": "172.16.90.200"
     },
     "tkgWorkloadComponents": {
         "tkgWorkloadNetworkName": "TkG-Workload",
-        "tkgWorkloadGatewayCidr": "172.16.15.1/24",
-        "tkgWorkloadDhcpStartRange": "172.16.15.2",
-        "tkgWorkloadDhcpEndRange": "172.16.15.59",
+        "tkgWorkloadGatewayCidr": "172.16.95.1/24",
+        "tkgWorkloadDhcpStartRange": "172.16.95.100",
+        "tkgWorkloadDhcpEndRange": "172.16.95.200",
         "tkgWorkloadClusterName": "tkgm-nsx-t-wld",
         "tkgWorkloadSize": "medium",
         "tkgWorkloadCpuSize": "",
