@@ -227,7 +227,7 @@ class RaWorkloadClusterWorkflow:
                 kubernetes_ova_version = self.jsonspec["tkgWorkloadComponents"]["tkgWorkloadKubeVersion"]
                 if refToken:
                     logger.info("Kubernetes OVA configs for workload cluster")
-                    down_status = downloadAndPushKubernetesOvaMarketPlace(self.env, kubernetes_ova_version, kubernetes_ova_os)
+                    down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec, kubernetes_ova_version, kubernetes_ova_os)
                     if down_status[0] is None:
                         logger.error(down_status[1])
                         d = {
