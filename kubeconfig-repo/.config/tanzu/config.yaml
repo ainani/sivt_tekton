@@ -26,7 +26,7 @@ clientOptions:
       import: "false"
       network-separation-beta: "false"
       standalone-cluster-mode: "false"
-current: tejas-clstr-mgmt01
+current: abhi-clstr-mgmt
 kind: ClientConfig
 metadata:
   creationTimestamp: null
@@ -35,4 +35,9 @@ servers:
     context: tejas-clstr-mgmt01-admin@tejas-clstr-mgmt01
     path: /root/.kube-tkg/config
   name: tejas-clstr-mgmt01
+  type: managementcluster
+- managementClusterOpts:
+    context: abhi-clstr-mgmt-admin@abhi-clstr-mgmt
+    path: /root/.kube-tkg/config
+  name: abhi-clstr-mgmt
   type: managementcluster
