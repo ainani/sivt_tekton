@@ -26,13 +26,13 @@ clientOptions:
       import: "false"
       network-separation-beta: "false"
       standalone-cluster-mode: "false"
-current: abhi-clstr-mgmt
+current: <MGMT_CLUSTER_NAME>
 kind: ClientConfig
 metadata:
   creationTimestamp: null
 servers:
 - managementClusterOpts:
-    context: abhi-clstr-mgmt-admin@abhi-clstr-mgmt
+    context: <MGMT_CLUSTER_NAME>-admin@<MGMT_CLUSTER_NAME>
     path: /root/.kube-tkg/config
-  name: abhi-clstr-mgmt
+  name: <MGMT_CLUSTER_NAME>
   type: managementcluster
