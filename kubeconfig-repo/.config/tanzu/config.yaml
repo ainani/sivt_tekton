@@ -32,12 +32,12 @@ metadata:
   creationTimestamp: null
 servers:
 - managementClusterOpts:
-    context: tejas-clstr-mgmt01-admin@tejas-clstr-mgmt01
-    path: /root/.kube-tkg/config
-  name: tejas-clstr-mgmt01
-  type: managementcluster
-- managementClusterOpts:
     context: abhi-clstr-mgmt-admin@abhi-clstr-mgmt
     path: /root/.kube-tkg/config
   name: abhi-clstr-mgmt
+  type: managementcluster
+- managementClusterOpts:
+    context: tejas-clstr-mgmt01-admin@tejas-clstr-mgmt01
+    path: /root/.kube-tkg/config
+  name: tejas-clstr-mgmt01
   type: managementcluster
