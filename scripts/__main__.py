@@ -25,6 +25,7 @@ from workflows.ra_scale_workflow import ScaleWorkflow
 from workflows.ra_repave_workflow import RepaveWorkflow
 from workflows.ra_deploy_ext_workflow import RaDeployExtWorkflow
 from pre_setup.pre_setup import PreSetup
+from util.cleanup_util import CleanUpUtil
 
 logger = LoggerHelper.get_logger(name="__main__")
 
@@ -105,12 +106,15 @@ def mgmt(ctx):
 def mgmt_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
     pre_setup_obj = PreSetup(root_dir=ctx.obj["ROOT_DIR"], run_config=run_config)
+    cleanup_obj = CleanUpUtil()
     result_dict, msg = pre_setup_obj.pre_check_mgmt()
     if not result_dict["mgmt"]["deployed"]:
         logger.warning(msg)
         RaMgmtClusterWorkflow(run_config).create_mgmt_cluster()
-    elif "UP" not in result_dict["mgmt"]["state"]:
-        logger.error(msg)
+    elif "UP" not in result_dict["mgmt"]["health"]:
+        logger.warning(msg)
+        cleanup_obj.delete_mgmt_cluster(result_dict["name"])
+        RaMgmtClusterWorkflow(run_config).create_mgmt_cluster()
     else:
         logger.info(msg)
         logger.debug(result_dict)

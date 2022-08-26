@@ -15,7 +15,7 @@ from util.common_utils import checkenv
 from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
 from util.common_utils import getClusterStatusOnTanzu
-from util.ShellHelper import runShellCommandAndReturnOutputAsList
+from util.ShellHelper import runShellCommandAndReturnOutputAsList, runShellCommandAndReturnOutput
 
 logger = LoggerHelper.get_logger(name='Pre Setup')
 
@@ -139,37 +139,33 @@ class PreSetup:
         state_dict = {"mgmt": {"deployed": False,
                               "health": "DOWN",
                               "name": mgmt_cluster_name}}
-        msg = "MGMT_CLUSTER_NOT_DEPLOYED"
+        msg = "Pre Check Failed: "
+
         # login to Tanzu
-        tanzu_login_cmd = ["tanzu", "login", "--kubeconfig", self.kube_config, "--server", mgmt_cluster_name]
-        out = runShellCommandAndReturnOutputAsList(tanzu_login_cmd)
-        logger.info(out)
-        out1 = runShellCommandAndReturnOutputAsList(["cat", self.kube_config])
-        logger.info(out1)
-        import time
-        time.sleep(300)
+        tanzu_login_cmd = ["tanzu", "login", "--server", mgmt_cluster_name]
+        out = runShellCommandAndReturnOutput(tanzu_login_cmd)
         if f"successfully logged in to management cluster using the kubeconfig {mgmt_cluster_name}" in out[0]:
             mgmt_status_dict = getClusterStatusOnTanzu(management_cluster=mgmt_cluster_name, typen="management",
                                               return_dict=True)
             logger.debug(mgmt_status_dict)
-        else:
-            logger.error(f"Failed to login Tanzu, Either MGMT cluster is not deployed OR Tanzu login failed")
-            return state_dict, msg
-        if mgmt_status_dict["deployed"]:
-            state_dict["mgmt"]["deployed"] = True
-            msg = "MGMT_CLUSTER_DEPLOYED"
-            if mgmt_status_dict["running"]:
-                state_dict["mgmt"]["health"] = "UP"
-                msg = msg + " CLUSTER_RUNNING"
+            if mgmt_status_dict["deployed"]:
+                state_dict["mgmt"]["deployed"] = True
+                if mgmt_status_dict["running"]:
+                    state_dict["mgmt"]["health"] = "UP"
+                    msg = f"Pre Check PASSED: MGMT Cluster '{mgmt_cluster_name}' is already Deployed and UP"
+                else:
+                    msg = msg + f"MGMT Cluster '{mgmt_cluster_name}' NOT UP"
             else:
-                msg = msg + " CLUSTER_NOT_RUNNING"
-                return state_dict, msg
+                msg = msg + f"MGMT Cluster '{mgmt_cluster_name}' not Deployed"
+        elif f"Error: could not find server \"{mgmt_cluster_name}\"" in out[0]:
+            msg = msg + f"MGMT Cluster '{mgmt_cluster_name}' is not deployed"
         else:
-            return state_dict, msg
+            msg = msg + f"Couldn't login to MGMT Cluster '{mgmt_cluster_name}'"
+            logger.error(f"ERROR: {out[0]}")
 
         # Update state.yml file
         self.update_state_yml(state_dict)
-        return state_dict, "Pre Check PASSED for MGMT"
+        return state_dict, msg
 
     def update_state_yml(self, state_dict: dict):
         config, ind, bsi = ruamel.yaml.util.load_yaml_guess_indent(open(self.state_file_path))
