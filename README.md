@@ -92,10 +92,12 @@ Tekton pipeline execution requires the following:
 **For Day0 bringup of TKGm:**
 1. Update desired state YAML file:
    - Browse to `desired-state` directory in Linux/SIVT VM and update `desired-state.yml` file as below:
+   - Update env as `vsphere` or `vcf`
      ```
      ----
      version:
        tkgm: 1.5.4
+       env: vsphere
      ```
 2. Execute:
    ```shell
@@ -109,6 +111,7 @@ Tekton pipeline execution requires the following:
      ----
      version:
        tkgs: 1.5
+       env: vsphere
      ```
 2. Execute:
    ```shell
@@ -117,10 +120,12 @@ Tekton pipeline execution requires the following:
 ### Running the Day-2 Pipelines
 1. Update desired state YAML file:
     - Browse to `desired-state` directory in Linux/SIVT VM and update `desired-state.yml` file as below:
+    - Update env as `vsphere` or `vcf`
       ```
       ----
       version:
         tkgm: 1.5.4
+        env: vsphere
       ```
 2. If the targeted docker image for upgrade is already available in the kind cluster skip this step, else execute the below steps:
    - Open launch.sh and update UPGRADE_TARBALL_FILE_PATH variable to the absolute path where the Service Installer Docker TAR file is downloaded.
