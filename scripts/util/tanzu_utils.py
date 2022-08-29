@@ -4,7 +4,7 @@
 import os
 from pathlib import Path
 
-from constants.constants import Paths, Env
+from constants.constants import Paths
 from model.desired_state import DesiredState
 from model.spec import Bootstrap, MasterSpec
 from model.status import State
