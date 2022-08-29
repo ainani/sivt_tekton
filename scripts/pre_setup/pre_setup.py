@@ -15,7 +15,7 @@ from util.common_utils import checkenv
 from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
 from util.common_utils import getClusterStatusOnTanzu
-from util.ShellHelper import runShellCommandAndReturnOutputAsList, runShellCommandAndReturnOutput
+from util.ShellHelper import runShellCommandAndReturnOutput
 
 logger = LoggerHelper.get_logger(name='Pre Setup')
 
@@ -48,6 +48,7 @@ class PreSetup:
         self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
         self.get_vcenter_details()
         self.get_avi_details()
+        self.get_tkg_mgmt_details()
 
     def get_vcenter_details(self):
         """
@@ -75,6 +76,15 @@ class PreSetup:
         else:
             self.avi_dict.update(
                 {"avi_fqdn": self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']})
+
+    def get_tkg_mgmt_details(self):
+        if not self.isEnvTkgs_wcp and not self.isEnvTkgs_ns:
+            self.mgmt_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                'tkgMgmtClusterName']
+            self.wrkld_cluster_name = self.jsonspec['tkgComponentSpec']['tkgWorkloadComponents'][
+                'tkgWorkloadClusterName']
+            self.shrd_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                'tkgSharedserviceClusterName']
 
     @log("Pre Check AVI")
     def pre_check_avi(self):
@@ -132,35 +142,31 @@ class PreSetup:
         """
         Method to check that MGMT cluster is deployed or not already
         """
-        mgmt_cluster_name = None
-        if not self.isEnvTkgs_wcp and not self.isEnvTkgs_ns:
-            mgmt_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
-                'tkgMgmtClusterName']
         state_dict = {"mgmt": {"deployed": False,
                               "health": "DOWN",
-                              "name": mgmt_cluster_name}}
+                              "name": self.mgmt_cluster_name}}
         msg = "Pre Check Failed: "
 
         # login to Tanzu
-        tanzu_login_cmd = ["tanzu", "login", "--server", mgmt_cluster_name]
+        tanzu_login_cmd = ["tanzu", "login", "--server", self.mgmt_cluster_name]
         out = runShellCommandAndReturnOutput(tanzu_login_cmd)
-        if f"successfully logged in to management cluster using the kubeconfig {mgmt_cluster_name}" in out[0]:
-            mgmt_status_dict = getClusterStatusOnTanzu(management_cluster=mgmt_cluster_name, typen="management",
+        if f"successfully logged in to management cluster using the kubeconfig {self.mgmt_cluster_name}" in out[0]:
+            mgmt_status_dict = getClusterStatusOnTanzu(cluster_name=self.mgmt_cluster_name, typen="management",
                                               return_dict=True)
             logger.debug(mgmt_status_dict)
             if mgmt_status_dict["deployed"]:
                 state_dict["mgmt"]["deployed"] = True
                 if mgmt_status_dict["running"]:
                     state_dict["mgmt"]["health"] = "UP"
-                    msg = f"Pre Check PASSED: MGMT Cluster '{mgmt_cluster_name}' is already Deployed and UP"
+                    msg = f"Pre Check PASSED: MGMT Cluster '{self.mgmt_cluster_name}' is already Deployed and UP"
                 else:
-                    msg = msg + f"MGMT Cluster '{mgmt_cluster_name}' NOT UP"
+                    msg = msg + f"MGMT Cluster '{self.mgmt_cluster_name}' NOT UP"
             else:
-                msg = msg + f"MGMT Cluster '{mgmt_cluster_name}' not Deployed"
-        elif f"Error: could not find server \"{mgmt_cluster_name}\"" in out[0]:
-            msg = msg + f"MGMT Cluster '{mgmt_cluster_name}' is not deployed"
+                msg = msg + f"MGMT Cluster '{self.mgmt_cluster_name}' not Deployed"
+        elif f"Error: could not find server \"{self.mgmt_cluster_name}\"" in out[0]:
+            msg = msg + f"MGMT Cluster '{self.mgmt_cluster_name}' is not deployed"
         else:
-            msg = msg + f"Couldn't login to MGMT Cluster '{mgmt_cluster_name}'"
+            msg = msg + f"Couldn't login to MGMT Cluster '{self.mgmt_cluster_name}'"
             logger.error(f"ERROR: {out[0]}")
 
         # Update state.yml file
@@ -172,35 +178,31 @@ class PreSetup:
         """
         Method to check that Workload cluster is deployed or not already
         """
-        wrkld_cluster_name = None
-        if not self.isEnvTkgs_wcp and not self.isEnvTkgs_ns:
-            wrkld_cluster_name = self.jsonspec['tkgComponentSpec']['tkgWorkloadComponents'][
-                'tkgWorkloadClusterName']
         state_dict = {"wrkld": {"deployed": False,
                                "health": "DOWN",
-                               "name": wrkld_cluster_name}}
+                               "name": self.wrkld_cluster_name}}
         msg = "Pre Check Failed: "
 
         # login to Tanzu
-        tanzu_login_cmd = ["tanzu", "login", "--server", wrkld_cluster_name]
+        tanzu_login_cmd = ["tanzu", "login", "--server", self.mgmt_cluster_name]
         out = runShellCommandAndReturnOutput(tanzu_login_cmd)
-        if f"successfully logged in to management cluster using the kubeconfig {wrkld_cluster_name}" in out[0]:
-            cluster_status_dict = getClusterStatusOnTanzu(management_cluster=wrkld_cluster_name, typen="cluster",
+        if f"successfully logged in to management cluster using the kubeconfig {self.wrkld_cluster_name}" in out[0]:
+            cluster_status_dict = getClusterStatusOnTanzu(cluster_name=self.wrkld_cluster_name, typen="cluster",
                                                        return_dict=True)
             logger.debug(cluster_status_dict)
             if cluster_status_dict["deployed"]:
                 state_dict["wrkld"]["deployed"] = True
                 if cluster_status_dict["running"]:
                     state_dict["wrkld"]["health"] = "UP"
-                    msg = f"Pre Check PASSED: WORKLOAD Cluster '{wrkld_cluster_name}' is already Deployed and UP"
+                    msg = f"Pre Check PASSED: WORKLOAD Cluster '{self.wrkld_cluster_name}' is already Deployed and UP"
                 else:
-                    msg = msg + f"WORKLOAD Cluster '{wrkld_cluster_name}' NOT UP"
+                    msg = msg + f"WORKLOAD Cluster '{self.wrkld_cluster_name}' NOT UP"
             else:
-                msg = msg + f"WORKLOAD Cluster '{wrkld_cluster_name}' not Deployed"
-        elif f"Error: could not find server \"{wrkld_cluster_name}\"" in out[0]:
-            msg = msg + f"WORKLOAD Cluster '{wrkld_cluster_name}' is not deployed"
+                msg = msg + f"WORKLOAD Cluster '{self.wrkld_cluster_name}' not Deployed"
+        elif f"Error: could not find server \"{self.wrkld_cluster_name}\"" in out[0]:
+            msg = msg + f"WORKLOAD Cluster '{self.wrkld_cluster_name}' is not deployed"
         else:
-            msg = msg + f"Couldn't login to WORKLOAD Cluster '{wrkld_cluster_name}'"
+            msg = msg + f"Couldn't login to WORKLOAD Cluster '{self.wrkld_cluster_name}'"
             logger.error(f"ERROR: {out[0]}")
 
         # Update state.yml file
@@ -212,35 +214,31 @@ class PreSetup:
         """
         Method to check that Shared cluster is deployed or not already
         """
-        shrd_cluster_name = None
-        if not self.isEnvTkgs_wcp and not self.isEnvTkgs_ns:
-            shrd_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
-                'tkgSharedserviceClusterName']
         state_dict = {"shrd": {"deployed": False,
                                 "health": "DOWN",
-                                "name": shrd_cluster_name}}
+                                "name": self.shrd_cluster_name}}
         msg = "Pre Check Failed: "
 
         # login to Tanzu
-        tanzu_login_cmd = ["tanzu", "login", "--server", shrd_cluster_name]
+        tanzu_login_cmd = ["tanzu", "login", "--server", self.mgmt_cluster_name]
         out = runShellCommandAndReturnOutput(tanzu_login_cmd)
-        if f"successfully logged in to shared cluster using the kubeconfig {shrd_cluster_name}" in out[0]:
-            cluster_status_dict = getClusterStatusOnTanzu(management_cluster=shrd_cluster_name, typen="cluster",
+        if f"successfully logged in to shared cluster using the kubeconfig {self.shrd_cluster_name}" in out[0]:
+            cluster_status_dict = getClusterStatusOnTanzu(cluster_name=self.shrd_cluster_name, typen="cluster",
                                                           return_dict=True)
             logger.debug(cluster_status_dict)
             if cluster_status_dict["deployed"]:
                 state_dict["shrd"]["deployed"] = True
                 if cluster_status_dict["running"]:
                     state_dict["shrd"]["health"] = "UP"
-                    msg = f"Pre Check PASSED: SHARED Cluster '{shrd_cluster_name}' is already Deployed and UP"
+                    msg = f"Pre Check PASSED: SHARED Cluster '{self.shrd_cluster_name}' is already Deployed and UP"
                 else:
-                    msg = msg + f"SHARED Cluster '{shrd_cluster_name}' NOT UP"
+                    msg = msg + f"SHARED Cluster '{self.shrd_cluster_name}' NOT UP"
             else:
-                msg = msg + f"SHARED Cluster '{shrd_cluster_name}' not Deployed"
-        elif f"Error: could not find server \"{shrd_cluster_name}\"" in out[0]:
-            msg = msg + f"SHARED Cluster '{shrd_cluster_name}' is not deployed"
+                msg = msg + f"SHARED Cluster '{self.shrd_cluster_name}' not Deployed"
+        elif f"Error: could not find server \"{self.shrd_cluster_name}\"" in out[0]:
+            msg = msg + f"SHARED Cluster '{self.shrd_cluster_name}' is not deployed"
         else:
-            msg = msg + f"Couldn't login to SHARED Cluster '{shrd_cluster_name}'"
+            msg = msg + f"Couldn't login to SHARED Cluster '{self.shrd_cluster_name}'"
             logger.error(f"ERROR: {out[0]}")
 
         # Update state.yml file

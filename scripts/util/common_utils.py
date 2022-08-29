@@ -818,33 +818,32 @@ def getSeNewBody(newCloudUrl, seGroupName, clusterUrl, dataStore):
     }
     return json.dumps(body, indent=4)
 
-
-def getClusterStatusOnTanzu(management_cluster, typen, return_dict = False):
+def getClusterStatusOnTanzu(cluster_name, typen, return_dict = False):
     try:
-        mgmt_staus_dict = {"deployed": False,
+        cluster_staus_dict = {"deployed": False,
                            "running": False,
                            "out": ""}
 
         if typen == "management":
             listn = ["tanzu", "management-cluster", "get"]
         else:
-            listn = ["tanzu", "cluster", "get"]
+            listn = ["tanzu", "cluster", "get", cluster_name]
         o = runShellCommandAndReturnOutput(listn)
-        mgmt_staus_dict["out"] = o[0]
+        cluster_staus_dict["out"] = o[0]
         if o[1] == 0:
             try:
-                if o[0].__contains__(management_cluster):
-                    mgmt_staus_dict["deployed"] = True
+                if o[0].__contains__(cluster_name):
+                    cluster_staus_dict["deployed"] = True
                 if o[0].__contains__("running"):
-                    mgmt_staus_dict["running"] = True
+                    cluster_staus_dict["running"] = True
             except:
                 return False
 
 
         if return_dict:
-            return mgmt_staus_dict
+            return cluster_staus_dict
 
-        if mgmt_staus_dict["deployed"] and mgmt_staus_dict["running"]:
+        if cluster_staus_dict["deployed"] and cluster_staus_dict["running"]:
             return True
         else:
             return False
