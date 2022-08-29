@@ -32,7 +32,7 @@ metadata:
   creationTimestamp: null
 servers:
 - managementClusterOpts:
-    context: tkgm-nsxt-mgmt-admin@tkgm-nsxt-mgmt
-    path: /root/.kube-tkg/config
+    context: kind-tkg-kind-cc6a6kc860vedofs5dn0
+    path: /root/.kube-tkg/tmp/config_ifo9CAlp
   name: tkgm-nsxt-mgmt
   type: managementcluster
