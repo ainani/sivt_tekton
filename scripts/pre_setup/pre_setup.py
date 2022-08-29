@@ -81,8 +81,7 @@ class PreSetup:
         if not self.isEnvTkgs_wcp and not self.isEnvTkgs_ns:
             self.mgmt_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                 'tkgMgmtClusterName']
-            self.wrkld_cluster_name = self.jsonspec['tkgComponentSpec']['tkgWorkloadComponents'][
-                'tkgWorkloadClusterName']
+            self.wrkld_cluster_name = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadClusterName']
             self.shrd_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                 'tkgSharedserviceClusterName']
 
