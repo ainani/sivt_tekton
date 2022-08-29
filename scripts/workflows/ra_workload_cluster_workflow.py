@@ -30,7 +30,6 @@ from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, getCloudS
     createClusterFolder, supervisorTMC, checkTmcEnabled, get_alias_name, convertStringToCommaSeperated, \
     checkClusterVersionCompatibility, checkToEnabled, checkTSMEnabled, checkDataProtectionEnabled, \
     enable_data_protection, checkEnableIdentityManagement, checkPinnipedInstalled
-from util.nsxt_helper import createNsxtSegment, getNetworkIp
 from util.oidc_helper import createRbacUsers
 from util.ShellHelper import runShellCommandAndReturnOutput
 from util.avi_api_helper import isAviHaEnabled, obtain_second_csrf

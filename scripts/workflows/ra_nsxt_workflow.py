@@ -11,11 +11,7 @@ import traceback
 from util.common_utils import checkenv
 from util.cmd_runner import RunCmd
 logger = LoggerHelper.get_logger(name='nsxt_workflow')
-from util.nsxt_helper import createVipService ,grabNsxtHeaders, getIpFromHost, \
-    createNsxtSegment, createGroup, createFirewallRule, getTier1Details, \
-    createVcfDhcpServer, getNetworkIp, get_ip_address, is_ipv4, getESXIips, \
-    updateDefaultRule, getDomainName, getList, \
-    checkObjectIsPresentAndReturnPath
+from lib.nsx_client import Nsxt_Client
     
 
 from constants.constants import ServiceName
@@ -39,6 +35,8 @@ class RaNSXTWorkflow:
 
 
     def configureAviNsxtConfig(self):
+
+        nsxtClient = Nsxt_Client(self.run_config)
         gatewayAddress = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
             'tkgSharedserviceGatewayCidr']
         dhcpStart = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
@@ -46,12 +44,12 @@ class RaNSXTWorkflow:
         dhcpEnd = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
             'tkgSharedserviceDhcpEndRange']
         dnsServers = self.jsonspec['envSpec']['infraComponents']['dnsServersIp']
-        network = getNetworkIp(gatewayAddress)
+        network = nsxtClient.getNetworkIp(gatewayAddress)
         shared_network_name = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
             'tkgSharedserviceNetworkName']
-        shared_segment = createNsxtSegment(shared_network_name, gatewayAddress,
+        shared_segment = nsxtClient.createNsxtSegment(shared_network_name, gatewayAddress,
                                         dhcpStart,
-                                        dhcpEnd, dnsServers, network, True, self.jsonspec)
+                                        dhcpEnd, dnsServers, network, True)
         if shared_segment[1] != 200:
             logger.error("Failed to create shared segments" + str(shared_segment[0]['msg']))
             d = {
@@ -60,7 +58,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        dhcp = createVcfDhcpServer(self.jsonspec)
+        dhcp = nsxtClient.createVcfDhcpServer()
         if dhcp[1] != 200:
             logger.error("Failed to create dhcp server " + str(dhcp[0]['msg']))
             d = {
@@ -73,12 +71,11 @@ class RaNSXTWorkflow:
             'tkgClusterVipNetworkName']
         gatewayAddress = self.jsonspec['tkgComponentSpec']['tkgClusterVipNetwork'][
             'tkgClusterVipNetworkGatewayCidr']
-        network = getNetworkIp(gatewayAddress)
-        segment = createNsxtSegment(cluster_wip,
+        network = nsxtClient.getNetworkIp(gatewayAddress)
+        segment = nsxtClient.createNsxtSegment(cluster_wip,
                                     gatewayAddress,
                                     dhcpStart,
-                                    dhcpEnd, dnsServers, network, False,
-                                    self.jsonspec)
+                                    dhcpEnd, dnsServers, network, False)
         if segment[1] != 200:
             logger.error(
                 "Failed to create  segments " + cluster_wip + " " + str(segment[0]['msg']))
@@ -90,12 +87,11 @@ class RaNSXTWorkflow:
             return json.dumps(d), 500
         mgmt_data = self.jsonspec['tkgMgmtDataNetwork']['tkgMgmtDataNetworkName']
         gatewayAddress = self.jsonspec['tkgMgmtDataNetwork']['tkgMgmtDataNetworkGatewayCidr']
-        network = getNetworkIp(gatewayAddress)
-        segment = createNsxtSegment(mgmt_data,
+        network = nsxtClient.getNetworkIp(gatewayAddress)
+        segment = nsxtClient.createNsxtSegment(mgmt_data,
                                     gatewayAddress,
                                     dhcpStart,
-                                    dhcpEnd, dnsServers, network, False,
-                                    self.jsonspec)
+                                    dhcpEnd, dnsServers, network, False)
         if segment[1] != 200:
             logger.error("Failed to create  segments " + mgmt_data + " " + str(segment[0]['msg']))
             d = {
@@ -108,11 +104,10 @@ class RaNSXTWorkflow:
             'aviMgmtNetworkName']
         avi_gatewayAddress = self.jsonspec['tkgComponentSpec']['aviMgmtNetwork'][
             'aviMgmtNetworkGatewayCidr']
-        segment = createNsxtSegment(avi_mgmt,
+        segment = nsxtClient.createNsxtSegment(avi_mgmt,
                                     avi_gatewayAddress,
                                     dhcpStart,
-                                    dhcpEnd, dnsServers, network, False,
-                                    self.jsonspec)
+                                    dhcpEnd, dnsServers, network, False)
         if segment[1] != 200:
             logger.error("Failed to create  segments " + avi_mgmt + " " + str(segment[0]['msg']))
             d = {
@@ -121,7 +116,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        ip = get_ip_address("eth0")
+        ip = nsxtClient.get_ip_address("eth0")
         if ip is None:
             logger.error("Failed to get arcas vm ip")
             d = {
@@ -130,8 +125,8 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        arcas_group = createGroup(VCF.ARCAS_GROUP, None,
-                                "true", ip, self.jsonspec)
+        arcas_group = nsxtClient.createGroup(VCF.ARCAS_GROUP, None,
+                                "true", ip)
         if arcas_group[1] != 200:
             logger.error(
                 "Failed to create  group " + VCF.ARCAS_GROUP + " " + str(
@@ -143,7 +138,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        arcas_svc = createVipService(ServiceName.ARCAS_SVC, "8888", self.jsonspec)
+        arcas_svc = nsxtClient.createVipService(ServiceName.ARCAS_SVC, "8888")
         if arcas_svc[1] != 200:
             logger.error(
                 "Failed to create service " + ServiceName.ARCAS_SVC + " " + str(
@@ -155,7 +150,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        arcas_svc = createVipService(ServiceName.ARCAS_BACKEND_SVC, "5000", self.jsonspec)
+        arcas_svc = nsxtClient.createVipService(ServiceName.ARCAS_BACKEND_SVC, "5000")
         if arcas_svc[1] != 200:
             logger.error(
                 "Failed to create service " + ServiceName.ARCAS_BACKEND_SVC + " " + str(
@@ -167,8 +162,8 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        avi_mgmt_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_AVI_Management_Network_Group_CGW, avi_mgmt,
-                                    False, None, self.jsonspec)
+        avi_mgmt_group = nsxtClient.createGroup(GroupNameCgw.DISPLAY_NAME_VCF_AVI_Management_Network_Group_CGW, avi_mgmt,
+                                    False, None)
         if avi_mgmt_group[1] != 200:
             logger.error(
                 "Failed to create  group " + GroupNameCgw.DISPLAY_NAME_VCF_AVI_Management_Network_Group_CGW + " " + str(
@@ -180,9 +175,8 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        cluster_vip_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_CLUSTER_VIP_NETWORK_Group_CGW, cluster_wip,
-                                        False, None,
-                                        self.jsonspec)
+        cluster_vip_group = nsxtClient.createGroup(GroupNameCgw.DISPLAY_NAME_VCF_CLUSTER_VIP_NETWORK_Group_CGW, cluster_wip,
+                                        False, None)
         if cluster_vip_group[1] != 200:
             logger.error(
                 "Failed to create  group " + GroupNameCgw.DISPLAY_NAME_VCF_CLUSTER_VIP_NETWORK_Group_CGW + " " + str(
@@ -194,9 +188,8 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        shared_service_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_TKG_SharedService_Group_CGW,
-                                        shared_network_name, False, None,
-                                        self.jsonspec)
+        shared_service_group = nsxtClient.createGroup(GroupNameCgw.DISPLAY_NAME_VCF_TKG_SharedService_Group_CGW,
+                                        shared_network_name, False, None)
         if shared_service_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_TKG_SharedService_Group_CGW + " " + str(
@@ -209,8 +202,7 @@ class RaNSXTWorkflow:
             }
             return json.dumps(d), 500
         mgmt = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtNetworkName']
-        mgmt_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_TKG_Management_Network_Group_CGW, mgmt, False, None,
-                                    self.jsonspec)
+        mgmt_group = nsxtClient.createGroup(GroupNameCgw.DISPLAY_NAME_VCF_TKG_Management_Network_Group_CGW, mgmt, False, None)
         if mgmt_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_TKG_Management_Network_Group_CGW + " " + str(
@@ -223,9 +215,8 @@ class RaNSXTWorkflow:
             }
             return json.dumps(d), 500
         dns = self.jsonspec['envSpec']['infraComponents']['dnsServersIp']
-        dns_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_DNS_IPs_Group,
-                                None, "true", dns,
-                                self.jsonspec)
+        dns_group = nsxtClient.createGroup(GroupNameCgw.DISPLAY_NAME_VCF_DNS_IPs_Group,
+                                None, "true", dns)
         if dns_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_DNS_IPs_Group + " " + str(
@@ -238,9 +229,8 @@ class RaNSXTWorkflow:
             }
             return json.dumps(d), 500
         ntp = self.jsonspec['envSpec']['infraComponents']['ntpServers']
-        ntp_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_NTP_IPs_Group,
-                                None, "true", ntp,
-                                self.jsonspec)
+        ntp_group = nsxtClient.createGroup(GroupNameCgw.DISPLAY_NAME_VCF_NTP_IPs_Group,
+                                None, "true", ntp)
         if ntp_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_NTP_IPs_Group + " " + str(
@@ -253,8 +243,8 @@ class RaNSXTWorkflow:
             }
             return json.dumps(d), 500
         vCenter = self.jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
-        if not is_ipv4(vCenter):
-            vCenter = getIpFromHost(vCenter)
+        if not nsxtClient.is_ipv4(vCenter):
+            vCenter = nsxtClient.getIpFromHost(vCenter)
             if vCenter is None:
                 logger.error('Failed to fetch VC ip')
                 d = {
@@ -263,9 +253,8 @@ class RaNSXTWorkflow:
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
-        vc_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_vCenter_IP_Group,
-                            None, "true", vCenter,
-                            self.jsonspec)
+        vc_group = nsxtClient.createGroup(GroupNameCgw.DISPLAY_NAME_VCF_vCenter_IP_Group,
+                            None, "true", vCenter)
         if vc_group[1] != 200:
             logger.error(
                 "Failed to create group " + GroupNameCgw.DISPLAY_NAME_VCF_vCenter_IP_Group + " " + str(
@@ -277,7 +266,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        ips = getESXIips(self.jsonspec)
+        ips = nsxtClient.getESXIips()
         if ips[0] is None:
             logger.error(
                 "Failed to create get esxi ip " + ips[1])
@@ -287,9 +276,8 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        esx_group = createGroup(VCF.ESXI_GROUP,
-                                None, "true", ips[0],
-                                self.jsonspec)
+        esx_group = nsxtClient.createGroup(VCF.ESXI_GROUP,
+                                None, "true", ips[0])
         logger.debug(esx_group)
         if esx_group[1] != 200:
             logger.error(
@@ -302,7 +290,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        headers_ = grabNsxtHeaders(self.jsonspec)
+        headers_ = nsxtClient.grabNsxtHeaders()
         logger.debug(headers_)
         if headers_[0] is None:
             d = {
@@ -311,7 +299,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        teir1 = getTier1Details(headers_, self.jsonspec)
+        teir1 = nsxtClient.getTier1Details(headers_)
         logger.debug(teir1)
         if teir1[0] is None:
             d = {
@@ -329,8 +317,7 @@ class RaNSXTWorkflow:
                 "services": ["/infra/services/SSH", "/infra/services/" + ServiceName.ARCAS_SVC],
                 "scope": [teir1[0]]
                 }
-        arcas_fw = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_ARCAS_UI, payload,
-                        self.jsonspec)
+        arcas_fw = nsxtClient.createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_ARCAS_UI, payload)
         logger.debug(arcas_fw)
         if arcas_fw[1] != 200:
             logger.error(
@@ -352,9 +339,8 @@ class RaNSXTWorkflow:
                 "services": ["/infra/services/" + ServiceName.ARCAS_BACKEND_SVC],
                 "scope": [teir1[0]]
                 }
-        arcas_fw = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_ARCAS_BACKEND,
-                                    payload,
-                                    self.jsonspec)
+        arcas_fw = nsxtClient.createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_ARCAS_BACKEND,
+                                    payload)
         if arcas_fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_ARCAS_BACKEND + " " + str(
@@ -377,8 +363,7 @@ class RaNSXTWorkflow:
                 "services": ["/infra/services/DNS", "/infra/services/DNS-UDP"],
                 "scope": [teir1[0]]
                 }
-        fw = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_DNS, payload,
-                                self.jsonspec)
+        fw = nsxtClient.createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_DNS, payload)
         if fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_DNS + " " + str(
@@ -401,9 +386,8 @@ class RaNSXTWorkflow:
                 "services": ["/infra/services/NTP"],
                 "scope": [teir1[0]]
                 }
-        fw_vip = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_NTP,
-                                    payload,
-                                    self.jsonspec)
+        fw_vip = nsxtClient.createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_NTP,
+                                    payload)
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_NTP + " " + str(
@@ -426,9 +410,8 @@ class RaNSXTWorkflow:
                 "services": ["/infra/services/HTTPS"],
                 "scope": [teir1[0]]
                 }
-        fw_vip = createFirewallRule(Policy_Name.POLICY_NAME,
-                                    FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_vCenter, payload,
-                                    self.jsonspec)
+        fw_vip = nsxtClient.createFirewallRule(Policy_Name.POLICY_NAME,
+                                    FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_vCenter, payload)
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_vCenter + " " + str(
@@ -450,9 +433,8 @@ class RaNSXTWorkflow:
                 "services": ["/infra/services/HTTPS"],
                 "scope": [teir1[0]]
                 }
-        fw_esx = createFirewallRule(Policy_Name.POLICY_NAME,
-                                    VCF.ESXI_FW, payload,
-                                    self.jsonspec)
+        fw_esx = nsxtClient.createFirewallRule(Policy_Name.POLICY_NAME,
+                                    VCF.ESXI_FW, payload)
         if fw_esx[1] != 200:
             logger.error(
                 "Failed to create firewall " + VCF.ESXI_FW + " " + str(
@@ -473,9 +455,8 @@ class RaNSXTWorkflow:
                 "services": ["ANY"],
                 "scope": [teir1[0]]
                 }
-        fw_vip = createFirewallRule(Policy_Name.POLICY_NAME,
-                                    FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_Internet, payload,
-                                    self.jsonspec)
+        fw_vip = nsxtClient.createFirewallRule(Policy_Name.POLICY_NAME,
+                                    FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_Internet, payload)
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_AVI_to_Internet + " " + str(
@@ -498,9 +479,8 @@ class RaNSXTWorkflow:
                 "services": ["/infra/services/HTTPS", "/infra/services/ICMP-ALL"],
                 "scope": [teir1[0]]
                 }
-        fw_vip = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_TKGtoAVIMgmt,
-                                    payload,
-                                    self.jsonspec)
+        fw_vip = nsxtClient.createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_TKGtoAVIMgmt,
+                                    payload)
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_and_TKGtoAVIMgmt + " " + str(
@@ -512,7 +492,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        vip = createVipService(ServiceName.KUBE_VIP_VCF_SERVICE, "6443", self.jsonspec)
+        vip = nsxtClient.createVipService(ServiceName.KUBE_VIP_VCF_SERVICE, "6443")
         if vip[1] != 200:
             logger.error(
                 "Failed to create service " + ServiceName.KUBE_VIP_VCF_SERVICE + " " + str(
@@ -535,9 +515,8 @@ class RaNSXTWorkflow:
                 "services": ["/infra/services/" + ServiceName.KUBE_VIP_VCF_SERVICE],
                 "scope": [teir1[0]]
                 }
-        fw_vip = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_CLUSTER_VIP_CGW,
-                                    payload,
-                                    self.jsonspec)
+        fw_vip = nsxtClient.createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_CLUSTER_VIP_CGW,
+                                    payload)
         if fw_vip[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_CLUSTER_VIP_CGW + " " + str(
@@ -549,7 +528,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        update = updateDefaultRule(Policy_Name.POLICY_NAME, self.jsonspec)
+        update = nsxtClient.updateDefaultRule(Policy_Name.POLICY_NAME)
         if update[1] != 200:
             logger.error(
                 "Failed to default rule " + str(update[0]['msg']))
@@ -569,16 +548,16 @@ class RaNSXTWorkflow:
 
     def configureWorkloadNsxtConfig(self):
 
+        nsxtClient = Nsxt_Client(self.run_config)
         gatewayAddress = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadGatewayCidr']
         dhcp_start = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadDhcpStartRange']
         dhcp_end = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadDhcpEndRange']
         dnsServers = self.jsonspec['envSpec']['infraComponents']['dnsServersIp']
-        network = getNetworkIp(gatewayAddress)
+        network = nsxtClient.getNetworkIp(gatewayAddress)
         workload_network_name = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadNetworkName']
-        workload_segment = createNsxtSegment(workload_network_name, gatewayAddress,
+        workload_segment = nsxtClient.createNsxtSegment(workload_network_name, gatewayAddress,
                                                 dhcp_start,
-                                                dhcp_end, dnsServers, network, True,
-                                                self.jsonspec)
+                                                dhcp_end, dnsServers, network, True)
         if workload_segment[1] != 200:
             logger.error("Failed to create workload segments" + str(workload_segment[0]['msg']))
             d = {
@@ -587,10 +566,9 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        worklod_group = createGroup(GroupNameCgw.DISPLAY_NAME_VCF_TKG_Workload_Networks_Group_CGW,
+        worklod_group = nsxtClient.createGroup(GroupNameCgw.DISPLAY_NAME_VCF_TKG_Workload_Networks_Group_CGW,
                                     workload_network_name,
-                                    False, None,
-                                    self.jsonspec)
+                                    False, None)
         if worklod_group[1] != 200:
             logger.error(
                 "Failed to create  group " + GroupNameCgw.DISPLAY_NAME_VCF_TKG_Workload_Networks_Group_CGW + " " + str(
@@ -602,7 +580,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        headers_ = grabNsxtHeaders(self.jsonspec)
+        headers_ = nsxtClient.grabNsxtHeaders()
         if headers_[0] is None:
             d = {
                 "responseType": "ERROR",
@@ -610,7 +588,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        domainName = getDomainName(headers_, "default")
+        domainName = nsxtClient.getDomainName(headers_, "default")
         if domainName[0] is None:
             d = {
                 "responseType": "ERROR",
@@ -619,7 +597,7 @@ class RaNSXTWorkflow:
             }
             return json.dumps(d), 500
         uri = "https://" + headers_[2] + "/policy/api/v1/infra/domains/" + domainName[0] + "/groups"
-        output = getList(headers_[1], uri)
+        output = nsxtClient.getList(headers_[1], uri)
         if output[1] != 200:
             logger.error("Failed to get list of groups " + str(output[0]['msg']))
             d = {
@@ -628,7 +606,7 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }
             return json.dumps(d), 500
-        teir1 = getTier1Details(headers_, self.jsonspec)
+        teir1 = nsxtClient.getTier1Details(headers_)
         if teir1[0] is None:
             d = {
                 "responseType": "ERROR",
@@ -640,24 +618,24 @@ class RaNSXTWorkflow:
                     "display_name": FirewallRuleCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_DNS,
                     "logged": False,
                     "source_groups": [
-                        checkObjectIsPresentAndReturnPath(output[0],
+                        nsxtClient.checkObjectIsPresentAndReturnPath(output[0],
                                                             GroupNameCgw.DISPLAY_NAME_VCF_TKG_Workload_Networks_Group_CGW)[
                             1],
-                        checkObjectIsPresentAndReturnPath(output[0],
+                        nsxtClient.checkObjectIsPresentAndReturnPath(output[0],
                                                             GroupNameCgw.DISPLAY_NAME_VCF_TKG_Management_Network_Group_CGW)[
                             1]
                     ],
                     "destination_groups": [
-                        checkObjectIsPresentAndReturnPath(output[0],
+                        nsxtClient.checkObjectIsPresentAndReturnPath(output[0],
                                                             GroupNameCgw.DISPLAY_NAME_VCF_DNS_IPs_Group)[
                             1],
-                        checkObjectIsPresentAndReturnPath(output[0],
+                        nsxtClient.checkObjectIsPresentAndReturnPath(output[0],
                                                             GroupNameCgw.DISPLAY_NAME_VCF_NTP_IPs_Group)[
                             1],
-                        checkObjectIsPresentAndReturnPath(output[0],
+                        nsxtClient.checkObjectIsPresentAndReturnPath(output[0],
                                                             GroupNameCgw.DISPLAY_NAME_VCF_TKG_Workload_Networks_Group_CGW)[
                             1],
-                        checkObjectIsPresentAndReturnPath(output[0],
+                        nsxtClient.checkObjectIsPresentAndReturnPath(output[0],
                                                             GroupNameCgw.DISPLAY_NAME_VCF_CLUSTER_VIP_NETWORK_Group_CGW)[
                             1]
                     ],
@@ -667,9 +645,8 @@ class RaNSXTWorkflow:
                                 "/infra/services/" + ServiceName.KUBE_VIP_VCF_SERVICE],
                     "scope": [teir1[0]]
                     }
-        fw = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_DNS,
-                                payload,
-                                self.jsonspec)
+        fw = nsxtClient.createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_DNS,
+                                payload)
         if fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_DNS + " " + str(
@@ -685,21 +662,20 @@ class RaNSXTWorkflow:
                     "display_name": FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_WORKLOAD_to_vCenter,
                     "logged": False,
                     "source_groups": [
-                        checkObjectIsPresentAndReturnPath(output[0],
+                        nsxtClient.checkObjectIsPresentAndReturnPath(output[0],
                                                             GroupNameCgw.DISPLAY_NAME_VCF_TKG_Workload_Networks_Group_CGW)[
                             1]
                     ],
                     "destination_groups": [
-                        checkObjectIsPresentAndReturnPath(output[0],
+                        nsxtClient.checkObjectIsPresentAndReturnPath(output[0],
                                                             GroupNameCgw.DISPLAY_NAME_VCF_vCenter_IP_Group)[
                             1]
                     ],
                     "services": ["/infra/services/HTTPS"],
                     "scope": [teir1[0]]
                     }
-        fw = createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_WORKLOAD_to_vCenter,
-                                payload,
-                                self.jsonspec)
+        fw = nsxtClient.createFirewallRule(Policy_Name.POLICY_NAME, FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_WORKLOAD_to_vCenter,
+                                payload)
         if fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_TKG_WORKLOAD_to_vCenter + " " + str(
@@ -714,7 +690,7 @@ class RaNSXTWorkflow:
         payload = {"action": "ALLOW",
                     "display_name": FirewallRuleCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_to_Internet,
                     "logged": False,
-                    "source_groups": [checkObjectIsPresentAndReturnPath(output[0],
+                    "source_groups": [nsxtClient.checkObjectIsPresentAndReturnPath(output[0],
                                                                         GroupNameCgw.DISPLAY_NAME_VCF_TKG_Workload_Networks_Group_CGW)[
                                             1]
                                         ],
@@ -722,10 +698,9 @@ class RaNSXTWorkflow:
                     "services": ["ANY"],
                     "scope": [teir1[0]]
                     }
-        fw = createFirewallRule(Policy_Name.POLICY_NAME,
+        fw = nsxtClient.createFirewallRule(Policy_Name.POLICY_NAME,
                                 FirewallRuleCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_to_Internet,
-                                payload,
-                                self.jsonspec)
+                                payload)
         if fw[1] != 200:
             logger.error(
                 "Failed to create firewall " + FirewallRuleCgw.DISPLAY_NAME_VCF_WORKLOAD_TKG_and_AVI_to_Internet + " " + str(
