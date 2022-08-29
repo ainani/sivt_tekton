@@ -143,7 +143,20 @@ def shared_services(ctx):
 @click.pass_context
 def ss_cluster_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    RaSharedClusterWorkflow(run_config).deploy()
+    pre_setup_obj = PreSetup(root_dir=ctx.obj["ROOT_DIR"], run_config=run_config)
+    cleanup_obj = CleanUpUtil()
+    result_dict, msg = pre_setup_obj.pre_check_shrd()
+    if not result_dict["shrd"]["deployed"]:
+        logger.warning(msg)
+        RaSharedClusterWorkflow(run_config).deploy()
+    elif "UP" not in result_dict["shrd"]["health"]:
+        logger.warning(msg)
+        cleanup_obj.delete_cluster(result_dict["name"])
+        RaSharedClusterWorkflow(run_config).deploy()
+    else:
+        logger.info(msg)
+        logger.debug(result_dict)
+
 
 @shared_services.command(name="upgrade")
 @click.pass_context
@@ -161,7 +174,19 @@ def workload_clusters(ctx):
 @click.pass_context
 def wl_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    RaWorkloadClusterWorkflow(run_config).deploy()
+    pre_setup_obj = PreSetup(root_dir=ctx.obj["ROOT_DIR"], run_config=run_config)
+    cleanup_obj = CleanUpUtil()
+    result_dict, msg = pre_setup_obj.pre_check_wrkld()
+    if not result_dict["wrkld"]["deployed"]:
+        logger.warning(msg)
+        RaWorkloadClusterWorkflow(run_config).deploy()
+    elif "UP" not in result_dict["wrkld"]["health"]:
+        logger.warning(msg)
+        cleanup_obj.delete_cluster(result_dict["name"])
+        RaWorkloadClusterWorkflow(run_config).deploy()
+    else:
+        logger.info(msg)
+        logger.debug(result_dict)
 
 @workload_clusters.command(name="upgrade")
 @click.pass_context

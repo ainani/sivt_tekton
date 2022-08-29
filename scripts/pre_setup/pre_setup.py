@@ -167,6 +167,86 @@ class PreSetup:
         self.update_state_yml(state_dict)
         return state_dict, msg
 
+    @log("Pre Check WorkLoad")
+    def pre_check_wrkld(self):
+        """
+        Method to check that Workload cluster is deployed or not already
+        """
+        wrkld_cluster_name = None
+        if not self.isEnvTkgs_wcp and not self.isEnvTkgs_ns:
+            wrkld_cluster_name = self.jsonspec['tkgComponentSpec']['tkgWorkloadComponents'][
+                'tkgWorkloadClusterName']
+        state_dict = {"wrkld": {"deployed": False,
+                               "health": "DOWN",
+                               "name": wrkld_cluster_name}}
+        msg = "Pre Check Failed: "
+
+        # login to Tanzu
+        tanzu_login_cmd = ["tanzu", "login", "--server", wrkld_cluster_name]
+        out = runShellCommandAndReturnOutput(tanzu_login_cmd)
+        if f"successfully logged in to management cluster using the kubeconfig {wrkld_cluster_name}" in out[0]:
+            cluster_status_dict = getClusterStatusOnTanzu(management_cluster=wrkld_cluster_name, typen="cluster",
+                                                       return_dict=True)
+            logger.debug(cluster_status_dict)
+            if cluster_status_dict["deployed"]:
+                state_dict["wrkld"]["deployed"] = True
+                if cluster_status_dict["running"]:
+                    state_dict["wrkld"]["health"] = "UP"
+                    msg = f"Pre Check PASSED: WORKLOAD Cluster '{wrkld_cluster_name}' is already Deployed and UP"
+                else:
+                    msg = msg + f"WORKLOAD Cluster '{wrkld_cluster_name}' NOT UP"
+            else:
+                msg = msg + f"WORKLOAD Cluster '{wrkld_cluster_name}' not Deployed"
+        elif f"Error: could not find server \"{wrkld_cluster_name}\"" in out[0]:
+            msg = msg + f"WORKLOAD Cluster '{wrkld_cluster_name}' is not deployed"
+        else:
+            msg = msg + f"Couldn't login to WORKLOAD Cluster '{wrkld_cluster_name}'"
+            logger.error(f"ERROR: {out[0]}")
+
+        # Update state.yml file
+        self.update_state_yml(state_dict)
+        return state_dict, msg
+
+    @log("Pre Check Shared")
+    def pre_check_shrd(self):
+        """
+        Method to check that Shared cluster is deployed or not already
+        """
+        shrd_cluster_name = None
+        if not self.isEnvTkgs_wcp and not self.isEnvTkgs_ns:
+            shrd_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                'tkgSharedserviceClusterName']
+        state_dict = {"shrd": {"deployed": False,
+                                "health": "DOWN",
+                                "name": shrd_cluster_name}}
+        msg = "Pre Check Failed: "
+
+        # login to Tanzu
+        tanzu_login_cmd = ["tanzu", "login", "--server", shrd_cluster_name]
+        out = runShellCommandAndReturnOutput(tanzu_login_cmd)
+        if f"successfully logged in to shared cluster using the kubeconfig {shrd_cluster_name}" in out[0]:
+            cluster_status_dict = getClusterStatusOnTanzu(management_cluster=shrd_cluster_name, typen="cluster",
+                                                          return_dict=True)
+            logger.debug(cluster_status_dict)
+            if cluster_status_dict["deployed"]:
+                state_dict["shrd"]["deployed"] = True
+                if cluster_status_dict["running"]:
+                    state_dict["shrd"]["health"] = "UP"
+                    msg = f"Pre Check PASSED: SHARED Cluster '{shrd_cluster_name}' is already Deployed and UP"
+                else:
+                    msg = msg + f"SHARED Cluster '{shrd_cluster_name}' NOT UP"
+            else:
+                msg = msg + f"SHARED Cluster '{shrd_cluster_name}' not Deployed"
+        elif f"Error: could not find server \"{shrd_cluster_name}\"" in out[0]:
+            msg = msg + f"SHARED Cluster '{shrd_cluster_name}' is not deployed"
+        else:
+            msg = msg + f"Couldn't login to SHARED Cluster '{shrd_cluster_name}'"
+            logger.error(f"ERROR: {out[0]}")
+
+        # Update state.yml file
+        self.update_state_yml(state_dict)
+        return state_dict, msg
+
     def update_state_yml(self, state_dict: dict):
         config, ind, bsi = ruamel.yaml.util.load_yaml_guess_indent(open(self.state_file_path))
         for key, val in state_dict.items():

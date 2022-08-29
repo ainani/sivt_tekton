@@ -3,8 +3,12 @@
 #  Copyright 2022 VMware, Inc
 #  SPDX-License-Identifier: BSD-2-Clause
 import time
-from util.ShellHelper import runShellCommandAndReturnOutput, runProcess
+import json
+from util.ShellHelper import runShellCommandAndReturnOutput, runProcess, runShellCommandAndReturnOutputAsList, \
+    verifyPodsAreRunning
 from util.logger_helper import LoggerHelper, log
+from constants.constants import RegexPattern
+
 logger = LoggerHelper.get_logger(name='Pre Setup')
 
 
@@ -63,4 +67,44 @@ class CleanUpUtil:
                 return True
         except Exception as e:
             logger.error(str(e))
+            return False
+
+    def delete_cluster(self, cluster):
+        try:
+            logger.info("Initiating deletion of cluster - " + cluster)
+            delete = ["tanzu", "cluster", "delete", cluster, "-y"]
+            delete_status = runShellCommandAndReturnOutputAsList(delete)
+            if delete_status[1] != 0:
+                logger.error("Command to delete - " + cluster + " Failed")
+                logger.debug(delete_status[0])
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed delete cluster - " + cluster,
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+            cluster_running = ["tanzu", "cluster", "list"]
+            command_status = runShellCommandAndReturnOutputAsList(cluster_running)
+            if command_status[1] != 0:
+                logger.error("Failed to run command to check status of workload cluster - " + cluster)
+                return False
+            deleting = True
+            count = 0
+            while count < 360 and deleting:
+                if verifyPodsAreRunning(cluster, command_status[0], RegexPattern.deleting) or \
+                        verifyPodsAreRunning(cluster, command_status[0], RegexPattern.running):
+                    logger.info("Waiting for " + cluster + " deletion to complete...")
+                    logger.info("Retrying in 10s...")
+                    time.sleep(10)
+                    count = count + 1
+                    command_status = runShellCommandAndReturnOutputAsList(cluster_running)
+                else:
+                    deleting = False
+            if not deleting:
+                return True
+
+            logger.error("waited for " + str(count * 5) + "s")
+            return False
+        except Exception as e:
+            logger.error("Exception occurred while deleting cluster " + str(e))
             return False
