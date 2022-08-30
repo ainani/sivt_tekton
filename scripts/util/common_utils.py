@@ -827,6 +827,7 @@ def getClusterStatusOnTanzu(cluster_name, typen=None, return_dict = False):
         o = runShellCommandAndReturnOutput(tanzu_get_clstr_cmd)
 
         cluster_status_dict["out"] = o[0]
+        logger.debug(cluster_status_dict)
         if o[1] == 0:
             for clstr in json.loads(o[0]):
                 if clstr["name"] == cluster_name:
