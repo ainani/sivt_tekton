@@ -30,5 +30,6 @@ spec:
         git add kubeconfig-repo/.config/tanzu/config.yaml
         git add kubeconfig-repo/.kube/config
         git add kubeconfig-repo/.kube-tkg/config
+        git add deployment-state/state.yml
         git commit -m "kube cfg uploaded"
         git push origin $(params.branch)
