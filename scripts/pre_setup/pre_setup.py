@@ -249,7 +249,10 @@ class PreSetup:
         for key, val in state_dict.items():
             instances = config[key]
             for item_key, item_val in val.items():
-                instances[item_key] = item_val
+                if key == "workload_clusters":
+                    instances[0][item_key] = item_val
+                else:
+                    instances[item_key] = item_val
 
         yaml = ruamel.yaml.YAML()
         yaml.indent(mapping=ind, sequence=ind, offset=bsi)
