@@ -83,12 +83,12 @@ def avi_deploy(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
     pre_setup_obj = PreSetup(root_dir=ctx.obj["ROOT_DIR"], run_config=run_config)
     result_dict, msg = pre_setup_obj.pre_check_avi()
-    if "AVI not deployed" in msg:
+    if not result_dict["avi"]["deployed"]:
         logger.warning(msg)
         RALBWorkflow(run_config=run_config).avi_controller_setup()
     elif "AVI Version mis-matched" in msg:
         logger.error(msg)
-    elif "AVI not UP" in msg:
+    elif "UP" not in result_dict["avi"]["health"]:
         logger.error(msg)
         # TODO: Can we start AVI ?
     else:
