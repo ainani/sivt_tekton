@@ -840,7 +840,8 @@ def getClusterStatusOnTanzu(cluster_name, typen=None, return_dict = False):
             return True
         else:
             return False
-    except:
+    except Exception as e:
+        logger.error(f"EXCEPTION : {e}")
         return False
 
 def runSsh(vc_user):
