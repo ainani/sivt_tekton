@@ -146,10 +146,10 @@ def ss_cluster_deploy(ctx):
     pre_setup_obj = PreSetup(root_dir=ctx.obj["ROOT_DIR"], run_config=run_config)
     cleanup_obj = CleanUpUtil()
     result_dict, msg = pre_setup_obj.pre_check_shrd()
-    if not result_dict["shrd"]["deployed"]:
+    if not result_dict["shared_services"]["deployed"]:
         logger.warning(msg)
         RaSharedClusterWorkflow(run_config).deploy()
-    elif "UP" not in result_dict["shrd"]["health"]:
+    elif "UP" not in result_dict["shared_services"]["health"]:
         logger.warning(msg)
         cleanup_obj.delete_cluster(result_dict["name"])
         RaSharedClusterWorkflow(run_config).deploy()
@@ -177,10 +177,10 @@ def wl_deploy(ctx):
     pre_setup_obj = PreSetup(root_dir=ctx.obj["ROOT_DIR"], run_config=run_config)
     cleanup_obj = CleanUpUtil()
     result_dict, msg = pre_setup_obj.pre_check_wrkld()
-    if not result_dict["wrkld"]["deployed"]:
+    if not result_dict["workload_clusters"]["deployed"]:
         logger.warning(msg)
         RaWorkloadClusterWorkflow(run_config).deploy()
-    elif "UP" not in result_dict["wrkld"]["health"]:
+    elif "UP" not in result_dict["workload_clusters"]["health"]:
         logger.warning(msg)
         cleanup_obj.delete_cluster(result_dict["name"])
         RaWorkloadClusterWorkflow(run_config).deploy()

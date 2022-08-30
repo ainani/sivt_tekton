@@ -177,7 +177,7 @@ class PreSetup:
         """
         Method to check that Workload cluster is deployed or not already
         """
-        state_dict = {"wrkld": {"deployed": False,
+        state_dict = {"workload_clusters": {"deployed": False,
                                "health": "DOWN",
                                "name": self.wrkld_cluster_name}}
         msg = "Pre Check Failed: "
@@ -185,14 +185,14 @@ class PreSetup:
         # login to Tanzu
         tanzu_login_cmd = ["tanzu", "login", "--server", self.mgmt_cluster_name]
         out = runShellCommandAndReturnOutput(tanzu_login_cmd)
-        if f"successfully logged in to management cluster using the kubeconfig {self.wrkld_cluster_name}" in out[0]:
+        if f"successfully logged in to management cluster using the kubeconfig {self.mgmt_cluster_name}" in out[0]:
             cluster_status_dict = getClusterStatusOnTanzu(cluster_name=self.wrkld_cluster_name, typen="cluster",
                                                        return_dict=True)
             logger.debug(cluster_status_dict)
             if cluster_status_dict["deployed"]:
-                state_dict["wrkld"]["deployed"] = True
+                state_dict["workload_clusters"]["deployed"] = True
                 if cluster_status_dict["running"]:
-                    state_dict["wrkld"]["health"] = "UP"
+                    state_dict["workload_clusters"]["health"] = "UP"
                     msg = f"Pre Check PASSED: WORKLOAD Cluster '{self.wrkld_cluster_name}' is already Deployed and UP"
                 else:
                     msg = msg + f"WORKLOAD Cluster '{self.wrkld_cluster_name}' NOT UP"
@@ -213,7 +213,7 @@ class PreSetup:
         """
         Method to check that Shared cluster is deployed or not already
         """
-        state_dict = {"shrd": {"deployed": False,
+        state_dict = {"shared_services": {"deployed": False,
                                 "health": "DOWN",
                                 "name": self.shrd_cluster_name}}
         msg = "Pre Check Failed: "
@@ -221,14 +221,14 @@ class PreSetup:
         # login to Tanzu
         tanzu_login_cmd = ["tanzu", "login", "--server", self.mgmt_cluster_name]
         out = runShellCommandAndReturnOutput(tanzu_login_cmd)
-        if f"successfully logged in to management cluster using the kubeconfig {self.shrd_cluster_name}" in out[0]:
+        if f"successfully logged in to management cluster using the kubeconfig {self.mgmt_cluster_name}" in out[0]:
             cluster_status_dict = getClusterStatusOnTanzu(cluster_name=self.shrd_cluster_name, typen="cluster",
                                                           return_dict=True)
             logger.debug(cluster_status_dict)
             if cluster_status_dict["deployed"]:
-                state_dict["shrd"]["deployed"] = True
+                state_dict["shared_services"]["deployed"] = True
                 if cluster_status_dict["running"]:
-                    state_dict["shrd"]["health"] = "UP"
+                    state_dict["shared_services"]["health"] = "UP"
                     msg = f"Pre Check PASSED: SHARED Cluster '{self.shrd_cluster_name}' is already Deployed and UP"
                 else:
                     msg = msg + f"SHARED Cluster '{self.shrd_cluster_name}' NOT UP"

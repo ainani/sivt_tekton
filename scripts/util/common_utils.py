@@ -832,7 +832,7 @@ def getClusterStatusOnTanzu(cluster_name, typen, return_dict = False):
         cluster_staus_dict["out"] = o[0]
         if o[1] == 0:
             try:
-                if o[0].__contains__(cluster_name):
+                if not o[0].__contains__(f"\"{cluster_name}\" not found"):
                     cluster_staus_dict["deployed"] = True
                 if o[0].__contains__("running"):
                     cluster_staus_dict["running"] = True

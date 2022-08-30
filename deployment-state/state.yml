@@ -31,7 +31,7 @@ shared_services:
   upgradedFrom: null
   version: 1.5.3
 workload_clusters:
-- deployed: false
+  deployed: false
   extensions:
     certManager:
       deployed: false
