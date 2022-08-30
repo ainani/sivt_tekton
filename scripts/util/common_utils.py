@@ -1509,7 +1509,6 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                 }
                 return json.dumps(d), 500"""
         sub_command = ["grep", AppName.CONTOUR]
-        import pdb; pdb.set_trace()
         command_cert = grabPipeOutput(main_command, sub_command)
         if not verifyPodsAreRunning(AppName.CONTOUR, command_cert[0],
                                     RegexPattern.RECONCILE_SUCCEEDED) or Upgrade_Extensions.UPGRADE_EXTN:
