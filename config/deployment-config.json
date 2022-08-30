@@ -210,8 +210,8 @@
         "harborCertKeyPath": ""
     },
     "tanzuExtensions": {
-        "enableExtensions": "false",
-        "tkgClustersName": "",
+        "enableExtensions": "true",
+        "tkgClustersName": "abhi-wrkld-clsrt",
         "logging": {
             "syslogEndpoint": {
                 "enableSyslogEndpoint": "false",
@@ -221,11 +221,11 @@
                 "syslogEndpointFormat": ""
             },
             "httpEndpoint": {
-                "enableHttpEndpoint": "false",
-                "httpEndpointAddress": "",
-                "httpEndpointPort": "",
-                "httpEndpointUri": "",
-                "httpEndpointHeaderKeyValue": ""
+                "enableHttpEndpoint": "true",
+                "httpEndpointAddress": "data.mgmt.cloud.vmware.com",
+                "httpEndpointPort": "443",
+                "httpEndpointUri": "le-mans/v1/streams/ingestion-pipeline-stream",
+                "httpEndpointHeaderKeyValue": "Authorization Bearer AfXSc1NC06i7rsIBkhpFJLzwE4D8qmxT"
             },
             "kafkaEndpoint": {
                 "enableKafkaEndpoint": "false",
@@ -234,14 +234,14 @@
             }
         },
         "monitoring": {
-            "enableLoggingExtension": "false",
-            "prometheusFqdn": "",
+            "enableLoggingExtension": "true",
+            "prometheusFqdn": "prometheus.tanzu.lab",
             "prometheusCertPath": "",
             "prometheusCertKeyPath": "",
-            "grafanaFqdn": "",
+            "grafanaFqdn": "grafana.tanzu.lab",
             "grafanaCertPath": "",
             "grafanaCertKeyPath": "",
-            "grafanaPasswordBase64": ""
+            "grafanaPasswordBase64": "Vk13YXJlMSE="
         }
     }
 }

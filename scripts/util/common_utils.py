@@ -820,30 +820,35 @@ def getSeNewBody(newCloudUrl, seGroupName, clusterUrl, dataStore):
 
 def getClusterStatusOnTanzu(cluster_name, typen, return_dict = False):
     try:
-        cluster_staus_dict = {"deployed": False,
+        cluster_status_dict = {"deployed": False,
                            "running": False,
                            "out": ""}
 
         if typen == "management":
             listn = ["tanzu", "management-cluster", "get"]
         else:
-            listn = ["tanzu", "cluster", "get", cluster_name]
+            listn = ["tanzu", "cluster", "list", "-o", "json"]
         o = runShellCommandAndReturnOutput(listn)
-        cluster_staus_dict["out"] = o[0]
+        cluster_status_dict["out"] = o[0]
         if o[1] == 0:
+            if not typen == "management":
+                for clstr in json.loads(o[0]):
+                    if clstr["name"] == cluster_name:
+                        cluster_status_dict["running"] = True if "running" in clstr["status"] else False
+                        if "running" in clstr["status"]:
+                            cluster_status_dict["deployed"] = True
             try:
                 if not o[0].__contains__(f"\"{cluster_name}\" not found"):
-                    cluster_staus_dict["deployed"] = True
+                    cluster_status_dict["deployed"] = True
                 if o[0].__contains__("running"):
-                    cluster_staus_dict["running"] = True
+                    cluster_status_dict["running"] = True
             except:
                 return False
 
-
         if return_dict:
-            return cluster_staus_dict
+            return cluster_status_dict
 
-        if cluster_staus_dict["deployed"] and cluster_staus_dict["running"]:
+        if cluster_status_dict["deployed"] and cluster_status_dict["running"]:
             return True
         else:
             return False
