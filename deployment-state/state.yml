@@ -4,8 +4,8 @@ avi:
   name: avi-controller1.tsv.local
   version: 21.1.4
 mgmt:
-  deployed: true
-  health: UP
+  deployed: false
+  health: DOWN
   name: abhi-clstr-mgmt
   version: 1.5.3
 shared_services:
