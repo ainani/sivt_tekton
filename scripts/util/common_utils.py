@@ -828,7 +828,7 @@ def getClusterStatusOnTanzu(cluster_name, typen=None, return_dict = False):
 
         cluster_status_dict["out"] = o[0]
         if o[1] == 0:
-            for clstr in json.loads(''.join(o[0].split('\n')[3:])):
+            for clstr in json.loads(''.join([x for x in o[0].split('\n') if not x.startswith('Downloading')])):
                 if clstr["name"] == cluster_name:
                     cluster_status_dict["running"] = True if "running" in clstr["status"] else False
                     if "running" in clstr["status"]:
