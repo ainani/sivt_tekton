@@ -201,7 +201,7 @@ class PreSetup:
         elif f"Error: could not find server \"{self.wrkld_cluster_name}\"" in out[0]:
             msg = msg + f"WORKLOAD Cluster '{self.wrkld_cluster_name}' is not deployed"
         else:
-            msg = msg + f"Couldn't login to WORKLOAD Cluster '{self.wrkld_cluster_name}'"
+            msg = msg + f"Couldn't login to MGMT Cluster '{self.mgmt_cluster_name}'"
             logger.error(f"ERROR: {out[0]}")
 
         # Update state.yml file
@@ -221,7 +221,7 @@ class PreSetup:
         # login to Tanzu
         tanzu_login_cmd = ["tanzu", "login", "--server", self.mgmt_cluster_name]
         out = runShellCommandAndReturnOutput(tanzu_login_cmd)
-        if f"successfully logged in to shared cluster using the kubeconfig {self.shrd_cluster_name}" in out[0]:
+        if f"successfully logged in to management cluster using the kubeconfig {self.shrd_cluster_name}" in out[0]:
             cluster_status_dict = getClusterStatusOnTanzu(cluster_name=self.shrd_cluster_name, typen="cluster",
                                                           return_dict=True)
             logger.debug(cluster_status_dict)
@@ -237,7 +237,7 @@ class PreSetup:
         elif f"Error: could not find server \"{self.shrd_cluster_name}\"" in out[0]:
             msg = msg + f"SHARED Cluster '{self.shrd_cluster_name}' is not deployed"
         else:
-            msg = msg + f"Couldn't login to SHARED Cluster '{self.shrd_cluster_name}'"
+            msg = msg + f"Couldn't login to management Cluster '{self.mgmt_cluster_name}'"
             logger.error(f"ERROR: {out[0]}")
 
         # Update state.yml file
