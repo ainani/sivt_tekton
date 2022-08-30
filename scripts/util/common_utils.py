@@ -823,28 +823,16 @@ def getClusterStatusOnTanzu(cluster_name, typen, return_dict = False):
         cluster_status_dict = {"deployed": False,
                            "running": False,
                            "out": ""}
+        tanzu_get_clstr_cmd = ["tanzu", "cluster", "list", "--include-management-cluster", "-o", "json"]
+        o = runShellCommandAndReturnOutput(tanzu_get_clstr_cmd)
 
-        if typen == "management":
-            listn = ["tanzu", "management-cluster", "get"]
-        else:
-            listn = ["tanzu", "cluster", "list", "-o", "json"]
-        o = runShellCommandAndReturnOutput(listn)
         cluster_status_dict["out"] = o[0]
         if o[1] == 0:
-            if not typen == "management":
-                for clstr in json.loads(o[0]):
-                    if clstr["name"] == cluster_name:
-                        cluster_status_dict["running"] = True if "running" in clstr["status"] else False
-                        if "running" in clstr["status"]:
-                            cluster_status_dict["deployed"] = True
-            try:
-                if not o[0].__contains__(f"\"{cluster_name}\" not found"):
-                    cluster_status_dict["deployed"] = True
-                if o[0].__contains__("running"):
-                    cluster_status_dict["running"] = True
-            except:
-                return False
-
+            for clstr in json.loads(o[0]):
+                if clstr["name"] == cluster_name:
+                    cluster_status_dict["running"] = True if "running" in clstr["status"] else False
+                    if "running" in clstr["status"]:
+                        cluster_status_dict["deployed"] = True
         if return_dict:
             return cluster_status_dict
 
