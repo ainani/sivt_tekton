@@ -119,9 +119,6 @@ class RALBWorkflow:
 
     @log("Setting up AVI Controller")
     def avi_controller_setup(self):
-        if self.run_config.state.avi.deployed:
-            logger.debug("NSX-ALB is deployed")
-            return True
         if not ra_avi_download(self.jsonspec):
             logger.error("Failed to setup AVI")
             raise ValueError('Failed to deploy and configure avi.')
