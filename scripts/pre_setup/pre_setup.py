@@ -150,7 +150,7 @@ class PreSetup:
         tanzu_login_cmd = ["tanzu", "login", "--server", self.mgmt_cluster_name]
         out = runShellCommandAndReturnOutput(tanzu_login_cmd)
         if f"successfully logged in to management cluster using the kubeconfig {self.mgmt_cluster_name}" in out[0]:
-            mgmt_status_dict = getClusterStatusOnTanzu(cluster_name=self.mgmt_cluster_name, typen="management",
+            mgmt_status_dict = getClusterStatusOnTanzu(cluster_name=self.mgmt_cluster_name,
                                               return_dict=True)
             logger.debug(mgmt_status_dict)
             if mgmt_status_dict["deployed"]:
@@ -186,7 +186,7 @@ class PreSetup:
         tanzu_login_cmd = ["tanzu", "login", "--server", self.mgmt_cluster_name]
         out = runShellCommandAndReturnOutput(tanzu_login_cmd)
         if f"successfully logged in to management cluster using the kubeconfig {self.mgmt_cluster_name}" in out[0]:
-            cluster_status_dict = getClusterStatusOnTanzu(cluster_name=self.wrkld_cluster_name, typen="cluster",
+            cluster_status_dict = getClusterStatusOnTanzu(cluster_name=self.wrkld_cluster_name,
                                                        return_dict=True)
             logger.debug(cluster_status_dict)
             if cluster_status_dict["deployed"]:
@@ -222,7 +222,7 @@ class PreSetup:
         tanzu_login_cmd = ["tanzu", "login", "--server", self.mgmt_cluster_name]
         out = runShellCommandAndReturnOutput(tanzu_login_cmd)
         if f"successfully logged in to management cluster using the kubeconfig {self.mgmt_cluster_name}" in out[0]:
-            cluster_status_dict = getClusterStatusOnTanzu(cluster_name=self.shrd_cluster_name, typen="cluster",
+            cluster_status_dict = getClusterStatusOnTanzu(cluster_name=self.shrd_cluster_name,
                                                           return_dict=True)
             logger.debug(cluster_status_dict)
             if cluster_status_dict["deployed"]:

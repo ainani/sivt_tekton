@@ -818,7 +818,7 @@ def getSeNewBody(newCloudUrl, seGroupName, clusterUrl, dataStore):
     }
     return json.dumps(body, indent=4)
 
-def getClusterStatusOnTanzu(cluster_name, typen, return_dict = False):
+def getClusterStatusOnTanzu(cluster_name, typen=None, return_dict = False):
     try:
         cluster_status_dict = {"deployed": False,
                            "running": False,
