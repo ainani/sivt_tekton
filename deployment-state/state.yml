@@ -9,7 +9,7 @@ mgmt:
   name: abhi-clstr-mgmt
   version: 1.5.3
 shared_services:
-  deployed: true
+  deployed: false
   extensions:
     certManager:
       deployed: false
@@ -23,7 +23,7 @@ shared_services:
     harbor:
       deployed: false
       upgraded: false
-  health: UP
+  health: DOWN
   integrations:
     tmc:
       attached: false
@@ -31,7 +31,7 @@ shared_services:
   upgradedFrom:
   version: 1.5.3
 workload_clusters:
-- deployed: true
+- deployed: false
   extensions:
     certManager:
       deployed: false
@@ -45,7 +45,7 @@ workload_clusters:
     prometheus:
       deployed: false
       upgraded: false
-  health: UP
+  health: DOWN
   integrations:
     tmc:
       attached: false
