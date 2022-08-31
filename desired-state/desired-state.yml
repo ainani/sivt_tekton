@@ -1,14 +1,14 @@
 ---
 version:
-  tkgs: 1.5
-  env: vsphere
+  tkgm: 1.5.4
+  env: vcf
 
 Description: >
   The desired-state.yml file is responsible to refer that what should be desired state of the system after deployment.
   User should update the expected TKGs or TKGm version in this file, the same is going to be deployed accordingly.
 
   Env can be either vsphere or vcf.
-  Only TKGm is supported on vcf. Both TKGm and TkGs are supported on vsphere
+  Only TKGm is supported on vcf(nsx-t). Both TKGm and TkGs are supported on vsphere
 
 
   Sample TKGm:
@@ -23,5 +23,11 @@ Description: >
       tkgs: 1.5
       env: vsphere
   
+  Sample VCF:
+    ---
+  version:
+    tkgm: 1.5.4
+    env: vcf
+
   Kindly note that desired state should be either TKGs or TKGm. User can't provide both TKGs and TKGm desired state at 
   same time 
