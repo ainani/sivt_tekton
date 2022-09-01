@@ -2,7 +2,7 @@ avi:
   deployed: false
   health: UP
   name: alb_controller
-  version: 21.1.4
+  version: 20.1.7
 mgmt:
   deployed: true
   health: UP
