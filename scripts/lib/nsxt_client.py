@@ -876,7 +876,7 @@ class NsxtClient:
                 "scope": [
                     tier_path[0]
                 ],
-                "action": "DROP"
+                "action": "ALLOW"
             }
             payload_modified = json.dumps(payload, indent=4)
             headers_[1].update({"Content-Type": "application/json", "Accept": "application/json"})
