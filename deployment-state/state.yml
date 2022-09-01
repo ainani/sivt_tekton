@@ -4,12 +4,12 @@ avi:
   name: avi-controller1.tsv.local
   version: 21.1.4
 mgmt:
-  deployed: false
-  health: DOWN
+  deployed: true
+  health: UP
   name: abhi-clstr-mgmt
   version: 1.5.3
 shared_services:
-  deployed: false
+  deployed: true
   extensions:
     certManager:
       deployed: false
@@ -23,7 +23,7 @@ shared_services:
     harbor:
       deployed: false
       upgraded: false
-  health: DOWN
+  health: UP
   integrations:
     tmc:
       attached: false
@@ -31,7 +31,7 @@ shared_services:
   upgradedFrom:
   version: 1.5.3
 workload_clusters:
-- deployed: false
+- deployed: true
   extensions:
     certManager:
       deployed: false
@@ -45,7 +45,7 @@ workload_clusters:
     prometheus:
       deployed: false
       upgraded: false
-  health: DOWN
+  health: UP
   integrations:
     tmc:
       attached: false
