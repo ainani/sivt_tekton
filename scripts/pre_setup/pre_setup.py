@@ -19,7 +19,9 @@ from util.ShellHelper import runShellCommandAndReturnOutput
 
 logger = LoggerHelper.get_logger(name='Pre Setup')
 
+
 class PreSetup:
+    """PreSetup class is responsible to perform Pre Checks before deploying any of clusters/nodes"""
     def __init__(self, root_dir, run_config: RunConfig) -> None:
         self.run_config = run_config
         self.version = None
@@ -50,10 +52,10 @@ class PreSetup:
         self.get_avi_details()
         self.get_tkg_mgmt_details()
 
-    def get_vcenter_details(self):
+    def get_vcenter_details(self) -> None:
         """
         Method to get vCenter Details from JSON file
-        :return:
+        :return: None
         """
         self.vcenter_dict = {}
         try:
@@ -69,7 +71,11 @@ class PreSetup:
             logger.warning(f"Field {e} not configured in vcenterDetails")
             pass
 
-    def get_avi_details(self):
+    def get_avi_details(self) -> None:
+        """
+        Method to get all AVI related details in a dict
+        :return : None
+        """
         self.avi_dict = {}
         if self.isEnvTkgs_wcp:
             self.avi_dict.update({"avi_fqdn": self.jsonspec['tkgsComponentSpec']['aviComponents']['aviController01Fqdn']})
@@ -77,7 +83,11 @@ class PreSetup:
             self.avi_dict.update(
                 {"avi_fqdn": self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']})
 
-    def get_tkg_mgmt_details(self):
+    def get_tkg_mgmt_details(self) -> None:
+        """
+        Method to get MGMT details in a dict
+        return: None
+        """
         if not self.isEnvTkgs_wcp and not self.isEnvTkgs_ns:
             self.mgmt_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                 'tkgMgmtClusterName']
@@ -86,9 +96,15 @@ class PreSetup:
                 'tkgSharedserviceClusterName']
 
     @log("Pre Check AVI")
-    def pre_check_avi(self):
+    def pre_check_avi(self) -> tuple:
         """
         Method to check that AVI is deployed or not already
+        return: tuple
+                  state_dict = {"avi":{"deployed": True/False,
+                             "version": AVI version,
+                             "health": "UP/DOWN",
+                             "name": Name of AVI deployed}
+                  msg = "User defined message"
         """
         if TkgUtil.isEnvTkgs_wcp(self.jsonspec):
             avi_required = Avi_Tkgs_Version.VSPHERE_AVI_VERSION
