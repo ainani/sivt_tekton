@@ -1,15 +1,15 @@
 avi:
-  deployed: true
+  deployed: false
   health: UP
-  name: avi-controller1.tsv.local
-  version: 21.1.4
+  name: alb_controller
+  version: 20.1.7
 mgmt:
   deployed: true
   health: UP
-  name: abhi-clstr-mgmt
+  name: mgmt-clu
   version: 1.5.3
 shared_services:
-  deployed: true
+  deployed: false
   extensions:
     certManager:
       deployed: false
@@ -27,11 +27,11 @@ shared_services:
   integrations:
     tmc:
       attached: false
-  name: abhi-clstr-shrd
-  upgradedFrom:
+  name: arcas-shared-services
+  upgradedFrom: null
   version: 1.5.3
 workload_clusters:
-- deployed: true
+- deployed: false
   extensions:
     certManager:
       deployed: false
@@ -49,5 +49,5 @@ workload_clusters:
   integrations:
     tmc:
       attached: false
-  name: abhi-wrkld-clsrt
+  name: arcas-workload
   version: 1.5.3
