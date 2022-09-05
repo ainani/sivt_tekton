@@ -5,7 +5,7 @@
 import json
 import os
 import ruamel.yaml # pip install ruamel.yaml
-from constants.constants import Paths, Avi_Version, Avi_Tkgs_Version
+from constants.constants import Paths, Avi_Version, Avi_Tkgs_Version, Env
 from util.avi_api_helper import obtain_avi_version, check_controller_is_up
 from util.logger_helper import LoggerHelper, log
 from util.cmd_helper import CmdHelper
@@ -17,6 +17,8 @@ from util.local_cmd_helper import LocalCmdHelper
 from util.common_utils import getClusterStatusOnTanzu
 from util.ShellHelper import runShellCommandAndReturnOutput
 from util.cleanup_util import CleanUpUtil
+from util.common_utils import envCheck
+from workflows.ra_nsxt_workflow import RaNSXTWorkflow
 
 logger = LoggerHelper.get_logger(name='Pre Setup')
 
@@ -53,6 +55,16 @@ class PreSetup:
         self.get_avi_details()
         self.get_tkg_mgmt_details()
         self.cleanup_obj = CleanUpUtil()
+        self.env = envCheck(self.run_config)
+        if self.env[1] != 200:
+            logger.error("Wrong env provided " + self.env[0])
+            d = {
+                "responseType": "ERROR",
+                "msg": "Wrong env provided " + self.env[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        self.env = self.env[0]
 
     def get_vcenter_details(self) -> None:
         """
@@ -94,8 +106,14 @@ class PreSetup:
             self.mgmt_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                 'tkgMgmtClusterName']
             self.wrkld_cluster_name = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadClusterName']
-            self.shrd_cluster_name = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+            if self.env == Env.VCF:
+                self.shrd_cluster_name = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
                 'tkgSharedserviceClusterName']
+            elif self.env == Env.VSPHERE:
+                self.shrd_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                'tkgSharedserviceClusterName']
+
+
 
     @log("Pre Check AVI")
     def pre_check_avi(self) -> tuple:
@@ -108,6 +126,8 @@ class PreSetup:
                              "name": Name of AVI deployed}
                   msg = "User defined message"
         """
+        if self.env == Env.VCF:
+            RaNSXTWorkflow(self.run_config).configure_avi_nsxt_config()
         if TkgUtil.isEnvTkgs_wcp(self.jsonspec):
             avi_required = Avi_Tkgs_Version.VSPHERE_AVI_VERSION
         else:
