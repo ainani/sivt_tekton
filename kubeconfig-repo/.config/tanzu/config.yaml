@@ -26,13 +26,13 @@ clientOptions:
       import: "false"
       network-separation-beta: "false"
       standalone-cluster-mode: "false"
-current: tejas-clstr-mgmt01
+current: tkgm-nsxt-mgmt
 kind: ClientConfig
 metadata:
   creationTimestamp: null
 servers:
 - managementClusterOpts:
-    context: tejas-clstr-mgmt01-admin@tejas-clstr-mgmt01
+    context: tkgm-nsxt-mgmt-admin@tkgm-nsxt-mgmt
     path: /root/.kube-tkg/config
-  name: tejas-clstr-mgmt01
+  name: tkgm-nsxt-mgmt
   type: managementcluster
