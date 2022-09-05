@@ -102,7 +102,11 @@ class RaSharedClusterWorkflow:
                   "incorrect spec provided."
             raise Exception(msg)
         self.cleanup_obj = CleanUpUtil()
-        self.shrd_clstr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+        if self.env == Env.VCF:
+            self.shrd_clstr = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                'tkgSharedserviceClusterName']
+        elif self.env == Env.VSPHERE:
+            self.shrd_clstr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                 'tkgSharedserviceClusterName']
 
     def _template_deploy_yaml(self):
