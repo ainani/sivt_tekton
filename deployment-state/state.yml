@@ -9,7 +9,7 @@ mgmt:
   name: tkgm-nsxt-mgmt
   version: 1.5.3
 shared_services:
-  deployed: false
+  deployed: true
   extensions:
     certManager:
       deployed: false
@@ -23,7 +23,7 @@ shared_services:
     harbor:
       deployed: false
       upgraded: false
-  health: DOWN
+  health: UP
   integrations:
     tmc:
       attached: false
