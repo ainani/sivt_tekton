@@ -743,6 +743,7 @@ class RegexPattern:
     RECONCILE_FAILED = 'Reconcile failed'
     IP_ADDRESS = "\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
     URL_REGEX_PORT = "(?:http.*://)?(?P<host>[^:/ ]+).?(?P<port>[0-9]*).*"
+    deleting = "deleting"
 
 class AkoType:
     KEY = 'type'

@@ -3,7 +3,7 @@
 
 import subprocess
 import re
-from subprocess import Popen, PIPE, STDOUT
+from subprocess import Popen, PIPE, STDOUT, CalledProcessError
 from util.logger_helper import LoggerHelper, log
 from pathlib import Path
 
@@ -11,38 +11,30 @@ logger = LoggerHelper.get_logger(Path(__file__).stem)
 
 def runShellCommandAndReturnOutput(fin):
     try:
+        logger.debug(f"Command to execute: \n\"{' '.join(fin)}\"")
         proc = subprocess.Popen(
             fin,
             stderr=subprocess.STDOUT,
             stdout=subprocess.PIPE
         )
         output = proc.communicate()[0]
-        if output.decode("utf-8").lower().__contains__("error"):
-            returnCode = 1
-        else:
-            returnCode = 0
+        formatted_output = output.decode("utf-8").rstrip("\n\r").replace("\x1b[0m", "").replace("\x1b[1m", "")
+        logger.debug(f"Output: \n {'*' * 10}Output Start{'*' * 10}\n{formatted_output}\n{'*' * 10}Output End{'*' * 10}")
+        return_code = 1 if formatted_output.__contains__("error") else 0
     except subprocess.CalledProcessError as e:
-        returnCode = 1
-        output = e.output
-    return output.decode("utf-8").rstrip("\n\r"), returnCode
+        return_code = 1
+        formatted_output = e.output
+    return formatted_output.rstrip("\n\r"), return_code
 
-
-def runProcess(fin):
-    p = Popen(fin, stdout=PIPE,
-              stderr=STDOUT)
-    stream = ""
-    stream2 = ""
-    for line in p.stdout:
-        std = line.decode("utf-8").replace("\n", "")
-        stream2 += std+"\n"
-        if std.strip(" ").startswith("Error"):
-            stream += std+"\n"
-            stream2 = stream
-    out = p.poll()
-    if out != 0:
-        if out is not None:
-            raise AssertionError("Failed " + str(stream2))
-
+def runProcess(cmd):
+    logger.debug(f"Command to execute: \n\"{' '.join(cmd)}\"")
+    popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True)
+    for stdout_line in iter(popen.stdout.readline, ""):
+        logger.info(stdout_line)
+    popen.stdout.close()
+    return_code = popen.wait()
+    if return_code:
+        raise subprocess.CalledProcessError(return_code, cmd)
 
 def runShellCommandWithPolling(fin):
     try:
