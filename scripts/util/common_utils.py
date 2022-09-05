@@ -818,27 +818,31 @@ def getSeNewBody(newCloudUrl, seGroupName, clusterUrl, dataStore):
     }
     return json.dumps(body, indent=4)
 
-
-def getClusterStatusOnTanzu(management_cluster, typen):
+def getClusterStatusOnTanzu(cluster_name, typen=None, return_dict = False):
     try:
-        if typen == "management":
-            listn = ["tanzu", "management-cluster", "get"]
-        else:
-            listn = ["tanzu", "cluster", "get"]
-        o = runShellCommandAndReturnOutput(listn)
+        cluster_status_dict = {"deployed": False,
+                           "running": False,
+                           "out": ""}
+        tanzu_get_clstr_cmd = ["tanzu", "cluster", "list", "--include-management-cluster", "-o", "json"]
+        o = runShellCommandAndReturnOutput(tanzu_get_clstr_cmd)
+
+        cluster_status_dict["out"] = o[0]
         if o[1] == 0:
-            try:
-                if o[0].__contains__(management_cluster) and o[0].__contains__("running"):
-                    return True
-                else:
-                    return False
-            except:
-                return False
+            for clstr in json.loads(''.join([x for x in o[0].split('\n') if not x.startswith('Downloading')])):
+                if clstr["name"] == cluster_name:
+                    cluster_status_dict["running"] = True if "running" in clstr["status"] else False
+                    if "running" in clstr["status"]:
+                        cluster_status_dict["deployed"] = True
+        if return_dict:
+            return cluster_status_dict
+
+        if cluster_status_dict["deployed"] and cluster_status_dict["running"]:
+            return True
         else:
             return False
-    except:
+    except Exception as e:
+        logger.error(f"EXCEPTION : {e}")
         return False
-
 
 def runSsh(vc_user):
     os.system("rm -rf /root/.ssh/id_rsa")
@@ -1505,7 +1509,6 @@ def installExtentionFor14(service_name, cluster, jsonspec):
                 }
                 return json.dumps(d), 500"""
         sub_command = ["grep", AppName.CONTOUR]
-        import pdb; pdb.set_trace()
         command_cert = grabPipeOutput(main_command, sub_command)
         if not verifyPodsAreRunning(AppName.CONTOUR, command_cert[0],
                                     RegexPattern.RECONCILE_SUCCEEDED) or Upgrade_Extensions.UPGRADE_EXTN:

@@ -45,6 +45,7 @@ from util.ShellHelper import runProcess, runShellCommandAndReturnOutputAsList, v
 from util.oidc_helper import checkEnableIdentityManagement, checkPinnipedInstalled, checkPinnipedServiceStatus, \
     checkPinnipedDexServiceStatus, createRbacUsers
 from util.tkg_util import TkgUtil
+from util.cleanup_util import CleanUpUtil
 
 
 # logger = LoggerHelper.get_logger(Path(__file__).stem)
@@ -64,18 +65,12 @@ class RaMgmtClusterWorkflow:
         else:
             raise Exception(f"Could not find supported TKG version: {self.tkg_version_dict}")
 
-        # self.tkg_type = ''.join([attr for attr in dir(self.run_config.desired_state.version) if "tkg" in attr])
-        # if "tkgs" in self.tkg_type:
-        #     self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_WCP_MASTER_SPEC_PATH)
-        #     # self.ns_jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_NS_MASTER_SPEC_PATH)
-        # elif "tkgm" in self.tkg_type:
-        #     self.jsonpath = os.path.join(self.run_config.root_dir, Paths.MASTER_SPEC_PATH)
-        # else:
-        #     raise Exception(f"Could not find supported TKG version: {self.tkg_type}")
+        self.cleanup_obj = CleanUpUtil()
 
         with open(self.jsonpath) as f:
             self.jsonspec = json.load(f)
         self.env = "vsphere"
+
         check_env_output = checkenv(self.jsonspec)
         if check_env_output is None:
             msg = "Failed to connect to VC. Possible connection to VC is not available or " \
@@ -106,33 +101,45 @@ class RaMgmtClusterWorkflow:
 
     @log("Preparing to deploy Management cluster")
     def create_mgmt_cluster(self):
-        config_cloud = self.configCloud()
-        if config_cloud[1] != 200:
-            d = {
-                "responseType": "ERROR",
-                "msg": "Failed to Config management cluster ",
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        if not self.isEnvTkgs_wcp:
-            config_mgmt = self.configTkgMgmt()
-            if config_mgmt[1] != 200:
+        try:
+            config_cloud = self.configCloud()
+            if config_cloud[1] != 200:
                 d = {
                     "responseType": "ERROR",
                     "msg": "Failed to Config management cluster ",
                     "ERROR_CODE": 500
                 }
                 return json.dumps(d), 500
-            d = {
-                "responseType": "SUCCESS",
-                "msg": "Management cluster configured Successfully",
-                "ERROR_CODE": 200
-            }
-            logger.info("Management cluster configured Successfully")
-            return json.dumps(d), 200
-        else:
-            logger.info("Management cluster not required for TKGs")
-            return True
+            if not self.isEnvTkgs_wcp:
+                try:
+                    config_mgmt = self.configTkgMgmt()
+                    if config_mgmt[1] != 200:
+                        d = {
+                            "responseType": "ERROR",
+                            "msg": "Failed to Config management cluster ",
+                            "ERROR_CODE": 500
+                        }
+                        return json.dumps(d), 500
+                    d = {
+                        "responseType": "SUCCESS",
+                        "msg": "Management cluster configured Successfully",
+                        "ERROR_CODE": 200
+                    }
+                    logger.info("Management cluster configured Successfully")
+                    return json.dumps(d), 200
+                except Exception as e:
+                    logger.error(f"ERROR: Failed to create MGMT cluster: {e}")
+                    self.mgmt_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                        'tkgMgmtClusterName']
+                    self.cleanup_obj.delete_mgmt_cluster(self.mgmt_cluster_name)
+            else:
+                logger.info("Management cluster not required for TKGs")
+                return True
+        except Exception as e:
+            logger.error(f"ERROR: Failed to create MGMT cluster: {e}")
+            if not self.isEnvTkgs_wcp or not self.isEnvTkgs_ns:
+                self.mgmt_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents']['tkgMgmtClusterName']
+                self.cleanup_obj.delete_mgmt_cluster(self.mgmt_cluster_name)
 
     @log("Template yaml deployment of management cluster in progress...")
     def templateMgmtDeployYaml(self, ip, datacenter, data_store, cluster_name, wpName, wipIpNetmask,

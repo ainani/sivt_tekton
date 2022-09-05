@@ -26,9 +26,11 @@ spec:
         cp -rf kubeconfig-repo/.config/tanzu/config.yaml arcas-tekton-cicd/kubeconfig-repo/.config/tanzu/config.yaml
         cp -rf kubeconfig-repo/.kube/config arcas-tekton-cicd/kubeconfig-repo/.kube/config
         cp -rf kubeconfig-repo/.kube-tkg/config arcas-tekton-cicd/kubeconfig-repo/.kube-tkg/config
+        cp deployment-state/state.yml  arcas-tekton-cicd/deployment-state/state.yml
         cd arcas-tekton-cicd
         git add kubeconfig-repo/.config/tanzu/config.yaml
         git add kubeconfig-repo/.kube/config
         git add kubeconfig-repo/.kube-tkg/config
+        git add deployment-state/state.yml
         git commit -m "kube cfg uploaded"
         git push origin $(params.branch)
