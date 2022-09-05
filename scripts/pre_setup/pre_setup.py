@@ -94,7 +94,7 @@ class PreSetup:
             self.mgmt_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                 'tkgMgmtClusterName']
             self.wrkld_cluster_name = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadClusterName']
-            self.shrd_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+            self.shrd_cluster_name = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
                 'tkgSharedserviceClusterName']
 
     @log("Pre Check AVI")
