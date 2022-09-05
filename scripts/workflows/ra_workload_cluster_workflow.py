@@ -20,6 +20,7 @@ from util.file_helper import FileHelper
 from util.git_helper import Git
 from util.logger_helper import LoggerHelper, log, log_debug
 from util.cmd_runner import RunCmd
+from lib.nsxt_client import NsxtClient
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, getCloudStatus, \
     getVrfAndNextRoutId, addStaticRoute, getVipNetworkIpNetMask, getSECloudStatus, \
@@ -89,6 +90,7 @@ class RaWorkloadClusterWorkflow:
             }
             return json.dumps(d), 500
         self.env = self.env[0]
+        self.nsxObj = NsxtClient(self.run_config)
 
         self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
         self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
@@ -239,6 +241,31 @@ class RaWorkloadClusterWorkflow:
                     logger.info("MarketPlace refresh token is not provided, skipping the download of kubernetes ova")
         workload_network_name = self.jsonspec['tkgWorkloadDataNetwork'][
             'tkgWorkloadDataNetworkName']
+        if self.env == Env.VCF:
+            try:
+                gatewayAddress = self.jsonspec['tkgWorkloadDataNetwork'][
+                    'tkgWorkloadDataNetworkGatewayCidr']
+                dnsServers = self.jsonspec['envSpec']['infraComponents']['dnsServersIp']
+                network = self.nsxObj.getNetworkIp(gatewayAddress)
+                shared_segment = self.nsxObj.createNsxtSegment(workload_network_name, gatewayAddress,
+                                                None,
+                                                None, dnsServers, network, False)
+                if shared_segment[1] != 200:
+                    logger.error("Failed to create shared segments" + str(shared_segment[0]["msg"]))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to create shared segments" + str(shared_segment[0]["msg"]),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+            except Exception as e:
+                logger.error("Failed to configure vcf workload " + str(e))
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to configure vcf workload " + str(e),
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
         avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']
         ##########################################################
         ha_field = self.jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
