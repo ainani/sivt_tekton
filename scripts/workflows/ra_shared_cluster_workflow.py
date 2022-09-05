@@ -765,7 +765,7 @@ class RaSharedClusterWorkflow:
                                           shared_network_path,
                                           vsphere_password, shared_resource_path, vcenter_ip,
                                           ssh_key, vcenter_username, machineCount, size,
-                                          ClusterType.SHARED, vsSpec, self.jsonspec)
+                                          ClusterType.SHARED, vsSpec, self.jsonspec, self.env)
 
 
                         if deploy_status[0] is None:
