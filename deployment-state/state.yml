@@ -1,12 +1,12 @@
 avi:
-  deployed: false
-  health: UP
-  name: alb_controller
-  version: 21.1.4
-mgmt:
   deployed: true
   health: UP
-  name: mgmt-clu
+  name: avi-controller1.tsv.local
+  version: 21.1.4
+mgmt:
+  deployed: false
+  health: DOWN
+  name: tkgm-nsxt-mgmt
   version: 1.5.3
 shared_services:
   deployed: false
@@ -23,12 +23,12 @@ shared_services:
     harbor:
       deployed: false
       upgraded: false
-  health: UP
+  health: DOWN
   integrations:
     tmc:
       attached: false
-  name: arcas-shared-services
-  upgradedFrom: null
+  name: tkgm-nsx-t-shared
+  upgradedFrom:
   version: 1.5.3
 workload_clusters:
 - deployed: false
