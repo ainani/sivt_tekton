@@ -4,8 +4,8 @@ avi:
   name: avi-controller1.tsv.local
   version: 21.1.4
 mgmt:
-  deployed: false
-  health: DOWN
+  deployed: true
+  health: UP
   name: tkgm-nsxt-mgmt
   version: 1.5.3
 shared_services:
@@ -45,9 +45,9 @@ workload_clusters:
     prometheus:
       deployed: false
       upgraded: false
-  health: UP
+  health: DOWN
   integrations:
     tmc:
       attached: false
-  name: arcas-workload
+  name: tkgm-nsx-t-wld
   version: 1.5.3
