@@ -854,6 +854,10 @@ def getClusterStatusOnTanzu(cluster_name, typen=None, return_dict = False):
                     cluster_status_dict["running"] = True if "running" in clstr["status"] else False
                     if "running" in clstr["status"]:
                         cluster_status_dict["deployed"] = True
+        else:
+            if return_dict:
+                return cluster_status_dict
+            return False
         if return_dict:
             return cluster_status_dict
 
