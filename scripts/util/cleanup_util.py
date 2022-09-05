@@ -3,6 +3,8 @@
 #  Copyright 2022 VMware, Inc
 #  SPDX-License-Identifier: BSD-2-Clause
 import time
+import requests
+import base64
 import json
 from util.ShellHelper import runShellCommandAndReturnOutput, runProcess, runShellCommandAndReturnOutputAsList, \
     verifyPodsAreRunning
@@ -108,3 +110,43 @@ class CleanUpUtil:
         except Exception as e:
             logger.error("Exception occurred while deleting cluster " + str(e))
             return False
+
+    def getWCPStatus(self, cluster_id, jsonspec):
+        """
+        :param cluster_id:
+        :return:
+         False: If WCP is not enabled
+        True: if WCP is enabled and any state, not necessarily running status
+        """
+        vcenter_ip = jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
+        vcenter_username = jsonspec(force=True)['envSpec']['vcenterDetails']['vcenterSsoUser']
+        str_enc = str(jsonspec(force=True)['envSpec']['vcenterDetails']["vcenterSsoPasswordBase64"])
+        base64_bytes = str_enc.encode('ascii')
+        enc_bytes = base64.b64decode(base64_bytes)
+        password = enc_bytes.decode('ascii').rstrip("\n")
+        if not (vcenter_ip or vcenter_username or password):
+            return False, "Failed to fetch VC details"
+
+        sess = requests.post("https://" + str(vcenter_ip) + "/rest/com/vmware/cis/session",
+                             auth=(vcenter_username, password), verify=False)
+        if sess.status_code != 200:
+            logger.error("Connection to vCenter failed")
+            return False, "Connection to vCenter failed"
+        else:
+            vc_session = sess.json()['value']
+
+        header = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "vmware-api-session-id": vc_session
+        }
+        url = "https://" + vcenter_ip + "/api/vcenter/namespace-management/clusters/" + cluster_id
+        response_csrf = requests.request("GET", url, headers=header, verify=False)
+        if response_csrf.status_code != 200:
+            if response_csrf.status_code == 400:
+                if response_csrf.json()["messages"][0][
+                    "default_message"] == "Cluster with identifier " + cluster_id + " does " \
+                                                                                    "not have Workloads enabled.":
+                    return False, None
+        else:
+            return True, response_csrf.json()["config_status"]

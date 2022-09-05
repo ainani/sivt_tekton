@@ -123,8 +123,15 @@ def mgmt_deploy(ctx):
 @click.pass_context
 def enable_wcp(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
-    RaMgmtClusterWorkflow(run_config).enable_wcp()
-
+    pre_setup_obj = PreSetup(root_dir=ctx.obj["ROOT_DIR"], run_config=run_config)
+    result_dict, msg = pre_setup_obj.pre_check_enable_wcp()
+    if not result_dict["enable_wcp"]["enabled"]:
+        logger.warning(msg)
+        RaMgmtClusterWorkflow(run_config).enable_wcp()
+    elif "UP" not in result_dict["enable_wcp"]["health"]:
+        logger.warning(msg)
+    else:
+        logger.warning(msg)
 
 @mgmt.command(name="upgrade")
 @click.pass_context

@@ -11,11 +11,12 @@ from util.logger_helper import LoggerHelper, log
 from util.cmd_helper import CmdHelper
 from model.run_config import RunConfig
 from util.tkg_util import TkgUtil
-from util.common_utils import checkenv
+from util.common_utils import checkenv, getClusterID
 from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
 from util.common_utils import getClusterStatusOnTanzu
 from util.ShellHelper import runShellCommandAndReturnOutput
+from util.cleanup_util import CleanUpUtil
 
 logger = LoggerHelper.get_logger(name='Pre Setup')
 
@@ -51,6 +52,7 @@ class PreSetup:
         self.get_vcenter_details()
         self.get_avi_details()
         self.get_tkg_mgmt_details()
+        self.cleanup_obj = CleanUpUtil()
 
     def get_vcenter_details(self) -> None:
         """
@@ -258,6 +260,38 @@ class PreSetup:
 
         # Update state.yml file
         self.update_state_yml(state_dict)
+        return state_dict, msg
+
+    @log("Pre Check Enable WCP")
+    def pre_check_enable_wcp(self):
+        state_dict = {"enable_wcp": {"enabled": False,
+                                     "health": "DOWN"}}
+        msg = "WCP not enabled"
+
+        cluster_id = getClusterID(self.vcenter_dict["vcenter_ip"],
+                         self.vcenter_dict["vcenter_username"],
+                         self.vcenter_dict["vcenter_password"],
+                         self.vcenter_dict["vcenter_cluster_name"],
+                         self.jsonspec)
+        if cluster_id[1] != 200:
+            d = {
+                "responseType": "ERROR",
+                "msg": cluster_id[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
+        cluster_id = cluster_id[0]
+        is_wcp_enabled = self.cleanup_obj.getWCPStatus(cluster_id, self.jsonspec)
+        if is_wcp_enabled[0]:
+            state_dict["enable_wcp"]["enabled"] = True
+            msg = "WCP Already Enabled"
+            if is_wcp_enabled[1] == "RUNNING":
+                state_dict["enable_wcp"]["state"] = "UP"
+                msg = msg + " AND RUNNING"
+            else:
+                msg = msg + " AND NOT RUNNING"
+            return state_dict, msg
         return state_dict, msg
 
     def update_state_yml(self, state_dict: dict):
