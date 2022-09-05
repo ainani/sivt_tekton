@@ -22,22 +22,24 @@ from model.status import (ExtensionState, HealthEnum, SharedExtensionState,
 from tqdm import tqdm
 from util.cmd_helper import CmdHelper
 from util.file_helper import FileHelper
+from util.common_utils import envCheck
 from util.git_helper import Git
 from util.logger_helper import LoggerHelper, log, log_debug
 from util.ssh_helper import SshHelper
 from util.tanzu_utils import TanzuUtils
 from util.cmd_runner import RunCmd
+from util.oidc_helper import createRbacUsers
 from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, runSsh, getNetworkFolder, \
     deployCluster, registerWithTmcOnSharedAndWorkload, registerTanzuObservability, checkenv, getVipNetworkIpNetMask, \
     obtain_second_csrf, createClusterFolder, createResourceFolderAndWait, checkTmcEnabled, getKubeVersionFullName, \
     getNetworkPathTMC, checkSharedServiceProxyEnabled, checkTmcRegister, createProxyCredentialsTMC, enable_data_protection,\
-    checkEnableIdentityManagement, checkPinnipedInstalled, checkDataProtectionEnabled, envCheck
+    checkEnableIdentityManagement, checkPinnipedInstalled, createRbacUsers, checkDataProtectionEnabled
 from util.vcenter_operations import createResourcePool, create_folder
-from util.oidc_helper import createRbacUsers
 from util.ShellHelper import runShellCommandAndReturnOutputAsList, verifyPodsAreRunning,\
     grabKubectlCommand, grabPipeOutput, grabPipeOutputChagedDir, runShellCommandWithPolling
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 from util.shared_config import deployExtentions
+from lib.nsxt_client import NsxtClient
 from util.tkg_util import TkgUtil
 from util.cleanup_util import CleanUpUtil
 
@@ -53,16 +55,7 @@ class RaSharedClusterWorkflow:
         self.tkg_util_obj = TkgUtil(run_config=self.run_config)
         self.tkg_version_dict = self.tkg_util_obj.get_desired_state_tkg_version()
         self.desired_state_tkg_version = None
-        self.env = envCheck(self.run_config)  
-        if self.env[1] != 200:
-            logger.error("Wrong env provided " + self.env[0])
-            d = {
-                "responseType": "ERROR",
-                "msg": "Wrong env provided " + self.env[0],
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        self.env = self.env[0]
+        self.env = "vsphere"         #keeping code for env check, so hardcoding env as vsphere
         if "tkgs" in self.tkg_version_dict:
             self.jsonpath = os.path.join(self.run_config.root_dir, Paths.TKGS_WCP_MASTER_SPEC_PATH)
             self.desired_state_tkg_version = self.tkg_version_dict['tkgs']
@@ -87,6 +80,18 @@ class RaSharedClusterWorkflow:
         with open(jsonpath) as f:
             self.jsonspec = json.load(f)
         self.rcmd = RunCmd()
+
+        self.env = envCheck(self.run_config)
+        if self.env[1] != 200:
+            logger.error("Wrong env provided " + self.env[0])
+            d = {
+                "responseType": "ERROR",
+                "msg": "Wrong env provided " + self.env[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        self.env = self.env[0]
+        self.nsxObj = NsxtClient(self.run_config)
 
         self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
         self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
@@ -354,44 +359,6 @@ class RaSharedClusterWorkflow:
 
     @log('Deploy Shared Services Cluster')
     def deploy(self):
-<<<<<<< HEAD
-        json_dict = self.jsonspec
-        vsSpec = VsphereMasterSpec.parse_obj(json_dict)
-        aviVersion = Avi_Tkgs_Version.VSPHERE_AVI_VERSION if TkgUtil.isEnvTkgs_wcp(self.jsonspec) else Avi_Version.VSPHERE_AVI_VERSION
-        vcpass_base64 = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoPasswordBase64']
-        password = CmdHelper.decode_base64(vcpass_base64)
-        vcenter_username = self.jsonspec['envSpec']['vcenterDetails']['vcenterSsoUser']
-        vcenter_ip = self.jsonspec['envSpec']['vcenterDetails']['vcenterAddress']
-        cluster_name = self.jsonspec['envSpec']['vcenterDetails']['vcenterCluster']
-        data_center = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatacenter']
-        data_store = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
-        parent_resourcePool = self.jsonspec['envSpec']['vcenterDetails']['resourcePoolName']
-        refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
-        if not ( self.isEnvTkgs_wcp or self.isEnvTkgs_ns):
-            if self.env == Env.VSPHERE:
-                kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"][
-                    "tkgSharedserviceBaseOs"]
-                kubernetes_ova_version = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"][
-                    "tkgSharedserviceKubeVersion"]
-                pod_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
-                    'tkgSharedserviceClusterCidr']
-                service_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
-                    'tkgSharedserviceServiceCidr']
-            elif self.env == Env.VCF:
-                kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgSharedserviceSpec"][
-                    "tkgSharedserviceBaseOs"]
-                kubernetes_ova_version = self.jsonspec["tkgComponentSpec"]["tkgSharedserviceSpec"][
-                    "tkgSharedserviceKubeVersion"]
-                pod_cidr = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
-                    'tkgSharedserviceClusterCidr']
-                service_cidr = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
-                    'tkgSharedserviceServiceCidr']
-        if refToken:
-            logger.info("Kubernetes OVA configs for shared services cluster")
-            down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec, kubernetes_ova_version, kubernetes_ova_os)
-            if down_status[0] is None:
-                logger.error(down_status[1])
-=======
         try:
             json_dict = self.jsonspec
             vsSpec = VsphereMasterSpec.parse_obj(json_dict)
@@ -405,26 +372,36 @@ class RaSharedClusterWorkflow:
             data_store = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
             parent_resourcePool = self.jsonspec['envSpec']['vcenterDetails']['resourcePoolName']
             refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
-            kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"]["tkgSharedserviceBaseOs"]
-            kubernetes_ova_version = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"]["tkgSharedserviceKubeVersion"]
-            pod_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+            if not (self.isEnvTkgs_wcp or self.isEnvTkgs_ns):
+                if self.env == Env.VSPHERE:
+                    kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"][
+                        "tkgSharedserviceBaseOs"]
+                    kubernetes_ova_version = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"][
+                        "tkgSharedserviceKubeVersion"]
+                    pod_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                         'tkgSharedserviceClusterCidr']
-            service_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                    service_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                         'tkgSharedserviceServiceCidr']
-            isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
-            if refToken:
-                logger.info("Kubernetes OVA configs for shared services cluster")
-                down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec,
-                                                                      kubernetes_ova_version,
-                                                                      kubernetes_ova_os)
-                if down_status[0] is None:
-                    logger.error(down_status[1])
-                    d = {
-                        "responseType": "ERROR",
-                        "msg": down_status[1],
-                        "ERROR_CODE": 500
-                    }
-                    return json.dumps(d), 500
+                elif self.env == Env.VCF:
+                    kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgSharedserviceSpec"][
+                        "tkgSharedserviceBaseOs"]
+                    kubernetes_ova_version = self.jsonspec["tkgComponentSpec"]["tkgSharedserviceSpec"][
+                        "tkgSharedserviceKubeVersion"]
+                    pod_cidr = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                        'tkgSharedserviceClusterCidr']
+                    service_cidr = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                        'tkgSharedserviceServiceCidr']
+                if refToken:
+                    logger.info("Kubernetes OVA configs for shared services cluster")
+                    down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec, kubernetes_ova_version, kubernetes_ova_os)
+                    if down_status[0] is None:
+                        logger.error(down_status[1])
+                        d = {
+                            "responseType": "ERROR",
+                            "msg": down_status[1],
+                            "ERROR_CODE": 500
+                        }
+                        return json.dumps(d), 500
             else:
                 logger.info("MarketPlace refresh token is not provided, skipping the download of kubernetes ova")
             try:
@@ -437,7 +414,6 @@ class RaSharedClusterWorkflow:
                         "Created resource pool " + ResourcePoolAndFolderName.SHARED_RESOURCE_POOL_NAME_VCENTER)
             except Exception as e:
                 logger.error("Failed to create resource pool " + str(e))
->>>>>>> DEVELOPMENT_BRANCH
                 d = {
                     "responseType": "ERROR",
                     "msg": "Failed to create resource pool " + str(e),
@@ -488,46 +464,11 @@ class RaSharedClusterWorkflow:
                 return json.dumps(d), 500
             tmc_required = str(self.jsonspec['envSpec']["saasEndpoints"]['tmcDetails']['tmcAvailability'])
             tmc_flag = False
-<<<<<<< HEAD
-            logger.info("Tmc registration is disabled")
-        else:
-            logger.error("Wrong tmc selection attribute provided " + tmc_required)
-            d = {
-                "responseType": "ERROR",
-                "msg": "Wrong tmc selection attribute provided " + tmc_required,
-                "ERROR_CODE": 500
-            }
-            return json.dumps(d), 500
-        if self.env == Env.VCF:
-            shared_cluster_name = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
-                'tkgSharedserviceClusterName']
-            cluster_plan = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
-            'tkgSharedserviceDeploymentType']
-        else:
-            shared_cluster_name = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
-            'tkgSharedserviceClusterName']
-            cluster_plan = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
-            'tkgSharedserviceDeploymentType']
-        if cluster_plan == PLAN.DEV_PLAN:
-            additional_command = ""
-            if self.env == Env.VCF:
-                machineCount = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
-                    'tkgSharedserviceWorkerMachineCount']
-            else:
-                machineCount = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
-                    'tkgSharedserviceWorkerMachineCount']
-        elif cluster_plan == PLAN.PROD_PLAN:
-            additional_command = "--high-availability"
-            if self.env == Env.VCF:
-                machineCount = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
-                    'tkgSharedserviceWorkerMachineCount']
-=======
             if tmc_required.lower() == "true":
                 tmc_flag = True
             elif tmc_required.lower() == "false":
                 tmc_flag = False
                 logger.info("Tmc registration is disabled")
->>>>>>> DEVELOPMENT_BRANCH
             else:
                 logger.error("Wrong tmc selection attribute provided " + tmc_required)
                 d = {
@@ -546,7 +487,16 @@ class RaSharedClusterWorkflow:
                     'tkgSharedserviceClusterName']
                 cluster_plan = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                     'tkgSharedserviceDeploymentType']
-            if cluster_plan == PLAN.DEV_PLAN or cluster_plan == PLAN.DEV_PLAN:
+            if cluster_plan == PLAN.DEV_PLAN:
+                additional_command = ""
+                if self.env == Env.VCF:
+                    machineCount = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                        'tkgSharedserviceWorkerMachineCount']
+                else:
+                    machineCount = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                        'tkgSharedserviceWorkerMachineCount']
+            elif cluster_plan == PLAN.PROD_PLAN:
+                additional_command = "--high-availability"
                 if self.env == Env.VCF:
                     machineCount = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
                         'tkgSharedserviceWorkerMachineCount']
@@ -669,32 +619,7 @@ class RaSharedClusterWorkflow:
                 if self.env == Env.VCF:
                     clusterGroup = self.jsonspec['tkgComponentSpec']["tkgSharedserviceSpec"]['tkgSharedserviceClusterGroupName']
                 else:
-<<<<<<< HEAD
-                    logger.info("Shared cluster is successfully deployed and running " + command_status[0])
-        else:
-            if not verifyPodsAreRunning(shared_cluster_name, command_status[0], RegexPattern.running):
-                isCheck = True
-                if not checkTmcEnabled(self.jsonspec, self.env):
-                    logger.info("Creating AkoDeploymentConfig for shared services cluster")
-                    ako_deployment_config_status = self.akoDeploymentConfigSharedCluster(shared_cluster_name, aviVersion)
-                    if ako_deployment_config_status[1] != 200:
-                        logger.info("Failed to create AKO Deployment Config for shared services cluster")
-                        d = {
-                            "responseType": "SUCCESS",
-                            "msg": ako_deployment_config_status[0].json['msg'],
-                            "ERROR_CODE": 500
-                        }
-                        return json.dumps(d), 500
-                    logger.info("Deploying shared cluster using tanzu 1.5")
-                    deploy_status = deployCluster(shared_cluster_name, cluster_plan,
-                                      data_center, data_store, shared_folder_path,
-                                      shared_network_path,
-                                      vsphere_password, shared_resource_path, vcenter_ip,
-                                      ssh_key, vcenter_username, machineCount, size,
-                                      ClusterType.SHARED, vsSpec, self.jsonspec, self.env)
-=======
                     clusterGroup = self.jsonspec['tkgComponentSpec']["tkgMgmtComponents"]['tkgSharedserviceClusterGroupName']
->>>>>>> DEVELOPMENT_BRANCH
 
                 if not clusterGroup:
                     clusterGroup = "default"
@@ -1084,8 +1009,8 @@ class RaSharedClusterWorkflow:
                     return json.dumps(d), 500
             elif checkTmcEnabled(self.jsonspec, self.env) and Tkg_version.TKG_VERSION == "1.5":
                 logger.info("Cluster is already deployed via TMC")
-                if checkDataProtectionEnabled(self.jsonspec, "shared", isEnvTkgs_ns):
-                    is_enabled = enable_data_protection(self.jsonspec, shared_cluster_name, management_cluster, isEnvTkgs_ns)
+                if checkDataProtectionEnabled(self.jsonspec, "shared", self.isEnvTkgs_ns):
+                    is_enabled = enable_data_protection(self.jsonspec, shared_cluster_name, management_cluster, self.isEnvTkgs_ns)
                     if not is_enabled[0]:
                         logger.error(is_enabled[1])
                         d = {
@@ -1100,51 +1025,6 @@ class RaSharedClusterWorkflow:
             elif checkTmcEnabled(self.jsonspec, self.env):
                 logger.info("Cluster is already deployed via TMC")
             else:
-<<<<<<< HEAD
-                logger.info(shared_cluster_name + " cluster is already deployed and running ")
-        if tmc_flag and (Tkg_version.TKG_VERSION != "1.5"):
-            isSharedProxy = "false"
-            if checkSharedServiceProxyEnabled(self.env, self.jsonspec):
-                isSharedProxy = "true"
-            state = registerWithTmcOnSharedAndWorkload(self.jsonspec, shared_cluster_name, "shared")
-            if state[1] != 200:
-                logger.error(state[0].json['msg'])
-                d = {
-                    "responseType": "ERROR",
-                    "msg": state[0].json['msg'],
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
-        elif checkTmcEnabled(self.jsonspec, self.env) and Tkg_version.TKG_VERSION == "1.5":
-            logger.info("Cluster is already deployed via TMC")
-            if checkDataProtectionEnabled(self.jsonspec, "shared", self.isEnvTkgs_ns):
-                is_enabled = enable_data_protection(self.jsonspec, shared_cluster_name, management_cluster, isEnvTkgs_ns)
-                if not is_enabled[0]:
-                    logger.error(is_enabled[1])
-                    d = {
-                        "responseType": "ERROR",
-                        "msg": is_enabled[1],
-                        "ERROR_CODE": 500
-                    }
-                    return json.dumps(d), 500
-                logger.info(is_enabled[1])
-            else:
-                logger.info("Data protection not enabled for cluster " + shared_cluster_name)
-        elif checkTmcEnabled(self.jsonspec, self.env):
-            logger.info("Cluster is already deployed via TMC")
-        else:
-            logger.info("TMC is disabled")
-        to = registerTanzuObservability(shared_cluster_name, size, self.jsonspec)
-        if to[1] != 200:
-            logger.error(to[0].json['msg'])
-            return to[0], to[1]
-        d = {
-            "responseType": "SUCCESS",
-            "msg": "Successfully deployed  cluster " + shared_cluster_name,
-            "ERROR_CODE": 200
-        }
-        return json.dumps(d), 200
-=======
                 logger.info("TMC is disabled")
             to = registerTanzuObservability(shared_cluster_name, size, self.jsonspec)
             if to[1] != 200:
@@ -1159,7 +1039,6 @@ class RaSharedClusterWorkflow:
         except Exception as e:
             logger.error(f"ERROR: Failed to create shared cluster: {e}")
             self.cleanup_obj.delete_cluster(self.shrd_clstr)
->>>>>>> DEVELOPMENT_BRANCH
 
 
     def waitForGrepProcess(self,list1, list2, podName, dir):
