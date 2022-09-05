@@ -41,7 +41,7 @@ class RaNSXTWorkflow:
             raise Exception(msg)
 
 
-    def configureAviNsxtConfig(self):
+    def configure_avi_nsxt_config(self):
         """
         Method to configure Nsx-t for Avi
         :return: response {
@@ -561,7 +561,7 @@ class RaNSXTWorkflow:
         return json.dumps(d), 200       
 
  
-    def configureWorkloadNsxtConfig(self):
+    def configure_workload_nsxt_config(self):
         """
         Method to configure Nsx-t for workload cluster
         :return: response {
@@ -571,6 +571,22 @@ class RaNSXTWorkflow:
                 "ERROR_CODE": 500
             }, <statusCode>}
         """
+        gatewayAddress = self.jsonspec['tkgWorkloadDataNetwork'][
+            'tkgWorkloadDataNetworkGatewayCidr']
+        dnsServers = self.jsonspec['envSpec']['infraComponents']['dnsServersIp']
+        network = self.nsxObj.getNetworkIp(gatewayAddress)
+        workload_data_network = self.nsxObj.createNsxtSegment(workload_network_name, gatewayAddress,
+                                            None,
+                                            None, dnsServers, network, False)
+        if workload_data_network[1] != 200:
+            logger.error("Failed to create workload data segments" + str(workload_data_network[0]["msg"]))
+            d = {
+                "responseType": "ERROR",
+                "msg": "Failed to create workload data segments" + str(workload_data_network[0]["msg"]),
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+
         gatewayAddress = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadGatewayCidr']
         dhcp_start = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadDhcpStartRange']
         dhcp_end = self.jsonspec['tkgWorkloadComponents']['tkgWorkloadDhcpEndRange']

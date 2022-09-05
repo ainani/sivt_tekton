@@ -345,7 +345,7 @@ class RALBWorkflow:
     def avi_vcf_pre_config(self):
         if self.env == Env.VCF:
             try:
-                configureNsxt = RaNSXTWorkflow(self.run_config).configureAviNsxtConfig()
+                configureNsxt = RaNSXTWorkflow(self.run_config).configure_avi_nsxt_config()
                 return configureNsxt[0], configureNsxt[1]
             except Exception as e:
                 logger.error("Failed to configure vcf " + str(e))

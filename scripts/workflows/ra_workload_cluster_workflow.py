@@ -239,19 +239,6 @@ class RaWorkloadClusterWorkflow:
                     logger.info("MarketPlace refresh token is not provided, skipping the download of kubernetes ova")
         workload_network_name = self.jsonspec['tkgWorkloadDataNetwork'][
             'tkgWorkloadDataNetworkName']
-        if self.env == Env.VCF:
-            try:
-                configureNsxt = RaNSXTWorkflow(self.run_config).configureWorkloadNsxtConfig()
-                configureNsxt = json.loads(configureNsxt[0]), configureNsxt[1]
-                return configureNsxt[0], configureNsxt[1]
-            except Exception as e:
-                logger.error("Failed to configure vcf " + str(e))
-                d = {
-                    "responseType": "ERROR",
-                    "msg": "Failed to configure vcf " + str(e),
-                    "ERROR_CODE": 500
-                }
-                return json.dumps(d), 500
         avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']
         ##########################################################
         ha_field = self.jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
@@ -586,7 +573,7 @@ class RaWorkloadClusterWorkflow:
         
         if self.env == Env.VCF:
             try:
-                RaNSXTWorkflow(self.run_config).configureWorkloadNsxtConfig()
+                RaNSXTWorkflow(self.run_config).configure_workload_nsxt_config()
             except Exception as e:
                 logger.error("Failed to configure vcf for workload " + str(e))
                 d = {
