@@ -1,12 +1,12 @@
 avi:
+  deployed: false
+  health: UP
+  name: alb_controller
+  version: 20.1.7
+mgmt:
   deployed: true
   health: UP
-  name: avi-controller1.tsv.local
-  version: 21.1.4
-mgmt:
-  deployed: false
-  health: DOWN
-  name: tkgm-nsxt-mgmt
+  name: mgmt-clu
   version: 1.5.3
 shared_services:
   deployed: false
@@ -23,12 +23,12 @@ shared_services:
     harbor:
       deployed: false
       upgraded: false
-  health: DOWN
+  health: UP
   integrations:
     tmc:
       attached: false
-  name: tkgm-nsx-t-shared
-  upgradedFrom:
+  name: arcas-shared-services
+  upgradedFrom: null
   version: 1.5.3
 workload_clusters:
 - deployed: false
@@ -45,9 +45,9 @@ workload_clusters:
     prometheus:
       deployed: false
       upgraded: false
-  health: DOWN
+  health: UP
   integrations:
     tmc:
       attached: false
-  name: tkgm-nsx-t-wld
+  name: arcas-workload
   version: 1.5.3

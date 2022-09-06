@@ -1,7 +1,7 @@
 ---
 version:
-  tkgm: 1.5.4
-  env: vcf
+  tkgs: 1.5
+  env: vsphere
 
 Description: >
   The desired-state.yml file is responsible to refer that what should be desired state of the system after deployment.
