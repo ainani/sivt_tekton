@@ -29,9 +29,11 @@ Tekton pipeline execution requires the following:
    1. Create a private Git (Gitlab/Github) repository.
    2. Clone the code from https://github.com/vmware-tanzu/service-installer-for-vmware-tanzu/tree/1.3.1-1.5.4/tekton.
    3. Create a Git personal access token (PAT) and copy the token for later stages.
-   4. For TKGm prepare `deployment-config.json` based on your environment and upload under `config/deployment-config.json` in private git repo.
-   5. For TKGs prepare `deployment-config-wcp.json` and `deployment-config-ns.json` based on your environment and upload under `config/deployment-config-wcp.json` and `config/deployment-config-ns.json` respectively in private git repo.
-   6. Please refer SIVT README.md for creation of respected json files.
+   4. For TKGm on vsphere prepare `deployment-config.json` based on your environment and upload under `config/deployment-config.json` in private git repo (Refer  `sample-json/sample-deployment-config.json`).
+   5. For TKGs on vsphere prepare `deployment-config-wcp.json` and `deployment-config-ns.json` based on your environment and upload under `config/deployment-config-wcp.json` and `config/deployment-config-ns.json` respectively in private git repo
+   (Refer  `sample-json/sample-deployment-config-wcp.json` and `sample-jsonsample-deployment-config-ns.json`).
+   6. For TKGm on vcf, prepare `deployment-config.json` based on your environment and upload under `config/deployment-config.json` in private git repo (Refer  `sample-json/sample-deployment-config-vcf.json`).
+   7. Please refer SIVT README.md for creation of respected json files.
 
 2. Linux VM preparation:
    1. Power On and login to the Linux/SIVT VM.
@@ -92,10 +94,12 @@ Tekton pipeline execution requires the following:
 **For Day0 bringup of TKGm:**
 1. Update desired state YAML file:
    - Browse to `desired-state` directory in Linux/SIVT VM and update `desired-state.yml` file as below:
+   - Update env as `vsphere` or `vcf`
      ```
      ----
      version:
        tkgm: 1.5.4
+       env: vsphere
      ```
 2. Execute:
    ```shell
@@ -109,6 +113,7 @@ Tekton pipeline execution requires the following:
      ----
      version:
        tkgs: 1.5
+       env: vsphere
      ```
 2. Execute:
    ```shell
@@ -117,10 +122,12 @@ Tekton pipeline execution requires the following:
 ### Running the Day-2 Pipelines
 1. Update desired state YAML file:
     - Browse to `desired-state` directory in Linux/SIVT VM and update `desired-state.yml` file as below:
+    - Update env as `vsphere` or `vcf`
       ```
       ----
       version:
         tkgm: 1.5.4
+        env: vsphere
       ```
 2. If the targeted docker image for upgrade is already available in the kind cluster skip this step, else execute the below steps:
    - Open launch.sh and update UPGRADE_TARBALL_FILE_PATH variable to the absolute path where the Service Installer Docker TAR file is downloaded.

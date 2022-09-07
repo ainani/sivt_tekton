@@ -9,15 +9,18 @@ import base64
 import time
 from constants.constants import TKG_EXTENSIONS_ROOT, Constants, Paths, Task, ControllerLocation, \
     Cloud, VrfType, RegexPattern, AkoType, AppName, Versions, ResourcePoolAndFolderName, PLAN, \
-    Sizing, ClusterType, Repo, Avi_Version, Avi_Tkgs_Version
+    Sizing, ClusterType, Repo, Avi_Version, Avi_Tkgs_Version, Env
 from lib.kubectl_client import KubectlClient
 from lib.tkg_cli_client import TkgCliClient
 from model.run_config import RunConfig
+from util.common_utils import envCheck
+from workflows.ra_nsxt_workflow import RaNSXTWorkflow
 from util.cmd_helper import CmdHelper
 from util.file_helper import FileHelper
 from util.git_helper import Git
 from util.logger_helper import LoggerHelper, log, log_debug
 from util.cmd_runner import RunCmd
+from lib.nsxt_client import NsxtClient
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, getCloudStatus, \
     getVrfAndNextRoutId, addStaticRoute, getVipNetworkIpNetMask, getSECloudStatus, \
@@ -27,7 +30,8 @@ from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, getCloudS
     getLibraryId, getBodyResourceSpec, cidr_to_netmask, getCountOfIpAdress, seperateNetmaskAndIp, configureKubectl, \
     createClusterFolder, supervisorTMC, checkTmcEnabled, get_alias_name, convertStringToCommaSeperated, \
     checkClusterVersionCompatibility, checkToEnabled, checkTSMEnabled, checkDataProtectionEnabled, \
-    enable_data_protection
+    enable_data_protection, checkEnableIdentityManagement, checkPinnipedInstalled
+from util.oidc_helper import createRbacUsers
 from util.ShellHelper import runShellCommandAndReturnOutput
 from util.avi_api_helper import isAviHaEnabled, obtain_second_csrf
 from workflows.ra_mgmt_cluster_workflow import RaMgmtClusterWorkflow
@@ -76,6 +80,21 @@ class RaWorkloadClusterWorkflow:
             self.jsonspec = json.load(f)
         self.rcmd = RunCmd()
         self.clusterops = RaMgmtClusterWorkflow(self.run_config)
+
+        self.env = envCheck(self.run_config)
+        if self.env[1] != 200:
+            logger.error("Wrong env provided " + self.env[0])
+            d = {
+                "responseType": "ERROR",
+                "msg": "Wrong env provided " + self.env[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        self.env = self.env[0]
+        self.nsxObj = NsxtClient(self.run_config)
+
+        self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
+        self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
 
         check_env_output = checkenv(self.jsonspec)
         if check_env_output is None:
@@ -206,29 +225,51 @@ class RaWorkloadClusterWorkflow:
         refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
         avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']
         ha_field = self.jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
-        if refToken:
-            if not (self.isEnvTkgs_wcp or self.isEnvTkgs_ns):
-                logger.info("Kubernetes OVA configs for workload cluster")
+        if self.env == Env.VSPHERE or self.env == Env.VCF:
+            if not (self.isEnvTkgs_ns or self.isEnvTkgs_wcp):
                 kubernetes_ova_os = self.jsonspec["tkgWorkloadComponents"]["tkgWorkloadBaseOs"]
                 kubernetes_ova_version = self.jsonspec["tkgWorkloadComponents"]["tkgWorkloadKubeVersion"]
-                logger.info("Kubernetes OVA configs for management cluster")
-                down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec,
-                                                                      kubernetes_ova_version,
-                                                                      kubernetes_ova_os)
-                if down_status[0] is None:
-                    logger.error(down_status[1])
+                if refToken:
+                    logger.info("Kubernetes OVA configs for workload cluster")
+                    down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec, kubernetes_ova_version, kubernetes_ova_os)
+                    if down_status[0] is None:
+                        logger.error(down_status[1])
+                        d = {
+                            "responseType": "ERROR",
+                            "msg": down_status[1],
+                            "ERROR_CODE": 500
+                        }
+                        return json.dumps(d), 500
+                else:
+                    logger.info("MarketPlace refresh token is not provided, skipping the download of kubernetes ova")
+        workload_network_name = self.jsonspec['tkgWorkloadDataNetwork'][
+            'tkgWorkloadDataNetworkName']
+        if self.env == Env.VCF:
+            try:
+                gatewayAddress = self.jsonspec['tkgWorkloadDataNetwork'][
+                    'tkgWorkloadDataNetworkGatewayCidr']
+                dnsServers = self.jsonspec['envSpec']['infraComponents']['dnsServersIp']
+                network = self.nsxObj.getNetworkIp(gatewayAddress)
+                shared_segment = self.nsxObj.createNsxtSegment(workload_network_name, gatewayAddress,
+                                                None,
+                                                None, dnsServers, network, False)
+                if shared_segment[1] != 200:
+                    logger.error("Failed to create shared segments" + str(shared_segment[0]["msg"]))
                     d = {
                         "responseType": "ERROR",
-                        "msg": down_status[1],
+                        "msg": "Failed to create shared segments" + str(shared_segment[0]["msg"]),
                         "ERROR_CODE": 500
                     }
                     return json.dumps(d), 500
-        else:
-            logger.info( "MarketPlace refresh token is not provided, skipping the download "
-                         "of kubernetes ova")
-        workload_network_name = self.jsonspec['tkgWorkloadDataNetwork']['tkgWorkloadDataNetworkName']
-        avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents'][
-            'aviController01Fqdn']
+            except Exception as e:
+                logger.error("Failed to configure vcf workload " + str(e))
+                d = {
+                    "responseType": "ERROR",
+                    "msg": "Failed to configure vcf workload " + str(e),
+                    "ERROR_CODE": 500
+                }
+                return json.dumps(d), 500
+        avi_fqdn = self.jsonspec['tkgComponentSpec']['aviComponents']['aviController01Fqdn']
         ##########################################################
         ha_field = self.jsonspec['tkgComponentSpec']['aviComponents']['enableAviHa']
         if isAviHaEnabled(ha_field):
@@ -560,6 +601,17 @@ class RaWorkloadClusterWorkflow:
                     "ERROR_CODE": 500
                 }
                 raise Exception
+            if self.env == Env.VCF:
+                try:
+                    RaNSXTWorkflow(self.run_config).configure_workload_nsxt_config()
+                except Exception as e:
+                    logger.error("Failed to configure vcf for workload " + str(e))
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": "Failed to configure vcf for workloag" + str(e),
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
             create = createResourceFolderAndWait(vcenter_ip, vcenter_username, password,
                                                  cluster_name, data_center,
                                                  ResourcePoolAndFolderName.WORKLOAD_RESOURCE_POOL_VSPHERE,
@@ -700,7 +752,7 @@ class RaWorkloadClusterWorkflow:
                                                       vsphere_password,
                                                       workload_resource_path, vcenter_ip, re,
                                                       vcenter_username, machineCount,
-                                                      size, ClusterType.WORKLOAD, vsSpec, self.jsonspec)
+                                                      size, ClusterType.WORKLOAD, vsSpec, self.jsonspec, self.env)
             if deploy_status[0] is None:
                 logger.error("Failed to deploy workload cluster " + deploy_status[1])
                 d = {
@@ -819,6 +871,56 @@ class RaWorkloadClusterWorkflow:
             logger.info(
                 "Succesfully configured workload cluster and ako pods are running on waiting " + str(
                     count_ako * 30))
+            if checkEnableIdentityManagement(self.env, self.jsonspec):
+                logger.info("Validating pinniped installation status")
+                check_pinniped = checkPinnipedInstalled()
+                if check_pinniped[1] != 200:
+                    logger.error(check_pinniped[0].json['msg'])
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": check_pinniped[0].json['msg'],
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+                if self.env == Env.VSPHERE:
+                    cluster_admin_users = \
+                        self.jsonspec['tkgWorkloadComponents']['tkgWorkloadRbacUserRoleSpec']['clusterAdminUsers']
+                    admin_users = \
+                        self.jsonspec['tkgWorkloadComponents']['tkgWorkloadRbacUserRoleSpec'][
+                            'adminUsers']
+                    edit_users = \
+                        self.jsonspec['tkgWorkloadComponents']['tkgWorkloadRbacUserRoleSpec'][
+                            'editUsers']
+                    view_users = \
+                        self.jsonspec['tkgWorkloadComponents']['tkgWorkloadRbacUserRoleSpec'][
+                            'viewUsers']
+                elif self.env == Env.VCF:
+                    cluster_admin_users = \
+                        self.jsonspec['tkgWorkloadComponents']['tkgWorkloadRbacUserRoleSpec'][
+                            'clusterAdminUsers']
+                    admin_users = \
+                        self.jsonspec['tkgWorkloadComponents']['tkgWorkloadRbacUserRoleSpec'][
+                            'adminUsers']
+                    edit_users = \
+                        self.jsonspec['tkgWorkloadComponents']['tkgWorkloadRbacUserRoleSpec'][
+                            'editUsers']
+                    view_users = \
+                        self.jsonspec['tkgWorkloadComponents']['tkgWorkloadRbacUserRoleSpec'][
+                            'viewUsers']
+                rbac_user_status = createRbacUsers(workload_cluster_name, isMgmt=False, env=self.env, edit_users=edit_users,
+                                                cluster_admin_users=cluster_admin_users, admin_users=admin_users,
+                                                view_users=view_users)
+                if rbac_user_status[1] != 200:
+                    logger.error(rbac_user_status[0].json['msg'])
+                    d = {
+                        "responseType": "ERROR",
+                        "msg": rbac_user_status[0].json['msg'],
+                        "ERROR_CODE": 500
+                    }
+                    return json.dumps(d), 500
+                logger.info("Successfully created RBAC for all the provided users")
+            else:
+                logger.info("Identity Management is not enabled")
             d = {
                 "responseType": "SUCCESS",
                 "msg": "Successfully deployed  cluster " + workload_cluster_name,

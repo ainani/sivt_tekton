@@ -22,21 +22,24 @@ from model.status import (ExtensionState, HealthEnum, SharedExtensionState,
 from tqdm import tqdm
 from util.cmd_helper import CmdHelper
 from util.file_helper import FileHelper
+from util.common_utils import envCheck
 from util.git_helper import Git
 from util.logger_helper import LoggerHelper, log, log_debug
 from util.ssh_helper import SshHelper
 from util.tanzu_utils import TanzuUtils
 from util.cmd_runner import RunCmd
+from util.oidc_helper import createRbacUsers
 from util.common_utils import downloadAndPushKubernetesOvaMarketPlace, runSsh, getNetworkFolder, \
     deployCluster, registerWithTmcOnSharedAndWorkload, registerTanzuObservability, checkenv, getVipNetworkIpNetMask, \
     obtain_second_csrf, createClusterFolder, createResourceFolderAndWait, checkTmcEnabled, getKubeVersionFullName, \
     getNetworkPathTMC, checkSharedServiceProxyEnabled, checkTmcRegister, createProxyCredentialsTMC, enable_data_protection,\
-    checkEnableIdentityManagement, checkPinnipedInstalled, createRbacUsers, checkDataProtectionEnabled
+    checkEnableIdentityManagement, checkPinnipedInstalled, checkDataProtectionEnabled
 from util.vcenter_operations import createResourcePool, create_folder
 from util.ShellHelper import runShellCommandAndReturnOutputAsList, verifyPodsAreRunning,\
     grabKubectlCommand, grabPipeOutput, grabPipeOutputChagedDir, runShellCommandWithPolling
 from workflows.cluster_common_workflow import ClusterCommonWorkflow
 from util.shared_config import deployExtentions
+from lib.nsxt_client import NsxtClient
 from util.tkg_util import TkgUtil
 from util.cleanup_util import CleanUpUtil
 
@@ -78,13 +81,32 @@ class RaSharedClusterWorkflow:
             self.jsonspec = json.load(f)
         self.rcmd = RunCmd()
 
+        self.env = envCheck(self.run_config)
+        if self.env[1] != 200:
+            logger.error("Wrong env provided " + self.env[0])
+            d = {
+                "responseType": "ERROR",
+                "msg": "Wrong env provided " + self.env[0],
+                "ERROR_CODE": 500
+            }
+            return json.dumps(d), 500
+        self.env = self.env[0]
+        self.nsxObj = NsxtClient(self.run_config)
+
+        self.isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
+        self.isEnvTkgs_wcp = TkgUtil.isEnvTkgs_wcp(self.jsonspec)
+
         check_env_output = checkenv(self.jsonspec)
         if check_env_output is None:
             msg = "Failed to connect to VC. Possible connection to VC is not available or " \
                   "incorrect spec provided."
             raise Exception(msg)
         self.cleanup_obj = CleanUpUtil()
-        self.shrd_clstr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+        if self.env == Env.VCF:
+            self.shrd_clstr = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                'tkgSharedserviceClusterName']
+        elif self.env == Env.VSPHERE:
+            self.shrd_clstr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                 'tkgSharedserviceClusterName']
 
     def _template_deploy_yaml(self):
@@ -354,26 +376,36 @@ class RaSharedClusterWorkflow:
             data_store = self.jsonspec['envSpec']['vcenterDetails']['vcenterDatastore']
             parent_resourcePool = self.jsonspec['envSpec']['vcenterDetails']['resourcePoolName']
             refToken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
-            kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"]["tkgSharedserviceBaseOs"]
-            kubernetes_ova_version = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"]["tkgSharedserviceKubeVersion"]
-            pod_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+            if not (self.isEnvTkgs_wcp or self.isEnvTkgs_ns):
+                if self.env == Env.VSPHERE:
+                    kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"][
+                        "tkgSharedserviceBaseOs"]
+                    kubernetes_ova_version = self.jsonspec["tkgComponentSpec"]["tkgMgmtComponents"][
+                        "tkgSharedserviceKubeVersion"]
+                    pod_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                         'tkgSharedserviceClusterCidr']
-            service_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                    service_cidr = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                         'tkgSharedserviceServiceCidr']
-            isEnvTkgs_ns = TkgUtil.isEnvTkgs_ns(self.jsonspec)
-            if refToken:
-                logger.info("Kubernetes OVA configs for shared services cluster")
-                down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec,
-                                                                      kubernetes_ova_version,
-                                                                      kubernetes_ova_os)
-                if down_status[0] is None:
-                    logger.error(down_status[1])
-                    d = {
-                        "responseType": "ERROR",
-                        "msg": down_status[1],
-                        "ERROR_CODE": 500
-                    }
-                    return json.dumps(d), 500
+                elif self.env == Env.VCF:
+                    kubernetes_ova_os = self.jsonspec["tkgComponentSpec"]["tkgSharedserviceSpec"][
+                        "tkgSharedserviceBaseOs"]
+                    kubernetes_ova_version = self.jsonspec["tkgComponentSpec"]["tkgSharedserviceSpec"][
+                        "tkgSharedserviceKubeVersion"]
+                    pod_cidr = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                        'tkgSharedserviceClusterCidr']
+                    service_cidr = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                        'tkgSharedserviceServiceCidr']
+                if refToken:
+                    logger.info("Kubernetes OVA configs for shared services cluster")
+                    down_status = downloadAndPushKubernetesOvaMarketPlace(self.jsonspec, kubernetes_ova_version, kubernetes_ova_os)
+                    if down_status[0] is None:
+                        logger.error(down_status[1])
+                        d = {
+                            "responseType": "ERROR",
+                            "msg": down_status[1],
+                            "ERROR_CODE": 500
+                        }
+                        return json.dumps(d), 500
             else:
                 logger.info("MarketPlace refresh token is not provided, skipping the download of kubernetes ova")
             try:
@@ -459,7 +491,16 @@ class RaSharedClusterWorkflow:
                     'tkgSharedserviceClusterName']
                 cluster_plan = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
                     'tkgSharedserviceDeploymentType']
-            if cluster_plan == PLAN.DEV_PLAN or cluster_plan == PLAN.DEV_PLAN:
+            if cluster_plan == PLAN.DEV_PLAN:
+                additional_command = ""
+                if self.env == Env.VCF:
+                    machineCount = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
+                        'tkgSharedserviceWorkerMachineCount']
+                else:
+                    machineCount = self.jsonspec['tkgComponentSpec']['tkgMgmtComponents'][
+                        'tkgSharedserviceWorkerMachineCount']
+            elif cluster_plan == PLAN.PROD_PLAN:
+                additional_command = "--high-availability"
                 if self.env == Env.VCF:
                     machineCount = self.jsonspec['tkgComponentSpec']['tkgSharedserviceSpec'][
                         'tkgSharedserviceWorkerMachineCount']
@@ -724,7 +765,7 @@ class RaSharedClusterWorkflow:
                                           shared_network_path,
                                           vsphere_password, shared_resource_path, vcenter_ip,
                                           ssh_key, vcenter_username, machineCount, size,
-                                          ClusterType.SHARED, vsSpec, self.jsonspec)
+                                          ClusterType.SHARED, vsSpec, self.jsonspec, self.env)
 
 
                         if deploy_status[0] is None:
@@ -972,8 +1013,8 @@ class RaSharedClusterWorkflow:
                     return json.dumps(d), 500
             elif checkTmcEnabled(self.jsonspec, self.env) and Tkg_version.TKG_VERSION == "1.5":
                 logger.info("Cluster is already deployed via TMC")
-                if checkDataProtectionEnabled(self.jsonspec, "shared", isEnvTkgs_ns):
-                    is_enabled = enable_data_protection(self.jsonspec, shared_cluster_name, management_cluster, isEnvTkgs_ns)
+                if checkDataProtectionEnabled(self.jsonspec, "shared", self.isEnvTkgs_ns):
+                    is_enabled = enable_data_protection(self.jsonspec, shared_cluster_name, management_cluster, self.isEnvTkgs_ns)
                     if not is_enabled[0]:
                         logger.error(is_enabled[1])
                         d = {

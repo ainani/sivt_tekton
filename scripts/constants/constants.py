@@ -706,6 +706,8 @@ class CertName:
     VSPHERE_COMMON_NAME = "tkgvsphere-avi-cert_common_name"
 
 class Env:
+    TKGS = "tkgs"
+    TKGM = "tkgm"
     VMC = "vmc"
     VSPHERE = "vsphere"
     VCF = "vcf"
