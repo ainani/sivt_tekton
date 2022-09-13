@@ -15,7 +15,7 @@ function usage() {
   echo "    <pipeline.yaml,...> The paths to Tekton pipeline files (can be a local files or URLs)"
 }
 
-DEFAULT_IMAGES="docker:dind"
+DEFAULT_IMAGES="si_tkn:latest"
 CLUSTER_IMAGE="kindest/node:v1.21.1"
 UPGRADE_IMAGES=""
 
@@ -132,17 +132,39 @@ function kind_load_docker_imgs() {
     done
 }
 
+function build_docker_image() {
+  echo "Preparing building of images..."
+  if [[ "$(docker inspect $DEFAULT_IMAGES > /dev/null 2>&1  || echo 'NOT EXISTS')" == "NOT EXISTS" ]]; then
+    if [ -e "dockerfile" ]; then
+      docker build -t si_tkn -f dockerfile .
+    else
+      echo -e "\t dockerfile not found"
+      echo -e "\t Continue looking for TARBALL_FILE_PATH or DEFAULT_IMAGES"
+    fi
+  else
+    echo -e "\t Docker Image already exists: " $DEFAULT_IMAGES
+  fi
+}
+
 function load_cluster_images() {
   echo "Preparing loading of images..."
+  LOAD_DEFAULT_IMG=false
+  LOAD_TARBALL=false
   if [ -n "${TARBALL_FILE_PATH}" ]; then
     kind_load_tar_imgs $TARBALL_FILE_PATH
+    LOAD_DEFAULT_IMG=true
   else
     echo "TARBALL_FILE_PATH variable is empty"
   fi
   if [ -n "${DEFAULT_IMAGES}" ]; then
-    kind_load_docker_imgs $DEFAULT_IMAGES
+      kind_load_docker_imgs $DEFAULT_IMAGES
+      LOAD_TARBALL=true
   else
-    echo "DEFAULT_IMAGES variable is empty"
+      echo "DEFAULT_IMAGES variable is empty"
+  fi
+  if [ "$LOAD_DEFAULT_IMG" == "false" ] && [ "$LOAD_TARBALL" == "false" ]; then
+    echo "FAILED: Neither TARBALL_FILE_PATH NOR DEFAULT_IMAGES provided"
+    exit 1
   fi
 }
 
@@ -183,7 +205,7 @@ function create_cluster() {
     fi
 
   fi
-
+  build_docker_image
   load_cluster_images
 
   kubectl apply -f ${NGINX_INGRESS_FILE}
