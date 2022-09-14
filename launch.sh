@@ -15,7 +15,8 @@ function usage() {
   echo "    <pipeline.yaml,...> The paths to Tekton pipeline files (can be a local files or URLs)"
 }
 
-DEFAULT_IMAGES="si_tkn:latest"
+SIVT_DEFAULT_IMAGES="si_tkn:latest"
+DEFAULT_IMAGES="docker:dind"
 CLUSTER_IMAGE="kindest/node:v1.21.1"
 UPGRADE_IMAGES=""
 
@@ -134,7 +135,7 @@ function kind_load_docker_imgs() {
 
 function build_docker_image() {
   echo "Preparing building of images..."
-  if [[ "$(docker inspect $DEFAULT_IMAGES > /dev/null 2>&1  || echo 'NOT EXISTS')" == "NOT EXISTS" ]]; then
+  if [[ "$(docker inspect $SIVT_DEFAULT_IMAGES > /dev/null 2>&1  || echo 'NOT EXISTS')" == "NOT EXISTS" ]]; then
     if [ -e "dockerfile" ]; then
       docker build -t si_tkn -f dockerfile .
     else
@@ -142,7 +143,7 @@ function build_docker_image() {
       echo -e "\t Continue looking for TARBALL_FILE_PATH or DEFAULT_IMAGES"
     fi
   else
-    echo -e "\t Docker Image already exists: " $DEFAULT_IMAGES
+    echo -e "\t Docker Image already exists: " $SIVT_DEFAULT_IMAGES
   fi
 }
 
