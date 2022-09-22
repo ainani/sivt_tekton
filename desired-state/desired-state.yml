@@ -1,6 +1,6 @@
 ---
 version:
-  tkgs: 1.5
+  tkgm: 1.5.4
   env: vsphere
 
 Description: >
