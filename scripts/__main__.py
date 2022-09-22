@@ -26,6 +26,7 @@ from workflows.ra_repave_workflow import RepaveWorkflow
 from workflows.ra_deploy_ext_workflow import RaDeployExtWorkflow
 from pre_setup.pre_setup import PreSetup
 from util.cleanup_util import CleanUpUtil
+from pre_setup.tkn_docker_img import GenerateTektonDockerImage
 
 logger = LoggerHelper.get_logger(name="__main__")
 
@@ -70,6 +71,17 @@ def cli(ctx, root_dir):
     if not Path(deployment_config_filepath).is_file():
         logger.warn("Missing config in path: %s", deployment_config_filepath)
     os.makedirs(Paths.TMP_DIR, exist_ok=True)
+
+@cli.group()
+@click.pass_context
+def tkn_docker(ctx):
+    ctx.ensure_object(dict)
+
+@tkn_docker.command(name="build")
+@click.pass_context
+def tkn_docker(ctx):
+    run_config = load_run_config(ctx.obj["ROOT_DIR"])
+    GenerateTektonDockerImage(root_dir=ctx.obj["ROOT_DIR"], run_config=run_config).generate_tkn_docker_image()
 
 @cli.group()
 @click.pass_context

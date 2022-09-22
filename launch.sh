@@ -370,6 +370,10 @@ function deploy_pipeline() {
   printf "Done\n\n"
 }
 
+function docker_image(){
+  python arcas-tekton-cicd/scripts/__main__.py --root-dir=arcas-tekton-cicd tkn_docker build
+}
+
 function main() {
   needToCreateCluster=false
   needToDeployTektonDashboard=false
@@ -381,6 +385,10 @@ function main() {
       -h|--help)
         usage
         exit 0
+        ;;
+      --create-docker_image)
+        needToCreateDockerImage=true
+        shift 1
         ;;
       --create-cluster)
         needToCreateCluster=true
@@ -421,7 +429,12 @@ function main() {
     esac
   done
 
+  if [ "${needToCreateDockerImage}" == "true" ]; then
+    docker_image
+  fi
+
   check_for_kubectl
+
   if [ "${needToCreateCluster}" == "true" ]; then
     export KUBECONFIG="${CLUSTER_CONFIG_PATH}"
     check_for_kind

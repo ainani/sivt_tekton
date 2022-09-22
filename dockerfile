@@ -63,12 +63,6 @@ RUN gunzip cli/imgpkg-linux-amd64-v0.22.0+vmware.1.gz && \
     sudo chmod ugo+x cli/imgpkg-linux-amd64-v0.22.0+vmware.1 && \
     sudo mv cli/imgpkg-linux-amd64-v0.22.0+vmware.1 /usr/local/bin/imgpkg
 
-# copy extensions
-RUN wget http://build-squid.eng.vmware.com/build/mts/release/bora-19833339/publish/lin64/tkg_release/tkg-standard-packages-v1.5.4/tkg-package-repository-bundle/package-repo-bundles/standard/tkg-standard-repo-v1.5.4.tar.gz && \
-     tar -xzf tkg-standard-repo-v1.5.4.tar.gz
-
-
-
 # remove unwanted packages
 RUN rm -f tanzu-cli-bundle-linux-amd64.tar && \
     rm -rf cli && \
