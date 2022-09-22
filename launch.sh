@@ -15,7 +15,7 @@ function usage() {
   echo "    <pipeline.yaml,...> The paths to Tekton pipeline files (can be a local files or URLs)"
 }
 
-SIVT_DEFAULT_IMAGES="service_installer_tekton"
+SIVT_DEFAULT_IMAGES="sivt_tekton:tkn"
 DEFAULT_IMAGES="docker:dind"
 CLUSTER_IMAGE="kindest/node:v1.21.1"
 UPGRADE_IMAGES=""
@@ -133,11 +133,6 @@ function kind_load_docker_imgs() {
     done
 }
 
-
-function build_docker_image(){
-  python scripts/__main__.py --root-dir=. tkn-docker build
-}
-
 function load_cluster_images() {
   echo "Preparing loading of images..."
   LOAD_DEFAULT_IMG=false
@@ -149,7 +144,7 @@ function load_cluster_images() {
     echo "TARBALL_FILE_PATH variable is empty"
   fi
   if [ -n "${DEFAULT_IMAGES}" ]; then
-      kind_load_docker_imgs $DEFAULT_IMAGES
+      kind_load_docker_imgs $DEFAULT_IMAGES $SIVT_DEFAULT_IMAGES
       LOAD_TARBALL=true
   else
       echo "DEFAULT_IMAGES variable is empty"
@@ -197,7 +192,6 @@ function create_cluster() {
     fi
 
   fi
-  build_docker_image
   load_cluster_images
 
   kubectl apply -f ${NGINX_INGRESS_FILE}
@@ -361,6 +355,9 @@ function deploy_pipeline() {
   printf "Done\n\n"
 }
 
+function build_docker_image(){
+  python scripts/__main__.py --root-dir=. tkn-docker build
+}
 
 function main() {
   needToCreateCluster=false
@@ -373,6 +370,10 @@ function main() {
       -h|--help)
         usage
         exit 0
+        ;;
+      --build_docker_image)
+        needToCreateDockerImage=true
+        shift 1
         ;;
       --create-cluster)
         needToCreateCluster=true
@@ -412,6 +413,10 @@ function main() {
         ;;
     esac
   done
+
+  if [ "${needToCreateDockerImage}" == "true" ]; then
+    build_docker_image
+  fi
 
   check_for_kubectl
 

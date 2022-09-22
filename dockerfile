@@ -66,3 +66,5 @@ RUN gunzip cli/imgpkg-linux-amd64-v0.22.0+vmware.1.gz && \
 RUN rm -f tanzu-cli-bundle-linux-amd64.tar && \
     rm -rf cli && \
     rm -f kubectl-linux-v1.22.9+vmware.1 && \
+    rm -f tkg-standard-repo-v1.5.4.tar.gz && \
+    rm -rf tanzu_pkg

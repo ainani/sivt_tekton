@@ -3,6 +3,7 @@
 #  Copyright 2022 VMware, Inc
 #  SPDX-License-Identifier: BSD-2-Clause
 import json
+import yaml
 import os
 import shutil
 import requests
@@ -30,7 +31,7 @@ class GenerateTektonDockerImage:
         self.version = None
         self.jsonpath = None
         self.pkg_dir = "tanzu_pkg"
-        self.docker_img_name = "service_installer_tekton"
+        self.docker_img_name = "sivt_tekton"
         self.state_file_path = os.path.join(root_dir, Paths.STATE_PATH)
         self.tkg_util_obj = TkgUtil(run_config=self.run_config)
         self.tkg_version_dict = self.tkg_util_obj.get_desired_state_tkg_version()
@@ -63,7 +64,7 @@ class GenerateTektonDockerImage:
         self.govc_client = GovcClient(self.jsonspec, LocalCmdHelper())
         self.kube_config = os.path.join(self.run_config.root_dir, Paths.REPO_KUBE_TKG_CONFIG)
         self.kube_version = KubernetesOva.KUBERNETES_OVA_LATEST_VERSION
-        self.reftoken = self.jsonspec['envSpec']['marketplaceSpec']['refreshToken']
+        self.reftoken = None
 
     def generate_tkn_docker_image(self) -> None:
         """
@@ -71,12 +72,18 @@ class GenerateTektonDockerImage:
         :return: None
         """
         # READ refresh token from values.yaml
+        self.read_refresh_token()
         file_grp = ["Tanzu Cli", "Kubectl Cluster CLI", "Yaml processor"]
         product = self.get_meta_details_marketplace()
         for grp in file_grp:
             meta_info = self.extract_meta_info(product, grp)
             self.download_files_from_marketplace(meta_info)
         self.build_docker_image()
+
+    def read_refresh_token(self):
+        with open('values.yaml', 'r') as f:
+            doc = yaml.safe_load(f)
+        self.reftoken = doc["refreshToken"]
 
     def get_meta_details_marketplace(self):
         solutionName = KubernetesOva.MARKETPLACE_KUBERNETES_SOLUTION_NAME
@@ -198,12 +205,7 @@ class GenerateTektonDockerImage:
 
     def build_docker_image(self):
         logger.info("Building dokcer image using dockerfile")
-        dckr_inspect_cmd = f"docker inspect {self.docker_img_name} > /dev/null 2>&1  || echo 'NOT EXISTS'"
-        out = runShellCommandAndReturnOutput(dckr_inspect_cmd)
-        if out == "NOT EXISTS":
-            tag = "v" + ''.join(self.tkg_version.split("."))
-            dckr_cmd = ["docker", "build", "-t", f"{self.docker_img_name}:{tag}", "-f", "dockerfile", "."]
-            runProcess(dckr_cmd)
-        else:
-            logger.error("Docker image already exists")
-
+        #tag = "v" + ''.join(self.tkg_version.split("."))
+        tag = "tkn"
+        dckr_cmd = ["docker", "build", "-t", f"{self.docker_img_name}:{tag}", "-f", "dockerfile", "."]
+        runProcess(dckr_cmd)
