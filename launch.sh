@@ -15,7 +15,7 @@ function usage() {
   echo "    <pipeline.yaml,...> The paths to Tekton pipeline files (can be a local files or URLs)"
 }
 
-SIVT_DEFAULT_IMAGES="si_tkn:latest"
+SIVT_DEFAULT_IMAGES="service_installer_tekton"
 DEFAULT_IMAGES="docker:dind"
 CLUSTER_IMAGE="kindest/node:v1.21.1"
 UPGRADE_IMAGES=""
@@ -133,18 +133,9 @@ function kind_load_docker_imgs() {
     done
 }
 
-function build_docker_image() {
-  echo "Preparing building of images..."
-  if [[ "$(docker inspect $SIVT_DEFAULT_IMAGES > /dev/null 2>&1  || echo 'NOT EXISTS')" == "NOT EXISTS" ]]; then
-    if [ -e "dockerfile" ]; then
-      docker build -t si_tkn -f dockerfile .
-    else
-      echo -e "\t dockerfile not found"
-      echo -e "\t Continue looking for TARBALL_FILE_PATH or DEFAULT_IMAGES"
-    fi
-  else
-    echo -e "\t Docker Image already exists: " $SIVT_DEFAULT_IMAGES
-  fi
+
+function build_docker_image(){
+  python scripts/__main__.py --root-dir=. tkn-docker build
 }
 
 function load_cluster_images() {
@@ -370,9 +361,6 @@ function deploy_pipeline() {
   printf "Done\n\n"
 }
 
-function docker_image(){
-  python arcas-tekton-cicd/scripts/__main__.py --root-dir=arcas-tekton-cicd tkn_docker build
-}
 
 function main() {
   needToCreateCluster=false
@@ -385,10 +373,6 @@ function main() {
       -h|--help)
         usage
         exit 0
-        ;;
-      --create-docker_image)
-        needToCreateDockerImage=true
-        shift 1
         ;;
       --create-cluster)
         needToCreateCluster=true
@@ -428,10 +412,6 @@ function main() {
         ;;
     esac
   done
-
-  if [ "${needToCreateDockerImage}" == "true" ]; then
-    docker_image
-  fi
 
   check_for_kubectl
 

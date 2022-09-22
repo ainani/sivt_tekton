@@ -79,7 +79,7 @@ def tkn_docker(ctx):
 
 @tkn_docker.command(name="build")
 @click.pass_context
-def tkn_docker(ctx):
+def build_docker(ctx):
     run_config = load_run_config(ctx.obj["ROOT_DIR"])
     GenerateTektonDockerImage(root_dir=ctx.obj["ROOT_DIR"], run_config=run_config).generate_tkn_docker_image()
 

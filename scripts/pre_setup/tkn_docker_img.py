@@ -4,22 +4,23 @@
 #  SPDX-License-Identifier: BSD-2-Clause
 import json
 import os
+import shutil
 import requests
 
 from constants.constants import Paths, KubernetesOva, MarketPlaceUrl
 
-from util.logger_helper import LoggerHelper, log
-from util.cmd_helper import CmdHelper
+from util.logger_helper import LoggerHelper
+from util.ShellHelper import runProcess, runShellCommandAndReturnOutput
 from model.run_config import RunConfig
 from util.tkg_util import TkgUtil
 from util.common_utils import checkenv
 from util.govc_client import GovcClient
 from util.local_cmd_helper import LocalCmdHelper
 from util import cmd_runner
-from util.cleanup_util import CleanUpUtil
 from util.common_utils import envCheck
 from util.avi_api_helper import getProductSlugId
-logger = LoggerHelper.get_logger(name='Pre Setup')
+logger = LoggerHelper.get_logger(name='Docker Image Creation')
+
 
 
 class GenerateTektonDockerImage:
@@ -28,6 +29,8 @@ class GenerateTektonDockerImage:
         self.run_config = run_config
         self.version = None
         self.jsonpath = None
+        self.pkg_dir = "tanzu_pkg"
+        self.docker_img_name = "service_installer_tekton"
         self.state_file_path = os.path.join(root_dir, Paths.STATE_PATH)
         self.tkg_util_obj = TkgUtil(run_config=self.run_config)
         self.tkg_version_dict = self.tkg_util_obj.get_desired_state_tkg_version()
@@ -68,104 +71,139 @@ class GenerateTektonDockerImage:
         :return: None
         """
         # READ refresh token from values.yaml
-
-        self.get_meta_details_marketplace()
+        file_grp = ["Tanzu Cli", "Kubectl Cluster CLI", "Yaml processor"]
+        product = self.get_meta_details_marketplace()
+        for grp in file_grp:
+            meta_info = self.extract_meta_info(product, grp)
+            self.download_files_from_marketplace(meta_info)
+        self.build_docker_image()
 
     def get_meta_details_marketplace(self):
-        file_grp = ["Tanzu Cli", "Kubectl Cluster CLI", "Yaml processor"]
         solutionName = KubernetesOva.MARKETPLACE_KUBERNETES_SOLUTION_NAME
         logger.debug(("Solution Name: {}".format(solutionName)))
 
-        for grp in file_grp:
-            headers = {
-                "Accept": "application/json",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "refreshToken": self.reftoken
-            }
-            json_object = json.dumps(payload, indent=4)
-            sess = requests.request("POST", MarketPlaceUrl.URL + "/api/v1/user/login", headers=headers,
-                                    data=json_object, verify=False)
-            if sess.status_code != 200:
-                return None, "Failed to login and obtain csp-auth-token"
-            else:
-                self.token = sess.json()["access_token"]
+        if os.path.exists(self.pkg_dir):
+            shutil.rmtree(self.pkg_dir)
+        os.makedirs(self.pkg_dir)
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "refreshToken": self.reftoken
+        }
+        json_object = json.dumps(payload, indent=4)
+        sess = requests.request("POST", MarketPlaceUrl.URL + "/api/v1/user/login", headers=headers,
+                                data=json_object, verify=False)
+        if sess.status_code != 200:
+            return None, "Failed to login and obtain csp-auth-token"
+        else:
+            self.token = sess.json()["access_token"]
 
-            headers = {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "csp-auth-token": self.token
-            }
-            slug = "true"
-            _solutionName = getProductSlugId(MarketPlaceUrl.TANZU_PRODUCT, headers)
-            if _solutionName[0] is None:
-                return None, "Failed to find product on Marketplace " + str(_solutionName[1])
-            solutionName = _solutionName[0]
-            product = requests.get(
-                MarketPlaceUrl.API_URL + "/products/" + solutionName + "?isSlug=" + slug + "&ownorg=false", headers=headers,
-                verify=False)
-            if product.status_code != 200:
-                return None, "Failed to Obtain Product ID"
-            else:
-                self.product_id = product.json()['response']['data']['productid']
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "csp-auth-token": self.token
+        }
+        slug = "true"
+        _solutionName = getProductSlugId(MarketPlaceUrl.TANZU_PRODUCT, headers)
+        if _solutionName[0] is None:
+            return None, "Failed to find product on Marketplace " + str(_solutionName[1])
+        solutionName = _solutionName[0]
+        product = requests.get(
+            MarketPlaceUrl.API_URL + "/products/" + solutionName + "?isSlug=" + slug + "&ownorg=false", headers=headers,
+            verify=False)
+        if product.status_code != 200:
+            return None, "Failed to Obtain Product ID"
+        else:
+            return product
 
-                for metalist in product.json()['response']['data']['metafilesList']:
-                    if metalist['appversion'] == self.tkg_version:
-                        if metalist["version"] == self.kube_version[1:] and str(metalist["groupname"]).strip("\t") \
-                                == grp:
-                            self.objectid = metalist["metafileobjectsList"][0]['fileid']
-                            self.file_name = metalist["metafileobjectsList"][0]['filename']
-                            self.app_version = metalist['appversion']
-                            self.metafileid = metalist['metafileid']
-                            break
-            logger.info("ovaName: {ovaName} app_version: {app_version} metafileid: {metafileid}".format(ovaName=self.file_name,
-                                                                                                        app_version=self.app_version,
-                                                                                                        metafileid=self.metafileid))
-            if (self.objectid or self.file_name or self.app_version or self.metafileid) is None:
-                return None, "Failed to find the file details in Marketplace"
-            self.download_files_from_marketplace()
+    def extract_meta_info(self, product, grp):
+        meta_dict = {}
+        objectid = None
+        file_name = None
+        app_version = None
+        metafileid = None
+        product_id = product.json()['response']['data']['productid']
+        for metalist in product.json()['response']['data']['metafilesList']:
+            if metalist['appversion'] == self.tkg_version:
+                if grp == "Kubectl Cluster CLI":
+                    if metalist["version"] == self.kube_version[1:] and str(metalist["groupname"]).strip("\t") \
+                            == grp:
+                        objectid = metalist["metafileobjectsList"][0]['fileid']
+                        file_name = metalist["metafileobjectsList"][0]['filename']
+                        app_version = metalist['appversion']
+                        metafileid = metalist['metafileid']
+                        break
+                else:
+                    if str(metalist["groupname"]).strip("\t") == grp:
+                        objectid = metalist["metafileobjectsList"][0]['fileid']
+                        file_name = metalist["metafileobjectsList"][0]['filename']
+                        app_version = metalist['appversion']
+                        metafileid = metalist['metafileid']
+                        break
+        logger.info("ovaName: {ovaName} app_version: {app_version} metafileid: {metafileid}".format(ovaName=file_name,
+                                                                                                    app_version=app_version,
+                                                                                                    metafileid=metafileid))
+        meta_dict.update({"object_id": objectid,
+                          "app_version": app_version,
+                          "metafile_id": metafileid,
+                          "product_id": product_id,
+                          "file_name": file_name})
+        if (objectid or file_name or app_version or metafileid) is None:
+            return None, "Failed to find the file details in Marketplace"
+        return meta_dict
 
-    def download_files_from_marketplace(self):
-            logger.info("Downloading file - " + self.file_name)
-            rcmd = cmd_runner.RunCmd()
-            headers = {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "csp-auth-token": self.token
-            }
-            payload = {
-                "eulaAccepted": "true",
-                "appVersion": self.app_version,
-                "metafileid": self.metafileid,
-                "metafileobjectid": self.objectid
-            }
+    def download_files_from_marketplace(self, meta_info):
+        logger.info("Downloading file - " + meta_info["file_name"])
+        rcmd = cmd_runner.RunCmd()
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "csp-auth-token": self.token
+        }
+        payload = {
+            "eulaAccepted": "true",
+            "appVersion": meta_info["app_version"],
+            "metafileid": meta_info["metafile_id"],
+            "metafileobjectid": meta_info["object_id"]
+        }
 
-            json_object = json.dumps(payload, indent=4).replace('\"true\"', 'true')
-            logger.info('--------')
-            logger.info('Marketplaceurl: {url} data: {data}'.format(url=MarketPlaceUrl.URL, data=json_object))
-            presigned_url = requests.request("POST",
-                                             MarketPlaceUrl.URL + "/api/v1/products/" + self.product_id + "/download",
-                                             headers=headers, data=json_object, verify=False)
-            logger.info('presigned_url: {}'.format(presigned_url))
-            logger.info('presigned_url text: {}'.format(presigned_url.text))
-            if presigned_url.status_code != 200:
-                return None, "Failed to obtain pre-signed URL"
-            else:
-                download_url = presigned_url.json()["response"]["presignedurl"]
+        json_object = json.dumps(payload, indent=4).replace('\"true\"', 'true')
+        logger.info('--------')
+        logger.info('Marketplaceurl: {url} data: {data}'.format(url=MarketPlaceUrl.URL, data=json_object))
+        presigned_url = requests.request("POST",
+                                         MarketPlaceUrl.URL + "/api/v1/products/" + meta_info["product_id"] + "/download",
+                                         headers=headers, data=json_object, verify=False)
+        logger.info('presigned_url: {}'.format(presigned_url))
+        logger.info('presigned_url text: {}'.format(presigned_url.text))
+        if presigned_url.status_code != 200:
+            return None, "Failed to obtain pre-signed URL"
+        else:
+            download_url = presigned_url.json()["response"]["presignedurl"]
 
-            curl_inspect_cmd = 'curl -I -X GET {} --output /tmp/resp.txt'.format(download_url)
-            rcmd.run_cmd_only(curl_inspect_cmd)
-            with open('/tmp/resp.txt', 'r') as f:
-                data_read = f.read()
-            if 'HTTP/1.1 200 OK' in data_read:
-                logger.info('Proceed to Download')
-                ova_path = "/tmp/" + self.file_name
-                curl_download_cmd = 'curl -X GET {d_url} --output {tmp_path}'.format(d_url=download_url,
-                                                                                     tmp_path=ova_path)
-                rcmd.run_cmd_only(curl_download_cmd)
-            else:
-                logger.info('Error in presigned url/key: {} '.format(data_read.split('\n')[0]))
-                return None, "Invalid key/url"
+        curl_inspect_cmd = 'curl -I -X GET {} --output /tmp/resp.txt'.format(download_url)
+        rcmd.run_cmd_only(curl_inspect_cmd)
+        with open('/tmp/resp.txt', 'r') as f:
+            data_read = f.read()
+        if 'HTTP/1.1 200 OK' in data_read:
+            logger.info('Proceed to Download')
+            ova_path = os.path.join(self.pkg_dir, meta_info["file_name"])
+            curl_download_cmd = 'curl -X GET {d_url} --output {tmp_path}'.format(d_url=download_url,
+                                                                                 tmp_path=ova_path)
+            rcmd.run_cmd_only(curl_download_cmd)
+        else:
+            logger.info('Error in presigned url/key: {} '.format(data_read.split('\n')[0]))
+            return None, "Invalid key/url"
 
-            return self.file_name, "File download successful"
+    def build_docker_image(self):
+        logger.info("Building dokcer image using dockerfile")
+        dckr_inspect_cmd = f"docker inspect {self.docker_img_name} > /dev/null 2>&1  || echo 'NOT EXISTS'"
+        out = runShellCommandAndReturnOutput(dckr_inspect_cmd)
+        if out == "NOT EXISTS":
+            tag = "v" + ''.join(self.tkg_version.split("."))
+            dckr_cmd = ["docker", "build", "-t", f"{self.docker_img_name}:{tag}", "-f", "dockerfile", "."]
+            runProcess(dckr_cmd)
+        else:
+            logger.error("Docker image already exists")
+

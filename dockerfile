@@ -22,21 +22,20 @@ RUN mkdir /tanzu
 WORKDIR /tanzu
 
 # install yq
-ARG VERSION=v4.12.0
-ARG YQ_BINARY=yq_linux_amd64
-RUN wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${YQ_BINARY} && \
-    mv yq_linux_amd64 /usr/local/bin/yq && \
-    chmod +x /usr/local/bin/yq
+COPY tanzu_pkg/yq_linux_amd64.tar.gz /tanzu
+RUN tar -xvf /tanzu/yq_linux_amd64.tar.gz /usr/local/bin/yq
 
 # install tanzu cli
-RUN wget http://build-squid.eng.vmware.com/build/mts/release/bora-19833339/publish/lin64/tkg_release/tanzu_cli_bundle/tanzu-cli-bundle-linux-amd64.tar.gz && \
-    tar -xvf tanzu-cli-bundle-linux-amd64.tar.gz && \
-    install cli/core/v0.11.6/tanzu-core-linux_amd64 /usr/local/bin/tanzu
+COPY tanzu_pkg/tanzu-cli-bundle-linux-amd64.tar.gz /tanzu
+RUN tar -xvf /tanzu/tanzu-cli-bundle-linux-amd64.tar.gz && \
+     install cli/core/v0.11.6/tanzu-core-linux_amd64 /usr/local/bin/tanzu
+
 
 # install kubectl cli
-RUN wget http://build-squid.eng.vmware.com/build/mts/release/bora-19833339/publish/lin64/tkg_release/kubernetes-v1.22.9+vmware.1/kubernetes/executables/kubectl-linux-v1.22.9+vmware.1.gz && \
-    gunzip kubectl-linux-v1.22.9+vmware.1.gz && \
-    install kubectl-linux-v1.22.9+vmware.1  /usr/local/bin/kubectl
+COPY tanzu_pkg/kubectl-linux-v*-vmware.1.gz /tanzu
+RUN gunzip kubectl-linux-v*vmware.1.gz && \
+     install kubectl-linux-v*vmware.1  /usr/local/bin/kubectl
+
 
 # install plugins
 RUN tanzu plugin clean && \
@@ -67,4 +66,3 @@ RUN gunzip cli/imgpkg-linux-amd64-v0.22.0+vmware.1.gz && \
 RUN rm -f tanzu-cli-bundle-linux-amd64.tar && \
     rm -rf cli && \
     rm -f kubectl-linux-v1.22.9+vmware.1 && \
-    rm -f tkg-standard-repo-v1.5.4.tar.gz
