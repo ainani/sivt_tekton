@@ -234,4 +234,7 @@ class GenerateTektonDockerImage:
         """
         Method to clean unwanted downloaded tar files
         """
-        runProcess(f"rm -rf {self.pkg_dir}")
+        clean_dwld = ["rm", "-rf", self.pkg_dir]
+        runProcess(clean_dwld)clean_dwld = ["rm", "-rf", self.pkg_dir]
+        runProcess(clean_dwld)
+
