@@ -11,7 +11,7 @@ import requests
 from constants.constants import Paths, KubernetesOva, MarketPlaceUrl
 
 from util.logger_helper import LoggerHelper
-from util.ShellHelper import runProcess, runShellCommandAndReturnOutput
+from util.ShellHelper import runProcess
 from model.run_config import RunConfig
 from util.tkg_util import TkgUtil
 from util.common_utils import checkenv
@@ -64,7 +64,7 @@ class GenerateTektonDockerImage:
         self.govc_client = GovcClient(self.jsonspec, LocalCmdHelper())
         self.kube_config = os.path.join(self.run_config.root_dir, Paths.REPO_KUBE_TKG_CONFIG)
         self.kube_version = KubernetesOva.KUBERNETES_OVA_LATEST_VERSION
-        self.reftoken = None
+        self.reftoken = self.run_config.user_cred.refreshToken
 
     def generate_tkn_docker_image(self) -> None:
         """
@@ -72,18 +72,12 @@ class GenerateTektonDockerImage:
         :return: None
         """
         # READ refresh token from values.yaml
-        self.read_refresh_token()
         file_grp = ["Tanzu Cli", "Kubectl Cluster CLI", "Yaml processor"]
         product = self.get_meta_details_marketplace()
         for grp in file_grp:
             meta_info = self.extract_meta_info(product, grp)
             self.download_files_from_marketplace(meta_info)
         self.build_docker_image()
-
-    def read_refresh_token(self):
-        with open('values.yaml', 'r') as f:
-            doc = yaml.safe_load(f)
-        self.reftoken = doc["refreshToken"]
 
     def get_meta_details_marketplace(self):
         solutionName = KubernetesOva.MARKETPLACE_KUBERNETES_SOLUTION_NAME

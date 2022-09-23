@@ -11,6 +11,7 @@ from pathlib import Path
 import yaml
 from constants.constants import Paths
 from model.desired_state import DesiredState
+from model.user_credentials import UserCredentials
 from model.spec import MasterSpec
 from model.status import State
 from model.status import ScaleDetail
@@ -50,6 +51,12 @@ class FileHelper:
         with open(spec_path) as f:
             data = yaml.load(f, Loader=SafeLoader)
         return DesiredState.parse_obj(data)
+
+    @staticmethod
+    def load_values_yaml(spec_path: str) -> UserCredentials:
+        with open(spec_path) as f:
+            data = yaml.load(f, Loader=SafeLoader)
+        return UserCredentials.parse_obj(data)
 
     @staticmethod
     def load_spec(spec_path: str) -> MasterSpec:

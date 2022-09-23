@@ -7,6 +7,7 @@ import click
 import yaml
 from constants.constants import Paths, Upgrade_Extensions
 from model.desired_state import DesiredState
+from model.user_credentials import UserCredentials
 from model.run_config import RunConfig, DeploymentPlatform, ScaleConfig, RepaveConfig
 from model.status import State, get_fresh_state
 from util.env_validation import EnvValidator
@@ -39,10 +40,12 @@ def load_run_config(root_dir):
     state: State = FileHelper.load_state(state_file_path)
     desired_state: DesiredState = FileHelper.load_desired_state(os.path.join(root_dir,
                                                                              Paths.DESIRED_STATE_PATH))
+    user_cred: UserCredentials = FileHelper.load_values_yaml(Paths.VALUES_YAML_PATH)
     support_matrix = yaml.safe_load(FileHelper.read_resource(Paths.SUPPORT_MATRIX_FILE))
     run_config = RunConfig(root_dir=root_dir, state=state, desired_state=desired_state,
                            support_matrix=support_matrix,
                            deployment_platform=DeploymentPlatform.VSPHERE,
+                           user_cred=user_cred,
                            vmc=None)
     return run_config
 
