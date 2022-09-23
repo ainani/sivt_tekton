@@ -2,8 +2,10 @@
 
 #  Copyright 2022 VMware, Inc
 #  SPDX-License-Identifier: BSD-2-Clause
+
+__author__ = "Abhishek Inani"
+
 import json
-import yaml
 import os
 import shutil
 import requests
@@ -23,9 +25,8 @@ from util.avi_api_helper import getProductSlugId
 logger = LoggerHelper.get_logger(name='Docker Image Creation')
 
 
-
 class GenerateTektonDockerImage:
-    """PreSetup class is responsible to perform Pre Checks before deploying any of clusters/nodes"""
+    """Will generate Tekton docker image"""
     def __init__(self, root_dir, run_config: RunConfig) -> None:
         self.run_config = run_config
         self.version = None
@@ -68,18 +69,21 @@ class GenerateTektonDockerImage:
 
     def generate_tkn_docker_image(self) -> None:
         """
-        Method to get vCenter Details from JSON file
+        Method to generate Tekton docker image
         :return: None
         """
-        # READ refresh token from values.yaml
         file_grp = ["Tanzu Cli", "Kubectl Cluster CLI", "Yaml processor"]
         product = self.get_meta_details_marketplace()
         for grp in file_grp:
             meta_info = self.extract_meta_info(product, grp)
             self.download_files_from_marketplace(meta_info)
         self.build_docker_image()
+        self.clean_downloads()
 
     def get_meta_details_marketplace(self):
+        """
+        Method to get metadetails of marketplace URL
+        """
         solutionName = KubernetesOva.MARKETPLACE_KUBERNETES_SOLUTION_NAME
         logger.debug(("Solution Name: {}".format(solutionName)))
 
@@ -100,7 +104,6 @@ class GenerateTektonDockerImage:
             return None, "Failed to login and obtain csp-auth-token"
         else:
             self.token = sess.json()["access_token"]
-
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
@@ -120,6 +123,11 @@ class GenerateTektonDockerImage:
             return product
 
     def extract_meta_info(self, product, grp):
+        """
+        Method to extract meta information's
+        :param: product: product of which meta details needed
+        :param: grp: Group of which meta details needed
+        """
         meta_dict = {}
         objectid = None
         file_name = None
@@ -156,6 +164,10 @@ class GenerateTektonDockerImage:
         return meta_dict
 
     def download_files_from_marketplace(self, meta_info):
+        """"
+        Method to download files from marketplace
+        :param: meta_info: Meta information's collected in earleir method
+        """
         logger.info("Downloading file - " + meta_info["file_name"])
         rcmd = cmd_runner.RunCmd()
         headers = {
@@ -195,6 +207,9 @@ class GenerateTektonDockerImage:
             return None, "Invalid key/url"
 
     def build_docker_image(self):
+        """
+        Method to build docker image using dockerfile
+        """
         logger.info("Building dokcer image using dockerfile")
         #tag = "v" + ''.join(self.tkg_version.split("."))
         tag = "tkn"
@@ -202,6 +217,11 @@ class GenerateTektonDockerImage:
         runProcess(dckr_cmd)
 
     def download_file(self, url, dwl_file):
+        """
+        Method to download pre-requisites files needed to build docker image
+        :param: URL to be downloaded
+        :param: dwl_file: Output file name
+        """
         with requests.get(url, stream=True) as r:
             r.raise_for_status()
             with open(dwl_file, 'wb') as f:
@@ -209,3 +229,9 @@ class GenerateTektonDockerImage:
                     if chunk:
                         f.write(chunk)
         return dwl_file
+
+    def clean_downloads(self):
+        """
+        Method to clean unwanted downloaded tar files
+        """
+        runProcess(f"rm -rf {self.pkg_dir}")
