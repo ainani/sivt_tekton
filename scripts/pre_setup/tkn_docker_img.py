@@ -188,7 +188,6 @@ class GenerateTektonDockerImage:
             return None, "Failed to obtain pre-signed URL"
         else:
             download_url = presigned_url.json()["response"]["presignedurl"]
-
         curl_inspect_cmd = 'curl -I -X GET {} --output /tmp/resp.txt'.format(download_url)
         rcmd.run_cmd_only(curl_inspect_cmd)
         with open('/tmp/resp.txt', 'r') as f:
@@ -196,9 +195,7 @@ class GenerateTektonDockerImage:
         if 'HTTP/1.1 200 OK' in data_read:
             logger.info('Proceed to Download')
             ova_path = os.path.join(self.pkg_dir, meta_info["file_name"])
-            curl_download_cmd = 'curl -X GET {d_url} --output {tmp_path}'.format(d_url=download_url,
-                                                                                 tmp_path=ova_path)
-            rcmd.run_cmd_only(curl_download_cmd)
+            self.download_file(download_url, ova_path)
         else:
             logger.info('Error in presigned url/key: {} '.format(data_read.split('\n')[0]))
             return None, "Invalid key/url"
@@ -209,3 +206,12 @@ class GenerateTektonDockerImage:
         tag = "tkn"
         dckr_cmd = ["docker", "build", "-t", f"{self.docker_img_name}:{tag}", "-f", "dockerfile", "."]
         runProcess(dckr_cmd)
+
+    def download_file(self, url, dwl_file):
+        with requests.get(url, stream=True) as r:
+            r.raise_for_status()
+            with open(dwl_file, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+        return dwl_file
