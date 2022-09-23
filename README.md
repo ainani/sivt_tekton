@@ -16,8 +16,11 @@ Tekton pipeline execution requires the following:
 - Linux VM with kind cluster of version v1.21+
   - Note: SIVT OVA can also be used as Linux VM with kind preloaded
   - SIVT OVA can be downloaded from: https://marketplace.cloud.vmware.com/services/details/service-installer-for-vmware-tanzu-1?slug=true
-- Docker login
-- Service Installer Tekton Docker tar file: `service_installer_tekton_v154b.tar`  
+- Service Installer Tekton Docker file:
+  - Download existing service installer Tekton tar file using Docker login
+    From: http://sc-dbc2131.eng.vmware.com/smuthukumar/SERVICE_INSTALLER_IMAGES/service_installer_tekton_v154b.tar 
+    OR
+  - Generate own docker image using existing dockerfile in repo. Refer below sections for steps to generate the same
 - Private gitlab/github repo
 
 ## Tekton Pipeline Execution
@@ -42,30 +45,37 @@ Tekton pipeline execution requires the following:
 3. Tekton pipeline environment preparation:  
   
    1. In your Linux/SIVT VM browse to the location where the Git repository is cloned.
-   2. Open `launch.sh` and update `TARBALL_FILE_PATH` to the absolute path where the Service Installer Docker TAR file is downloaded.</br>
-   For example: 
-      - `TARBALL_FILE_PATH="/root/tekton/arcas-tekton-cicd/service_installer_tekton_v15x.tar"`
-   </br>or
-      - `TARBALL_URL="http://mynfsserver/images/service_installer_tekton_v15x.tar"`
-   3. Save the file and exit.
-   4. Open `cluster_resources/kind-init-config.yaml`.
-   
-      Provide a free port for the nginx service to use. If you do not specify a port, by default 80 port is used.
-         ```
-         extraPortMappings:
-         - containerPort: 80
-           hostPort: <PROVIDE FREE PORT like 8085 or 8001>
-         ```
-   5. Execute:
-      ```shell
-      ./launch.sh --create-cluster
-      ``` 
-        This command creates a kind cluster which is required for the Tekton pipeline.
-   8. When prompted for the Docker login, provide the docker login credentials. 
+   2. User can generate own docker image OR use pre-existed docker image
+      1. To use pre-existing dokcer image:
+       - Open `launch.sh` and update `TARBALL_FILE_PATH` to the absolute path where the Service Installer Docker TAR file is downloaded.</br>
+         For example: 
+           - `TARBALL_FILE_PATH="/root/tekton/arcas-tekton-cicd/service_installer_tekton_v15x.tar"`
+           </br>or
+           - `TARBALL_URL="http://mynfsserver/images/service_installer_tekton_v15x.tar"`
+         Save the file and exit.
+      2. To generate docker image using docker file
+         ```Shell
+         ./launch.sh --build_docker_image
+         ``` 
+         This will generate a docker image named as `sivt_tekton:tkn` using existing dockerfile
+4. Open `cluster_resources/kind-init-config.yaml`.
+
+   Provide a free port for the nginx service to use. If you do not specify a port, by default 80 port is used.
+      ```
+      extraPortMappings:
+      - containerPort: 80
+        hostPort: <PROVIDE FREE PORT like 8085 or 8001>
+      ```
+5. Execute:
+   ```shell
+   ./launch.sh --create-cluster
+   ``` 
+     This command creates a kind cluster which is required for the Tekton pipeline.
+6. When prompted for the Docker login, provide the docker login credentials. 
     
-      This needs to be done one time only.
+   This needs to be done one time only.
   
-4. Tekton dashboard preparation:
+7. Tekton dashboard preparation:
 
    Tekton provides a dashboard for monitoring and triggering pipelines from the UI. It is recommended to have the dashboard integrated. This step can be skipped, if Tekton dashboard is not required for your environment.
    - Execute
@@ -74,7 +84,7 @@ Tekton pipeline execution requires the following:
      ```
       The exposed port is `hostPort` set in step 4 of `Tekton pipeline environment preparation`.
 
-5. Service accounts and secrets preparation:
+8. Service accounts and secrets preparation:
 - Browse to the directory in Linux/SIVT VM where private git repo is cloned 
 - Open `values.yaml` in the SIVT OVA and update the respective entries.
    ```
