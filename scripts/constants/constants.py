@@ -32,7 +32,7 @@ class Paths(str, Enum):
     JSON_SPEC_PATH = "config/deployment-config.json"
     SCALE_PATH = "desired-state/scale.yml"
     REPAVE_PATH = "desired-state/repave.yml"
-    VALUES_YAML_PATH = "values.yaml"
+    VALUES_YAML_PATH = "arcas-tekton-cicd/values.yaml"
 
     # Supported extensions files
     EXT_COMMON_ROOT_DIR = "arcas-tekton-cicd/scripts/common"
