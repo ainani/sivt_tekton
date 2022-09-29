@@ -23,11 +23,11 @@ shared_services:
     harbor:
       deployed: false
       upgraded: false
-  health: UP
+  health: DOWN
   integrations:
     tmc:
       attached: false
-  name: arcas-shared-services
+  name: abhi-clstr-shrd
   upgradedFrom:
   version: 1.5.3
 workload_clusters:
@@ -45,9 +45,9 @@ workload_clusters:
     prometheus:
       deployed: false
       upgraded: false
-  health: UP
+  health: DOWN
   integrations:
     tmc:
       attached: false
-  name: arcas-workload
+  name: abhi-wrkld-clsrt
   version: 1.5.3
