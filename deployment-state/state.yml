@@ -1,8 +1,8 @@
 avi:
-  deployed: false
+  deployed: true
   health: UP
-  name: alb_controller
-  version: 20.1.7
+  name: avi-controller1.tsv.local
+  version: 21.1.4
 mgmt:
   deployed: false
   health: DOWN
