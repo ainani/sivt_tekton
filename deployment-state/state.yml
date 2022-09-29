@@ -4,9 +4,9 @@ avi:
   name: alb_controller
   version: 20.1.7
 mgmt:
-  deployed: true
-  health: UP
-  name: mgmt-clu
+  deployed: false
+  health: DOWN
+  name: abhi-clstr-mgmt
   version: 1.5.3
 shared_services:
   deployed: false
@@ -28,7 +28,7 @@ shared_services:
     tmc:
       attached: false
   name: arcas-shared-services
-  upgradedFrom: null
+  upgradedFrom:
   version: 1.5.3
 workload_clusters:
 - deployed: false
